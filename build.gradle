@@ -144,8 +144,7 @@ modAccessor {
 
 dependencies {
     // LDLib2
-    implementation("com.lowdragmc.ldlib2:ldlib2-neoforge-${minecraft_version}:${ldlib2_version}:all") { transitive = false }
-    implementation "org.appliedenergistics.yoga:yoga:1.0.0"
+    implementation("com.lowdragmc.ldlib2:ldlib2-neoforge-${minecraft_version}:${ldlib2_version}:all")
 
     // KubeJS
     implementation "dev.latvian.mods:rhino:${rhino_version}"

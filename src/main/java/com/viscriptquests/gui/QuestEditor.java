@@ -5,7 +5,7 @@ import com.lowdragmc.lowdraglib2.editor.ui.Editor;
 import com.mojang.blaze3d.MethodsReturnNonnullByDefault;
 import com.viscriptquests.ViScriptQuests;
 import com.viscriptquests.gui.project.QuestProject;
-import com.viscriptquests.gui.view.ToolView;
+import dev.vfyjxf.taffy.style.TaffyDisplay;
 import net.minecraft.resources.ResourceLocation;
 import org.jetbrains.annotations.Nullable;
 
@@ -17,11 +17,11 @@ import java.io.File;
 public class QuestEditor extends Editor {
     public final static ResourceLocation QUEST_ID = ViScriptQuests.id("editor");
 
-    public ToolView toolView = new ToolView(this);
 
     public QuestEditor() {
         this.fileMenu.addProjectProvider(QuestProject.PROVIDER);
-        this.leftWindow.getLeftTop().addView(toolView);
+        this.bottomWindow.setDisplay(TaffyDisplay.NONE);
+        this.bottomWindow.getParentWindow().removeSplitWindow(this.bottomWindow);
     }
 
     @Override
@@ -33,7 +33,6 @@ public class QuestEditor extends Editor {
     protected void loadNewProject(IProject project, @Nullable File projectFile) {
         if (project instanceof QuestProject questProject) {
             super.loadNewProject(project, projectFile);
-            inspectorView.inspect(questProject.quest.questInfo);
         }
     }
 }

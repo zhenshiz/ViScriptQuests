@@ -5,7 +5,6 @@ import com.lowdragmc.lowdraglib2.Platform;
 import com.lowdragmc.lowdraglib2.editor.project.IProject;
 import com.lowdragmc.lowdraglib2.editor.project.ProjectType;
 import com.lowdragmc.lowdraglib2.editor.resource.Resources;
-import com.lowdragmc.lowdraglib2.editor.resource.TexturesResource;
 import com.lowdragmc.lowdraglib2.editor.ui.Editor;
 import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Dialog;
@@ -41,9 +40,7 @@ public class QuestProject implements IProject {
 
     @Override
     public Resources getResources() {
-        return Resources.of(
-                TexturesResource.INSTANCE
-        );
+        return Resources.EMPTY;
     }
 
     @Override
@@ -77,24 +74,24 @@ public class QuestProject implements IProject {
             exportMenuSubscription.unsubscribe();
         }
         exportMenuSubscription = editor.fileMenu.registerMenuCreator((tab, menu) ->
-                menu.branch("viscript_quests.editor.shop.export", m ->
-                        m.leaf("viscript_quests.editor.shop.export", () -> {
-                            Dialog.showFileDialog("viscript_quests.editor.saveAs", new File(LDLib2.getAssetsDir(), "%s/quest/".formatted(ViScriptQuests.MOD_ID)), false,
-                                    Dialog.suffixFilter(Quest.SUFFIX), file -> {
-                                        if (file != null && !file.isDirectory()) {
-                                            if (!file.getName().endsWith(Quest.SUFFIX)) {
-                                                file = new File(file.getParentFile(), file.getName() + Quest.SUFFIX);
-                                            }
-                                            try {
-                                                var fileData = quest.serializeNBT(Platform.getFrozenRegistry());
-                                                NbtIo.writeCompressed(fileData, file.toPath());
-                                                QuestHelper.clearCache();
-                                            } catch (Exception ignored) {
-                                            }
+                menu.branch("viscript_quests.editor.quest.export", m -> {
+                    m.leaf("viscript_quests.editor.quest.export", () -> {
+                        Dialog.showFileDialog("viscript_quests.editor.saveAs", new File(LDLib2.getAssetsDir(), "%s/quest/".formatted(ViScriptQuests.MOD_ID)), false,
+                                Dialog.suffixFilter(Quest.SUFFIX), file -> {
+                                    if (file != null && !file.isDirectory()) {
+                                        if (!file.getName().endsWith(Quest.SUFFIX)) {
+                                            file = new File(file.getParentFile(), file.getName() + Quest.SUFFIX);
                                         }
-                                    }).show(editor);
-                        })
-                ));
+                                        try {
+                                            var fileData = quest.serializeNBT(Platform.getFrozenRegistry());
+                                            NbtIo.writeCompressed(fileData, file.toPath());
+                                            QuestHelper.clearCache();
+                                        } catch (Exception ignored) {
+                                        }
+                                    }
+                                }).show(editor);
+                    });
+                }));
     }
 
     @Override
