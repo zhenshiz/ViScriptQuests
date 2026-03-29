@@ -11,7 +11,7 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.server.level.ServerPlayer;
 
-@LDLRegister(name = "quest", registry = "viscript_quests:command")
+@LDLRegister(name = "quest", registry = ICommand.COMMAND_ID)
 public class QuestCommand implements ICommand {
     @Override
     public void register(CommandDispatcher<CommandSourceStack> dispatcher, CommandBuildContext buildContext, Commands.CommandSelection commandSelection) {

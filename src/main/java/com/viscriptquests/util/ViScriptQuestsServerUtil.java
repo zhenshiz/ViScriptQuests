@@ -4,7 +4,6 @@ import com.lowdragmc.lowdraglib2.integration.kjs.KJSBindings;
 import com.lowdragmc.lowdraglib2.networking.rpc.RPCPacketDistributor;
 import com.viscriptquests.ViScriptQuests;
 import com.viscriptquests.network.s2c.S2CPayload;
-import com.viscriptquests.quest.CategoryQuest;
 import dev.latvian.mods.kubejs.typings.Info;
 import net.minecraft.server.level.ServerPlayer;
 

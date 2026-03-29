@@ -14,35 +14,8 @@ import net.neoforged.neoforge.items.ItemHandlerHelper;
 
 @EqualsAndHashCode(callSuper = true)
 @Data
-@LDLRegister(name = "item", registry = "viscript_quests:quest_reward")
+@LDLRegister(name = "item", registry = IQuestReward.ID)
 public class ItemReward extends IQuestReward {
     @Configurable(name = "viscript_quests.reward.item.itemStack")
     private ItemStack itemStack = ItemStack.EMPTY;
-
-    @Override
-    public String getType() {
-        return "item";
-    }
-
-    @Override
-    public Component getName() {
-        return Component.translatable("viscript_quests.reward.item");
-    }
-
-    @Override
-    public void grant(ServerPlayer player) {
-        if (itemStack.isEmpty()) {
-            ItemHandlerHelper.giveItemToPlayer(player, itemStack);
-        }
-    }
-
-    @Override
-    public IGuiTexture getIcon() {
-        return new ItemStackTexture(Items.DIAMOND);
-    }
-
-    @Override
-    public Component getDescription() {
-        return null;
-    }
 }

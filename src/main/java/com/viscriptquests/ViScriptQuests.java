@@ -35,7 +35,7 @@ public class ViScriptQuests {
     public ViScriptQuests(IEventBus modEventBus, ModContainer modContainer, Dist dist) {
         NeoForge.EVENT_BUS.addListener(this::onRegisterCommands);
         if (dist == Dist.CLIENT) {
-            modContainer.registerConfig(ModConfig.Type.COMMON, Config.CONFIG_SPEC, "%s_config.toml".formatted(MOD_ID));
+            modContainer.registerConfig(ModConfig.Type.CLIENT, Config.CONFIG_SPEC, "%s_config.toml".formatted(MOD_ID));
             modContainer.registerExtensionPoint(IConfigScreenFactory.class, ConfigurationScreen::new);
         }
     }
