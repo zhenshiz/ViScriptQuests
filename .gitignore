@@ -28,3 +28,5 @@ replay_pid*
 build
 run
 .gradle-user-home
+.narrafork/
+.worktrees/
