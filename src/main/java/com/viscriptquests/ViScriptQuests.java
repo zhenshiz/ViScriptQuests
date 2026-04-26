@@ -4,12 +4,8 @@ import com.lowdragmc.lowdraglib2.registry.AutoRegistry;
 import com.lowdragmc.lowdraglib2.registry.annotation.LDLRegister;
 import com.mojang.logging.LogUtils;
 import com.viscriptquests.command.ICommand;
-import com.viscriptquests.quest.QuestSavedData;
-import lombok.Getter;
-import lombok.Setter;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.level.saveddata.SavedData;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
@@ -28,14 +24,11 @@ import java.util.function.Supplier;
 public class ViScriptQuests {
     public static final String MOD_ID = "viscript_quests";
     public static final Logger LOGGER = LogUtils.getLogger();
-    @Setter
-    @Getter
-    private static QuestSavedData questSavedData;
 
     public ViScriptQuests(IEventBus modEventBus, ModContainer modContainer, Dist dist) {
         NeoForge.EVENT_BUS.addListener(this::onRegisterCommands);
+        modContainer.registerConfig(ModConfig.Type.COMMON, Config.CONFIG_SPEC, "%s_config.toml".formatted(MOD_ID));
         if (dist == Dist.CLIENT) {
-            modContainer.registerConfig(ModConfig.Type.CLIENT, Config.CONFIG_SPEC, "%s_config.toml".formatted(MOD_ID));
             modContainer.registerExtensionPoint(IConfigScreenFactory.class, ConfigurationScreen::new);
         }
     }

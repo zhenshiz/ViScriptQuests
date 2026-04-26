@@ -1,19 +1,14 @@
 package com.viscriptquests.util;
 
-import com.mojang.datafixers.util.Pair;
 import com.mojang.serialization.Codec;
-import com.mojang.serialization.DataResult;
-import com.mojang.serialization.DynamicOps;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class CodecUtil {
 
@@ -29,39 +24,24 @@ public class CodecUtil {
      * @return Map 的 Codec
      */
     public static <K, V> Codec<Map<K, V>> createMapCodec(Codec<K> keyCodec, Codec<V> valueCodec, HolderLookup.Provider provider) {
-        return new Codec<>() {
-            @Override
-            public <T> DataResult<Pair<Map<K, V>, T>> decode(DynamicOps<T> ops, T input) {
-                if (!(ops instanceof NbtOps)) {
-                    return DataResult.error(() -> "Only NBT operations are supported");
-                }
-                Tag tag = (Tag) input;
-                if (!(tag instanceof CompoundTag compoundTag)) {
-                    return DataResult.error(() -> "Expected CompoundTag");
-                }
+        Codec<Map.Entry<K, V>> entryCodec = RecordCodecBuilder.create(instance -> instance.group(
+                keyCodec.fieldOf("key").forGetter(Map.Entry::getKey),
+                valueCodec.fieldOf("value").forGetter(Map.Entry::getValue)
+        ).apply(instance, AbstractMap.SimpleEntry::new));
 
-                try {
-                    Map<K, V> map = deserializeMap(compoundTag, keyCodec, valueCodec, provider);
-                    return DataResult.success(Pair.of(map, input));
-                } catch (Exception e) {
-                    return DataResult.error(() -> "Failed to deserialize map: " + e.getMessage());
-                }
+        return entryCodec.listOf().xmap(entries -> {
+            Map<K, V> map = new HashMap<>();
+            for (Map.Entry<K, V> entry : entries) {
+                map.put(entry.getKey(), entry.getValue());
             }
-
-            @Override
-            public <T> DataResult<T> encode(Map<K, V> map, DynamicOps<T> ops, T prefix) {
-                if (!(ops instanceof NbtOps)) {
-                    return DataResult.error(() -> "Only NBT operations are supported");
-                }
-
-                try {
-                    CompoundTag compoundTag = serializeMap(map, keyCodec, valueCodec, provider);
-                    return DataResult.success((T) compoundTag);
-                } catch (Exception e) {
-                    return DataResult.error(() -> "Failed to serialize map: " + e.getMessage());
-                }
+            return map;
+        }, map -> {
+            List<Map.Entry<K, V>> entries = new ArrayList<>();
+            for (Map.Entry<K, V> entry : map.entrySet()) {
+                entries.add(new AbstractMap.SimpleEntry<>(entry.getKey(), entry.getValue()));
             }
-        };
+            return entries;
+        });
     }
 
     public static <T> T deserializeNBT(Codec<T> codec, Tag tag, HolderLookup.Provider provider) {

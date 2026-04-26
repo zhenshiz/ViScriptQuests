@@ -60,7 +60,7 @@ repositories {
 }
 
 base {
-    archivesName = mod_id
+    archivesName = "${mod_name}-neoforge-${minecraft_version}"
 }
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
@@ -135,6 +135,11 @@ neoForge {
     }
 }
 
+neoForge.unitTest {
+    getTestedMod().set(neoForge.mods.named("${mod_id}"))
+    enable()
+}
+
 sourceSets.main.resources { srcDir 'src/generated/resources' }
 
 modAccessor {
@@ -158,6 +163,10 @@ dependencies {
 
     //plugin
     additionalRuntimeClasspath("dev.vfyjxf:mixin-hotswap-agent:1.1")
+
+    testImplementation platform("org.junit:junit-bom:5.10.2")
+    testImplementation "org.junit.jupiter:junit-jupiter"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher"
 }
 
 tasks.withType(ProcessResources).configureEach {
@@ -180,15 +189,63 @@ tasks.withType(ProcessResources).configureEach {
     }
 }
 
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
+}
+
 publishing {
     publications {
-        register('mavenJava', MavenPublication) {
+        mavenJava(MavenPublication) {
             from components.java
+
+            groupId = project.group
+            artifactId = base.archivesName.get()
+            version = project.version
+
+            pom.withXml {
+                def dependenciesNode = asNode().getAt("dependencies")[0]
+                if (dependenciesNode != null) {
+                    // 这里添加你希望保留在 POM 中的 groupId 或 artifactId，也就是从 Maven 拉依赖时会附带的库、模组啥的
+                    def whiteList = [
+                    ]
+
+                    def dependencies = dependenciesNode.children()
+                    def toRemove = []
+
+                    dependencies.each { dep ->
+                        def artifactId = dep.artifactId.text()
+                        def groupId = dep.groupId.text()
+
+                        if (!whiteList.contains(artifactId) && !whiteList.contains(groupId)) {
+                            toRemove.add(dep)
+                        }
+                    }
+
+                    toRemove.each { dependenciesNode.remove(it) }
+                }
+            }
         }
     }
+
     repositories {
+        def modVersion = project.findProperty('mod_version') ?: 'unknown'
+
+        boolean isSnapshot = modVersion.toLowerCase().contains('snapshot')
+
+        def publishUrl = isSnapshot ?
+                "https://maven.sighs.cc/repository/maven-snapshots/" :
+                "https://maven.sighs.cc/repository/maven-releases/"
+
+        def publishUser = System.getenv("SIGHS_PUBLISH_USER")
+        def publishPassword = System.getenv("SIGHS_PUBLISH_PASSWORD")
+
         maven {
-            url "file://${project.projectDir}/repo"
+            name = "remoteRepo"
+            url = uri(publishUrl)
+            credentials {
+                username = publishUser
+                password = publishPassword
+            }
         }
     }
 }

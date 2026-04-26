@@ -1,11 +1,11 @@
-package com.viscriptshop.mixin;
+package com.viscriptquests.mixin;
 
 import com.llamalad7.mixinextras.sugar.Local;
 import com.lowdragmc.lowdraglib2.configurator.accessors.ItemStackAccessor;
 import com.lowdragmc.lowdraglib2.configurator.ui.Configurator;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
-import com.viscriptshop.gui.components.SelectItemDialog;
+import com.viscriptquests.gui.components.SelectItemDialog;
 import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
