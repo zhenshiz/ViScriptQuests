@@ -8,6 +8,7 @@ import com.lowdragmc.lowdraglib2.utils.PersistedParser;
 import com.mojang.serialization.Codec;
 import com.viscriptquests.ViScriptQuests;
 import com.viscriptquests.ViScriptQuestsRegistries;
+import com.viscriptquests.quest.data.DisplayIcon;
 import com.viscriptquests.quest.data.QuestSubmitMode;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.network.chat.Component;
@@ -46,4 +47,7 @@ public abstract class ITask implements ILDLRegister<ITask, Supplier<ITask>>, IPe
 
     // 返回任务提示文本，用于 UI 展示（如"需要收集 1 个 合成台"）
     public abstract Component getTaskHint();
+
+    // hud显示的图片
+    public abstract DisplayIcon getHudIcon();
 }

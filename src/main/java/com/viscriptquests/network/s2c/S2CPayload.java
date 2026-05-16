@@ -9,6 +9,7 @@ import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
 import com.lowdragmc.lowdraglib2.gui.ui.UI;
 import com.lowdragmc.lowdraglib2.networking.rpc.RPCPacket;
 import com.viscriptquests.ViScriptQuests;
+import com.viscriptquests.gui.hud.QuestHudData;
 import com.viscriptquests.gui.editor.QuestEditor;
 import com.viscriptquests.gui.editor.QuestProject;
 import com.viscriptquests.util.ViScriptQuestsClientUtil;
@@ -20,6 +21,7 @@ public class S2CPayload {
     public static final String OPEN_EDITOR_WITH_PROJECT = ViScriptQuests.MOD_ID + ":open_editor_with_project";
     public static final String OPEN_QUEST_BOOK = ViScriptQuests.MOD_ID + ":open_quest_book";
     public static final String OPEN_CATEGORY_CONFIG = ViScriptQuests.MOD_ID + ":open_category_config";
+    public static final String SYNC_QUEST_HUD = ViScriptQuests.MOD_ID + ":sync_quest_hud";
 
     // 服务端发送项目图数据到客户端，打开编辑器并加载该图
     @RPCPacket(OPEN_EDITOR_WITH_PROJECT)
@@ -51,7 +53,15 @@ public class S2CPayload {
     @RPCPacket(OPEN_QUEST_BOOK)
     public static void openQuestBook(CompoundTag data) {
         if (LDLib2.isClient()) {
+            QuestHudData.update(data);
             ViScriptQuestsClientUtil.openQuestBook(data);
+        }
+    }
+
+    @RPCPacket(SYNC_QUEST_HUD)
+    public static void syncQuestHud(CompoundTag data) {
+        if (LDLib2.isClient()) {
+            QuestHudData.update(data);
         }
     }
 

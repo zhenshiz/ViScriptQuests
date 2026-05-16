@@ -2,9 +2,11 @@ package com.viscriptquests.quest.event;
 
 import com.viscriptquests.ViScriptQuests;
 import com.viscriptquests.quest.runtime.QuestManager;
+import com.viscriptquests.quest.runtime.QuestTrackingService;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 
 @EventBusSubscriber(modid = ViScriptQuests.MOD_ID)

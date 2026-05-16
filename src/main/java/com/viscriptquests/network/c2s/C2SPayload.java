@@ -6,6 +6,7 @@ import com.lowdragmc.lowdraglib2.syncdata.rpc.RPCSender;
 import com.viscriptquests.ViScriptQuests;
 import com.viscriptquests.quest.data.runtime.QuestCategoryListData;
 import com.viscriptquests.quest.data.QuestFile;
+import com.viscriptquests.quest.runtime.QuestTrackingService;
 import com.viscriptquests.util.QuestFileHelper;
 import com.viscriptquests.quest.data.QuestSavedData;
 import net.minecraft.nbt.CompoundTag;
@@ -74,6 +75,7 @@ public class C2SPayload {
             playerData.trackedQuestId = "";
             playerData.trackedStepId = "";
             savedData.setDirty();
+            QuestTrackingService.refresh(player);
             return;
         }
         var questState = playerData.findQuest(trackedQuestId);
@@ -81,6 +83,7 @@ public class C2SPayload {
             playerData.trackedQuestId = "";
             playerData.trackedStepId = "";
             savedData.setDirty();
+            QuestTrackingService.refresh(player);
             return;
         }
         playerData.trackedQuestId = trackedQuestId;
@@ -88,5 +91,6 @@ public class C2SPayload {
                 ? trackedStepId
                 : "";
         savedData.setDirty();
+        QuestTrackingService.refresh(player);
     }
 }

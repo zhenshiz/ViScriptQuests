@@ -59,7 +59,6 @@ public class QuestBookUI extends UIElement {
     private static final int BOOKMARK_GAP = 3;
     private static final int BOOKMARK_ICON_SIZE = 16;
     private static final int QUEST_ICON_SIZE = 16;
-    private static final int DETAIL_ICON_SIZE = 24;
     private static final int REWARD_SLOT_SIZE = 34;
     private static final int REWARD_ICON_SIZE = 18;
     private static final int SUB_TASK_INDENT = 24;
@@ -598,7 +597,7 @@ public class QuestBookUI extends UIElement {
             layout.alignItems(AlignItems.CENTER);
             layout.paddingHorizontal(2);
         });
-        Label statusText = label(getTaskStatusLabel(taskProgress.status), 10);
+        Label statusText = label(taskProgress.status.displayName(), 10);
         statusText.textStyle(style -> style
                 .textColor(statusColor(taskProgress.status))
                 .fontSize(FONT_SMALL)
@@ -621,35 +620,26 @@ public class QuestBookUI extends UIElement {
     }
 
     private void addTaskDetail(PlayerQuestState quest, TaskProgress taskProgress) {
-        addTaskDetailHeader(quest, taskProgress);
+        addTaskDetailHeader(taskProgress);
         addTaskDescription(taskProgress);
         addTaskRequirement(taskProgress);
         addRewardsForTask(quest, taskProgress.stepId);
         addTrackTaskButton(quest, taskProgress);
     }
 
-    private void addTaskDetailHeader(PlayerQuestState quest, TaskProgress taskProgress) {
+    private void addTaskDetailHeader(TaskProgress taskProgress) {
         UIElement header = new UIElement();
         header.layout(layout -> {
             layout.widthPercent(100);
-            layout.minHeight(36);
-            layout.flexDirection(FlexDirection.ROW);
-            layout.alignItems(AlignItems.CENTER);
+            layout.minHeight(30);
+            layout.flexDirection(FlexDirection.COLUMN);
             layout.paddingAll(3);
-            layout.gapAll(6);
+            layout.gapAll(2);
         });
-
-        UIElement icon = createDisplayIcon(quest.icon, Component.empty());
-        icon.layout(layout -> {
-            layout.width(DETAIL_ICON_SIZE);
-            layout.height(DETAIL_ICON_SIZE);
-        });
-        header.addChild(icon);
 
         UIElement titleCol = new UIElement();
         titleCol.layout(layout -> {
-            layout.width(0);
-            layout.flex(1);
+            layout.widthPercent(100);
             layout.flexDirection(FlexDirection.COLUMN);
             layout.gapAll(2);
         });
@@ -664,24 +654,6 @@ public class QuestBookUI extends UIElement {
             titleCol.addChild(subtitle);
         }
         header.addChild(titleCol);
-
-        UIElement statusTag = texturedPanel(STATUS_TAG);
-        statusTag.layout(layout -> {
-            layout.width(66);
-            layout.height(20);
-            layout.justifyContent(AlignContent.CENTER);
-            layout.alignItems(AlignItems.CENTER);
-            layout.paddingHorizontal(4);
-        });
-        Label statusText = label(getTaskStatusLabel(taskProgress.status), 11);
-        statusText.textStyle(style -> style
-                .textColor(statusColor(taskProgress.status))
-                .fontSize(FONT_SMALL)
-                .textAlignHorizontal(Horizontal.CENTER)
-                .textAlignVertical(Vertical.CENTER)
-                .textWrap(TextWrap.HIDE));
-        statusTag.addChild(statusText);
-        header.addChild(statusTag);
 
         detailScroller.addScrollViewChild(header);
     }
@@ -1054,17 +1026,6 @@ public class QuestBookUI extends UIElement {
             return taskProgress.title;
         }
         return taskProgress.stepId;
-    }
-
-    private static Component getTaskStatusLabel(TaskStatus status) {
-        return switch (status) {
-            case COMPLETED -> Component.translatable("viscript_quests.quest_book.task_status.completed");
-            case FAILED -> Component.translatable("viscript_quests.quest_book.task_status.failed");
-            case HIDDEN -> Component.translatable("viscript_quests.quest_book.task_status.hidden");
-            case ACTIVE -> Component.translatable("viscript_quests.quest_book.task_status.active");
-            case LOCKED -> Component.translatable("viscript_quests.quest_book.task_status.locked");
-            case SKIPPED -> Component.translatable("viscript_quests.quest_book.task_status.skipped");
-        };
     }
 
     private static Component getTaskStatusIcon(TaskStatus status) {

@@ -20,6 +20,7 @@ import com.viscriptquests.quest.data.runtime.TaskStatus;
 import com.viscriptquests.util.QuestFileHelper;
 import com.viscriptquests.quest.runtime.QuestManager;
 import com.viscriptquests.quest.data.QuestSavedData;
+import com.viscriptquests.quest.runtime.QuestTrackingService;
 import lombok.SneakyThrows;
 import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.commands.CommandSourceStack;
@@ -174,6 +175,7 @@ public class QuestCommand implements ICommand {
         int successCount = 0;
         for (ServerPlayer player : players) {
             QuestSavedData.get(player.getServer()).resetPlayerData(player.getUUID());
+            QuestTrackingService.refresh(player);
             successCount++;
             if (players.size() == 1) {
                 context.getSource().sendSuccess(() -> Component.translatable(

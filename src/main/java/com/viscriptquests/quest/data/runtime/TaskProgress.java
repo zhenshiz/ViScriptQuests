@@ -2,6 +2,7 @@ package com.viscriptquests.quest.data.runtime;
 
 import com.lowdragmc.lowdraglib2.syncdata.IPersistedSerializable;
 import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
+import com.viscriptquests.quest.data.DisplayIcon;
 import com.viscriptquests.quest.data.QuestStep;
 import com.viscriptquests.quest.data.task.ITask;
 
@@ -18,6 +19,8 @@ public class TaskProgress implements IPersistedSerializable {
     @Persisted
     public String taskHint = "";
     @Persisted
+    public DisplayIcon hudIcon = new DisplayIcon();
+    @Persisted
     public TaskStatus status = TaskStatus.ACTIVE;
 
     public static TaskProgress fromTask(ITask task, QuestStep step) {
@@ -29,6 +32,7 @@ public class TaskProgress implements IPersistedSerializable {
             progress.description = step.description.clone();
         }
         progress.taskHint = task.getTaskHint().getString();
+        progress.hudIcon = task.getHudIcon();
         progress.status = TaskStatus.ACTIVE;
         return progress;
     }

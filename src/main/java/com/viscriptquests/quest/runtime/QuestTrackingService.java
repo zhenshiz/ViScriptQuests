@@ -1,5 +1,8 @@
 package com.viscriptquests.quest.runtime;
 
+import com.lowdragmc.lowdraglib2.Platform;
+import com.lowdragmc.lowdraglib2.networking.rpc.RPCPacketDistributor;
+import com.viscriptquests.network.s2c.S2CPayload;
 import com.viscriptquests.quest.data.QuestSavedData;
 import com.viscriptquests.quest.data.runtime.PlayerQuestState;
 import com.viscriptquests.quest.data.runtime.QuestPlayerData;
@@ -108,6 +111,9 @@ public class QuestTrackingService {
      * @param player 服务端玩家，要刷新该玩家的追踪状态展示
      */
     public static void refresh(ServerPlayer player) {
+        QuestPlayerData playerData = QuestSavedData.get(player.getServer()).getPlayer(player.getUUID());
+        RPCPacketDistributor.rpcToPlayer(player, S2CPayload.SYNC_QUEST_HUD,
+                playerData.serializeNBT(Platform.getFrozenRegistry()));
     }
 
     /**
