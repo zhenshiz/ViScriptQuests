@@ -20,7 +20,7 @@ public class SelectItemDialog extends Dialog {
     public SelectItemDialog(Consumer<ItemStack> onItemSelected) {
         super();
         this.onItemSelected = onItemSelected;
-        this.setTitle("viscript_shop.selectItemDialog.title");
+        this.setTitle("viscript_quests.gui.select_item_dialog");
         this.buttonContainer.setDisplay(TaffyDisplay.NONE);
         this.width(TaffyDimension.length(200));
         this.getStyle().zIndex(100);

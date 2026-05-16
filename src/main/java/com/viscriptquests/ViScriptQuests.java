@@ -1,9 +1,15 @@
 package com.viscriptquests;
 
+import com.lowdragmc.lowdraglib2.editor.ui.EditorWindow;
+import com.lowdragmc.lowdraglib2.gui.factory.PlayerUIMenuType;
+import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
+import com.lowdragmc.lowdraglib2.gui.ui.UI;
 import com.lowdragmc.lowdraglib2.registry.AutoRegistry;
 import com.lowdragmc.lowdraglib2.registry.annotation.LDLRegister;
 import com.mojang.logging.LogUtils;
 import com.viscriptquests.command.ICommand;
+import com.viscriptquests.config.ClientConfig;
+import com.viscriptquests.gui.editor.QuestEditor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.api.distmarker.Dist;
@@ -26,11 +32,18 @@ public class ViScriptQuests {
     public static final Logger LOGGER = LogUtils.getLogger();
 
     public ViScriptQuests(IEventBus modEventBus, ModContainer modContainer, Dist dist) {
-        NeoForge.EVENT_BUS.addListener(this::onRegisterCommands);
-        modContainer.registerConfig(ModConfig.Type.COMMON, Config.CONFIG_SPEC, "%s_config.toml".formatted(MOD_ID));
         if (dist == Dist.CLIENT) {
+            modContainer.registerConfig(ModConfig.Type.CLIENT, ClientConfig.SPEC, String.format("%s_client_config.toml", MOD_ID));
             modContainer.registerExtensionPoint(IConfigScreenFactory.class, ConfigurationScreen::new);
         }
+        NeoForge.EVENT_BUS.addListener(this::onRegisterCommands);
+        PlayerUIMenuType.register(QuestEditor.EDITOR_ID, ignored -> player -> {
+            if (player.level().isClientSide) {
+                return new ModularUI(UI.of(EditorWindow.open(QuestEditor.EDITOR_ID, QuestEditor::new)))
+                        .shouldCloseOnKeyInventory(false);
+            }
+            return new ModularUI(UI.empty());
+        });
     }
 
     //注册指令

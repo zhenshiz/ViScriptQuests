@@ -2,6 +2,6 @@ package com.viscriptquests.util;
 
 import com.lowdragmc.lowdraglib2.integration.kjs.KJSBindings;
 
-@KJSBindings(value = "server", modId = "viscript_quests")
+@KJSBindings(value = "ViScriptQuestsUtil")
 public class ViScriptQuestsServerUtil {
 }

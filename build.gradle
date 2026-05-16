@@ -155,6 +155,12 @@ dependencies {
     implementation "dev.latvian.mods:rhino:${rhino_version}"
     implementation "dev.latvian.mods:kubejs-neoforge:${kubejs_version}"
 
+    //精妙背包
+    implementation "maven.modrinth:sophisticated-backpacks:${sophisticated_backpacks_version}"
+    implementation "maven.modrinth:sophisticated-core:${sophisticated_core_version}"
+    //超越维度
+    implementation "curse.maven:beyond-dimensions-1222890:${beyonddimensions_version}"
+
     //must
     implementation "maven.modrinth:sodium:${sodium_version}"
     implementation "maven.modrinth:iris:${iris_version}"
@@ -163,10 +169,6 @@ dependencies {
 
     //plugin
     additionalRuntimeClasspath("dev.vfyjxf:mixin-hotswap-agent:1.1")
-
-    testImplementation platform("org.junit:junit-bom:5.10.2")
-    testImplementation "org.junit.jupiter:junit-jupiter"
-    testRuntimeOnly "org.junit.platform:junit-platform-launcher"
 }
 
 tasks.withType(ProcessResources).configureEach {
