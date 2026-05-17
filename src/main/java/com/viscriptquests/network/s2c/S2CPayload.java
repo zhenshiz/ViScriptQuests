@@ -22,6 +22,7 @@ public class S2CPayload {
     public static final String OPEN_QUEST_BOOK = ViScriptQuests.MOD_ID + ":open_quest_book";
     public static final String OPEN_CATEGORY_CONFIG = ViScriptQuests.MOD_ID + ":open_category_config";
     public static final String SYNC_QUEST_HUD = ViScriptQuests.MOD_ID + ":sync_quest_hud";
+    public static final String SYNC_QUEST_BOOK = ViScriptQuests.MOD_ID + ":sync_quest_book";
 
     // 服务端发送项目图数据到客户端，打开编辑器并加载该图
     @RPCPacket(OPEN_EDITOR_WITH_PROJECT)
@@ -55,6 +56,14 @@ public class S2CPayload {
         if (LDLib2.isClient()) {
             QuestHudData.update(data);
             ViScriptQuestsClientUtil.openQuestBook(data);
+        }
+    }
+
+    @RPCPacket(SYNC_QUEST_BOOK)
+    public static void syncQuestBook(CompoundTag data) {
+        if (LDLib2.isClient()) {
+            QuestHudData.update(data);
+            ViScriptQuestsClientUtil.syncQuestBook(data);
         }
     }
 

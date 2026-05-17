@@ -32,6 +32,15 @@ public class ViScriptQuestsClientUtil {
                 Component.translatable("screen.viscript_quests.quest_book")));
     }
 
+    public static void syncQuestBook(CompoundTag data) {
+        QuestPlayerData playerData = new QuestPlayerData();
+        playerData.deserializeNBT(Platform.getFrozenRegistry(), data);
+        if (minecraft.screen instanceof ModularUIScreen screen
+                && screen.modularUI.ui.rootElement instanceof QuestBookUI questBookUI) {
+            questBookUI.syncPlayerData(playerData);
+        }
+    }
+
     public static void openCategoryConfig(CompoundTag data) {
         QuestCategoryListData categoryData = new QuestCategoryListData();
         categoryData.deserializeNBT(Platform.getFrozenRegistry(), data);

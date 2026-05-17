@@ -4,7 +4,9 @@ import com.viscriptquests.quest.data.QuestFile;
 import com.viscriptquests.quest.data.QuestSavedData;
 import com.viscriptquests.quest.data.runtime.PlayerQuestState;
 import com.viscriptquests.quest.data.runtime.QuestCategoryData;
+import com.viscriptquests.quest.data.runtime.QuestPlayerData;
 import com.viscriptquests.quest.data.runtime.QuestStatus;
+import com.viscriptquests.quest.data.runtime.TaskProgress;
 import com.viscriptquests.util.QuestFileHelper;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
@@ -49,7 +51,7 @@ public class QuestManager {
             return false;
         }
 
-        PlayerQuestState state = PlayerQuestState.fromQuestFile(questFile.get(), player.level().getGameTime());
+        PlayerQuestState state = PlayerQuestState.fromQuestFile(questFile.get(), player.level().getGameTime(), player);
         state.categoryId = normalizedCategoryId;
         QuestFlowExecutor.advance(player, state, questFile.get());
         playerData.putQuest(state);
@@ -95,18 +97,34 @@ public class QuestManager {
     }
 
     /**
-     * 手动提交指定任务下的小任务。
+     * 尝试提交指定小任务下所有当前可提交的目标。
      *
-     * <p>方法会检查玩家对应的小任务进度、目标定义和完成条件。完成后会执行目标完成处理、
-     * 发放小任务奖励、推进流程节点，并刷新玩家追踪状态。
+     * <p>该入口主要给指令和调试使用。目标可以先分批提交；只有小任务下所有目标完成后，
+     * 才会发放奖励、推进流程节点，并刷新玩家追踪状态。
      *
-     * @param player 服务端玩家，提交小任务的玩家
+     * @param player 服务端玩家，提交目标的玩家
      * @param questId 任务标识，允许传入未规范化的任务文件标识
      * @param stepId 小任务标识，对应任务文件中的子任务节点标识
-     * @return 是否成功提交小任务
+     * @return 是否成功提交了至少一个目标，或是否因此完成该小任务
      */
     public static boolean submit(ServerPlayer player, String questId, String stepId) {
         return QuestSubmissionService.submit(player, QuestFileHelper.normalizeQuestId(questId), stepId, false);
+    }
+
+    /**
+     * 手动提交指定小任务下的单个目标。
+     *
+     * @param player 服务端玩家，提交目标的玩家
+     * @param questId 任务标识，允许传入未规范化的任务文件标识
+     * @param stepId 小任务标识，对应任务文件中的子任务节点标识
+     * @param objectiveIndex 目标在该小任务目标列表中的索引
+     * @return 是否成功提交该目标
+     */
+    public static boolean submitObjective(ServerPlayer player, String questId, String stepId, int objectiveIndex) {
+        return QuestSubmissionService.submitObjective(player,
+                QuestFileHelper.normalizeQuestId(questId),
+                stepId,
+                objectiveIndex);
     }
 
     /**
@@ -128,6 +146,30 @@ public class QuestManager {
                 QuestFileHelper.normalizeQuestId(playerData.trackedQuestId),
                 playerData.trackedStepId,
                 true);
+    }
+
+    /**
+     * 刷新任务书需要展示的目标文本、图标和提交按钮状态。
+     *
+     * <p>该方法只同步运行时任务文件派生出的展示数据，不改变任务流程状态。
+     * 打开任务书或服务端提交后调用它，可以让旧存档里的展示字段跟上当前任务定义。
+     *
+     * @param player 服务端玩家，要刷新该玩家的任务书数据
+     */
+    public static void refreshQuestBookDisplayData(ServerPlayer player) {
+        QuestSavedData savedData = QuestSavedData.get(player.getServer());
+        QuestPlayerData playerData = savedData.getPlayer(player.getUUID());
+        QuestFileHelper.clearCache();
+        for (PlayerQuestState state : playerData.quests) {
+            QuestFile questFile = QuestFileHelper.getQuest(state.questId, player.registryAccess()).orElse(null);
+            if (questFile == null) {
+                continue;
+            }
+            for (TaskProgress progress : state.taskProgresses) {
+                progress.refreshObjectives(questFile, player);
+            }
+        }
+        savedData.setDirty();
     }
 
     /**

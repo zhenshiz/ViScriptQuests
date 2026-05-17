@@ -150,6 +150,8 @@ public class QuestCommand implements ICommand {
         if (player == null) {
             throw playerOnlyException();
         }
+        QuestManager.refreshQuestBookDisplayData(player);
+        QuestTrackingService.refresh(player);
         QuestPlayerData playerData = QuestSavedData.get(player.getServer()).getPlayer(player.getUUID());
         CompoundTag data = playerData.serializeNBT(Platform.getFrozenRegistry());
         RPCPacketDistributor.rpcToPlayer(player, S2CPayload.OPEN_QUEST_BOOK, data);

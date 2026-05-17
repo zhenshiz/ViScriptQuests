@@ -37,8 +37,8 @@ public final class QuestBlueprintCompiler {
 
         CustomNodeModelImpl startNodeModel = null;
         Map<String, SubQuestInfo> subQuests = new LinkedHashMap<>();
-        Map<String, CustomNodeModelImpl> taskNodes = new LinkedHashMap<>();
-        Map<String, CustomNodeModelImpl> rewardNodes = new LinkedHashMap<>();
+        Map<String, List<CustomNodeModelImpl>> taskNodes = new LinkedHashMap<>();
+        Map<String, List<CustomNodeModelImpl>> rewardNodes = new LinkedHashMap<>();
 
         for (var nodeModel : graph.graphModel.getNodeModels()) {
             if (!(nodeModel instanceof CustomNodeModelImpl custom)) continue;
@@ -68,7 +68,7 @@ public final class QuestBlueprintCompiler {
             if (taskCompiler != null) {
                 String stepId = taskCompiler.getStepId(context, custom);
                 if (!stepId.isEmpty()) {
-                    taskNodes.put(stepId, custom);
+                    taskNodes.computeIfAbsent(stepId, ignored -> new ArrayList<>()).add(custom);
                 }
                 continue;
             }
@@ -77,7 +77,7 @@ public final class QuestBlueprintCompiler {
             if (rewardCompiler != null) {
                 String stepId = rewardCompiler.getStepId(context, custom);
                 if (!stepId.isEmpty()) {
-                    rewardNodes.put(stepId, custom);
+                    rewardNodes.computeIfAbsent(stepId, ignored -> new ArrayList<>()).add(custom);
                 }
             }
         }
@@ -93,26 +93,29 @@ public final class QuestBlueprintCompiler {
         questFile.quest.icon = context.getDisplayIcon(startNodeModel, "icon");
 
         QuestFlowGraphBuilder.Result result = QuestFlowGraphBuilder.build(startNodeModel, context);
-        Map<String, CustomNodeModelImpl> remainingTasks = new HashMap<>(taskNodes);
+        Map<String, List<CustomNodeModelImpl>> remainingTasks = new LinkedHashMap<>(taskNodes);
         for (String stepId : result.orderedStepIds()) {
-            CustomNodeModelImpl taskModel = remainingTasks.remove(stepId);
-            if (taskModel == null) continue;
-            addCompiledTaskAndStep(questFile, context, taskModel, stepId, subQuests.get(stepId));
+            List<CustomNodeModelImpl> taskModels = remainingTasks.remove(stepId);
+            if (taskModels == null || taskModels.isEmpty()) continue;
+            addCompiledTasksAndStep(questFile, context, taskModels, stepId, subQuests.get(stepId));
         }
         for (var entry : remainingTasks.entrySet()) {
             String stepId = entry.getKey();
-            addCompiledTaskAndStep(questFile, context, entry.getValue(), stepId, subQuests.get(stepId));
+            addCompiledTasksAndStep(questFile, context, entry.getValue(), stepId, subQuests.get(stepId));
         }
 
         questFile.flowNodes.addAll(result.flowNodes());
         questFile.flowEdges.addAll(result.flowEdges());
 
         for (var entry : rewardNodes.entrySet()) {
-            IQuestRewardNodeCompiler rewardCompiler = context.findRewardCompiler(entry.getValue());
-            if (rewardCompiler == null) continue;
-            IReward reward = rewardCompiler.compileReward(context, entry.getValue(), entry.getKey());
-            if (reward != null) {
-                questFile.rewards.add(reward);
+            String stepId = entry.getKey();
+            for (CustomNodeModelImpl rewardModel : entry.getValue()) {
+                IQuestRewardNodeCompiler rewardCompiler = context.findRewardCompiler(rewardModel);
+                if (rewardCompiler == null) continue;
+                IReward reward = rewardCompiler.compileReward(context, rewardModel, stepId);
+                if (reward != null) {
+                    questFile.rewards.add(reward);
+                }
             }
         }
 
@@ -130,25 +133,33 @@ public final class QuestBlueprintCompiler {
         return questFile;
     }
 
-    private static void addCompiledTaskAndStep(QuestFile questFile, QuestCompileContext context,
-                                               CustomNodeModelImpl taskModel, String stepId, SubQuestInfo subInfo) {
-        IQuestTaskNodeCompiler taskCompiler = context.findTaskCompiler(taskModel);
-        if (taskCompiler == null) {
-            return;
+    private static void addCompiledTasksAndStep(QuestFile questFile, QuestCompileContext context,
+                                                List<CustomNodeModelImpl> taskModels, String stepId, SubQuestInfo subInfo) {
+        boolean addedTask = false;
+        for (CustomNodeModelImpl taskModel : taskModels) {
+            IQuestTaskNodeCompiler taskCompiler = context.findTaskCompiler(taskModel);
+            if (taskCompiler == null) {
+                continue;
+            }
+            ITask task = taskCompiler.compileTask(context, taskModel, stepId);
+            if (task == null) {
+                continue;
+            }
+            questFile.tasks.add(task);
+            addedTask = true;
         }
-        ITask task = taskCompiler.compileTask(context, taskModel, stepId);
-        if (task == null) {
-            return;
+        if (addedTask && subInfo != null) {
+            addCompiledStep(questFile, stepId, subInfo);
         }
-        questFile.tasks.add(task);
-        if (subInfo != null) {
-            QuestStep step = new QuestStep();
-            step.stepId = stepId;
-            step.title = subInfo.title;
-            step.subtitle = subInfo.subtitle;
-            step.description = subInfo.description.clone();
-            questFile.steps.add(step);
-        }
+    }
+
+    private static void addCompiledStep(QuestFile questFile, String stepId, SubQuestInfo subInfo) {
+        QuestStep step = new QuestStep();
+        step.stepId = stepId;
+        step.title = subInfo.title;
+        step.subtitle = subInfo.subtitle;
+        step.description = subInfo.description.clone();
+        questFile.steps.add(step);
     }
 
     // 构建变量端口连线反向映射：输入端口 UUID -> 变量名。

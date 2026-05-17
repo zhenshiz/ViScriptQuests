@@ -5,6 +5,7 @@ import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
 import net.minecraft.core.HolderLookup;
 
 import java.util.Map;
+import java.util.Objects;
 
 // 步骤转移时执行的变量修改指令，由 SetVariableNode 编译生成
 // 运行时在转移条件满足后、激活下一步骤前执行
@@ -28,5 +29,19 @@ public class VariableMutation implements IPersistedSerializable {
         questVariables.put(variableName, variableValue == null
                 ? QuestVariableValue.ofFloat(next)
                 : variableValue.withNumericValue(next));
+    }
+
+    @Override
+    public boolean equals(Object object) {
+        if (this == object) return true;
+        if (!(object instanceof VariableMutation that)) return false;
+        return Float.compare(value, that.value) == 0
+                && Objects.equals(variableName, that.variableName)
+                && operation == that.operation;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(variableName, operation, value);
     }
 }

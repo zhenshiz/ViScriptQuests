@@ -19,8 +19,10 @@ import com.viscriptquests.quest.data.runtime.JoinProgress;
 import com.viscriptquests.quest.data.runtime.PlayerQuestState;
 import com.viscriptquests.quest.data.runtime.QuestCategoryData;
 import com.viscriptquests.quest.data.runtime.QuestCategoryListData;
+import com.viscriptquests.quest.data.runtime.QuestGuideMarker;
 import com.viscriptquests.quest.data.runtime.QuestPlayerData;
 import com.viscriptquests.quest.data.runtime.RewardDisplay;
+import com.viscriptquests.quest.data.runtime.TaskObjectiveProgress;
 import com.viscriptquests.quest.data.runtime.TaskProgress;
 import com.viscriptquests.quest.data.task.ITask;
 
@@ -54,14 +56,18 @@ public class ViScriptQuestsPlugin implements ILDLibPlugin {
                         .codecMark()
                         .build());
 
+        // 基础嵌套类型要先注册，避免后续数据类创建 codec 时拿到只读 accessor。
+        register(DisplayIcon.class, DisplayIcon::new);
+        register(QuestGuideMarker.class, QuestGuideMarker::new);
+
         // 运行时数据类型
+        register(TaskObjectiveProgress.class, TaskObjectiveProgress::new);
         register(TaskProgress.class, TaskProgress::new);
         register(QuestStep.class, QuestStep::new);
         register(VariableMutation.class, VariableMutation::new);
         register(QuestValueToken.class, QuestValueToken::new);
         register(QuestVariableValue.class, QuestVariableValue::new);
         register(DebugValuePrint.class, DebugValuePrint::new);
-        register(DisplayIcon.class, DisplayIcon::new);
         register(QuestCategoryData.class, QuestCategoryData::new);
         register(QuestCategoryListData.class, QuestCategoryListData::new);
         register(QuestPlayerData.class, QuestPlayerData::new);

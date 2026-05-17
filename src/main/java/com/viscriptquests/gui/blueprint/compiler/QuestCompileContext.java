@@ -101,10 +101,52 @@ public class QuestCompileContext {
         return false;
     }
 
+    public int getInt(NodeModel nodeModel, String optionId) {
+        Constant constant = nodeModel.getInputConstantsById().get(NodeOption.PORT_ID_PREFIX + optionId);
+        if (constant != null && constant.getValue() instanceof Integer value) {
+            return value;
+        }
+        if (constant != null && constant.getValue() instanceof Number number) {
+            return number.intValue();
+        }
+        return 0;
+    }
+
+    public float getFloat(NodeModel nodeModel, String optionId) {
+        Constant constant = nodeModel.getInputConstantsById().get(NodeOption.PORT_ID_PREFIX + optionId);
+        if (constant != null && constant.getValue() instanceof Float value) {
+            return value;
+        }
+        if (constant != null && constant.getValue() instanceof Number number) {
+            return number.floatValue();
+        }
+        return 0.0f;
+    }
+
     public QuestSubmitMode getSubmitMode(NodeModel nodeModel, String optionId) {
         Constant constant = nodeModel.getInputConstantsById().get(NodeOption.PORT_ID_PREFIX + optionId);
-        if (constant != null && constant.getValue() instanceof QuestSubmitMode mode) {
+        if (constant == null) {
+            return QuestSubmitMode.AUTO;
+        }
+        Object value = constant.getValue();
+        if (value instanceof QuestSubmitMode mode) {
             return mode;
+        }
+        if (value instanceof String serializedName) {
+            for (QuestSubmitMode mode : QuestSubmitMode.values()) {
+                if (mode.name().equalsIgnoreCase(serializedName)
+                        || mode.getSerializedName().equals(serializedName)
+                        || mode.getName().equals(serializedName)) {
+                    return mode;
+                }
+            }
+        }
+        if (value instanceof Number index) {
+            QuestSubmitMode[] modes = QuestSubmitMode.values();
+            int ordinal = index.intValue();
+            if (ordinal >= 0 && ordinal < modes.length) {
+                return modes[ordinal];
+            }
         }
         return QuestSubmitMode.AUTO;
     }

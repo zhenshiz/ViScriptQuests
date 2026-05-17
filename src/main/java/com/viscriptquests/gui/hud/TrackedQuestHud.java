@@ -11,6 +11,7 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.viscriptquests.ViScriptQuests;
 import com.viscriptquests.config.ClientConfig;
 import com.viscriptquests.quest.data.DisplayIcon;
+import com.viscriptquests.quest.data.runtime.TaskObjectiveProgress;
 import dev.vfyjxf.taffy.style.AlignItems;
 import dev.vfyjxf.taffy.style.FlexDirection;
 import dev.vfyjxf.taffy.style.TaffyPosition;
@@ -19,19 +20,24 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
+import java.util.Arrays;
+import java.util.List;
+
 // 当前追踪小任务 HUD。根元素全屏，面板位置和尺寸全部读取客户端百分比配置。
 public class TrackedQuestHud extends UIElement {
     private static final ItemStack DEFAULT_ICON = new ItemStack(Items.PAPER);
     private static final int TEXT_TITLE = 0xFFFFD84B;
     private static final int TEXT_MAIN = 0xFFFFFFFF;
-    private static final int ICON_SIZE = 12;
+    private static final int ICON_SIZE = 13;
+    private static final int TITLE_HEIGHT = 13;
+    private static final int OBJECTIVE_ROW_HEIGHT = 15;
     private static final float FONT_TITLE = 8.5f;
     private static final float FONT_BODY = 8.0f;
 
     private final UIElement panel = new UIElement();
+    private final QuestGuideMarkerElement guideMarker = new QuestGuideMarkerElement();
     private final Label taskTitle = label(FONT_TITLE, TEXT_TITLE, false);
-    private final UIElement objectiveRow = new UIElement();
-    private final Label taskHint = label(FONT_BODY, TEXT_MAIN, true);
+    private final UIElement objectivesColumn = new UIElement();
     private float lastX = Float.NaN;
     private float lastY = Float.NaN;
     private float lastWidth = Float.NaN;
@@ -43,35 +49,35 @@ public class TrackedQuestHud extends UIElement {
             layout.widthPercent(100);
             layout.heightPercent(100);
         });
-        addChild(panel);
+        addChildren(panel, guideMarker);
         panel.style(style -> style.backgroundTexture(IGuiTexture.EMPTY));
         panel.layout(layout -> {
             layout.positionType(TaffyPosition.ABSOLUTE);
             layout.flexDirection(FlexDirection.COLUMN);
             layout.paddingAllPercent(0);
-            layout.gapAllPercent(2);
-        });
-
-        objectiveRow.layout(layout -> {
-            layout.widthPercent(100);
-            layout.minHeightPercent(35);
-            layout.flexDirection(FlexDirection.ROW);
-            layout.alignItems(AlignItems.CENTER);
             layout.gapAll(4);
         });
-        taskHint.layout(layout -> {
-            layout.width(0);
-            layout.flex(1);
-            layout.minHeightPercent(100);
+
+        taskTitle.layout(layout -> {
+            layout.widthPercent(100);
+            layout.height(TITLE_HEIGHT);
         });
-        panel.addChildren(taskTitle, objectiveRow);
+
+        objectivesColumn.layout(layout -> {
+            layout.widthPercent(100);
+            layout.flexDirection(FlexDirection.COLUMN);
+            layout.gapAll(2);
+        });
+        panel.addChildren(taskTitle, objectivesColumn);
     }
 
     @Override
     public void screenTick() {
         super.screenTick();
         updateLayoutFromConfig();
-        updateContent();
+        QuestHudData.ComponentState snapshot = QuestHudData.snapshot();
+        updateContent(snapshot);
+        guideMarker.update(snapshot);
     }
 
     private void updateLayoutFromConfig() {
@@ -94,8 +100,7 @@ public class TrackedQuestHud extends UIElement {
         });
     }
 
-    private void updateContent() {
-        QuestHudData.ComponentState snapshot = QuestHudData.snapshot();
+    private void updateContent(QuestHudData.ComponentState snapshot) {
         boolean visible = ClientConfig.SHOW_TRACKED_QUEST_HUD.get() && !snapshot.isEmpty();
         panel.setVisible(visible);
         if (!visible) {
@@ -105,19 +110,46 @@ public class TrackedQuestHud extends UIElement {
         String contentKey = snapshot.quest().questId + "|"
                 + snapshot.task().stepId + "|"
                 + snapshot.task().title + "|"
-                + snapshot.task().taskHint + "|"
                 + snapshot.task().status + "|"
-                + iconKey(snapshot.task().hudIcon);
+                + objectivesKey(snapshot);
         if (contentKey.equals(lastContentKey)) {
             return;
         }
         lastContentKey = contentKey;
 
         taskTitle.setText(Component.literal(snapshot.task().title));
-        taskHint.setText(Component.literal(snapshot.task().taskHint));
-        objectiveRow.clearAllChildren();
-        objectiveRow.addChild(createHudIcon(snapshot.task().hudIcon));
-        objectiveRow.addChild(taskHint);
+        objectivesColumn.clearAllChildren();
+        if (snapshot.task().objectives.isEmpty()) {
+            for (String line : fallbackObjectiveHints(snapshot.task().taskHint)) {
+                objectivesColumn.addChild(createObjectiveRow(snapshot.task().displayIcon, line));
+            }
+            return;
+        }
+        for (TaskObjectiveProgress objective : snapshot.task().objectives) {
+            objectivesColumn.addChild(createObjectiveRow(objective.displayIcon, objective.progressText() + objective.hint));
+        }
+    }
+
+    private static UIElement createObjectiveRow(DisplayIcon icon, String hint) {
+        UIElement row = new UIElement();
+        row.layout(layout -> {
+            layout.widthPercent(100);
+            layout.height(OBJECTIVE_ROW_HEIGHT);
+            layout.flexDirection(FlexDirection.ROW);
+            layout.alignItems(AlignItems.CENTER);
+            layout.gapAll(2);
+        });
+
+        Label text = label(FONT_BODY, TEXT_MAIN, true);
+        text.setText(Component.literal(hint == null ? "" : hint));
+        text.layout(layout -> {
+            layout.width(0);
+            layout.flex(1);
+            layout.height(OBJECTIVE_ROW_HEIGHT);
+        });
+
+        row.addChildren(createHudIcon(icon), text);
+        return row;
     }
 
     private static UIElement createHudIcon(DisplayIcon icon) {
@@ -162,6 +194,32 @@ public class TrackedQuestHud extends UIElement {
         }
         ItemStack stack = icon.getItemStack();
         return stack == null || stack.isEmpty() ? "item:" : "item:" + stack.getItem() + "x" + stack.getCount();
+    }
+
+    private static String objectivesKey(QuestHudData.ComponentState snapshot) {
+        if (snapshot.task().objectives.isEmpty()) {
+            return snapshot.task().taskHint + "|" + iconKey(snapshot.task().displayIcon);
+        }
+        StringBuilder key = new StringBuilder();
+        for (TaskObjectiveProgress objective : snapshot.task().objectives) {
+            key.append(objective.hint)
+                    .append('|').append(objective.currentAmount)
+                    .append('/').append(objective.requiredAmount)
+                    .append('|').append(objective.completed)
+                    .append('|').append(iconKey(objective.displayIcon))
+                    .append(';');
+        }
+        return key.toString();
+    }
+
+    private static List<String> fallbackObjectiveHints(String taskHint) {
+        if (taskHint == null || taskHint.isBlank()) {
+            return List.of("");
+        }
+        return Arrays.stream(taskHint.split("\\R"))
+                .map(String::trim)
+                .filter(line -> !line.isEmpty())
+                .toList();
     }
 
     private static Label label(float fontSize, int color, boolean wrap) {

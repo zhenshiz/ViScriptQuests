@@ -3,8 +3,12 @@ package com.viscriptquests.quest.data.runtime;
 import com.lowdragmc.lowdraglib2.syncdata.IPersistedSerializable;
 import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
 import com.viscriptquests.quest.data.DisplayIcon;
+import com.viscriptquests.quest.data.QuestFile;
 import com.viscriptquests.quest.data.QuestStep;
 import com.viscriptquests.quest.data.task.ITask;
+
+import java.util.List;
+import java.util.ArrayList;
 
 // 任务目标的运行时进度追踪
 public class TaskProgress implements IPersistedSerializable {
@@ -19,11 +23,21 @@ public class TaskProgress implements IPersistedSerializable {
     @Persisted
     public String taskHint = "";
     @Persisted
-    public DisplayIcon hudIcon = new DisplayIcon();
+    public boolean manualSubmitRequired = false;
+    @Persisted
+    public DisplayIcon displayIcon = new DisplayIcon();
+    @Persisted
+    public QuestGuideMarker guideMarker = new QuestGuideMarker();
+    @Persisted
+    public final List<TaskObjectiveProgress> objectives = new ArrayList<>();
     @Persisted
     public TaskStatus status = TaskStatus.ACTIVE;
 
     public static TaskProgress fromTask(ITask task, QuestStep step) {
+        return fromTask(task, step, null);
+    }
+
+    public static TaskProgress fromTask(ITask task, QuestStep step, net.minecraft.server.level.ServerPlayer player) {
         TaskProgress progress = new TaskProgress();
         progress.stepId = task.stepId;
         if (step != null) {
@@ -31,9 +45,90 @@ public class TaskProgress implements IPersistedSerializable {
             progress.subtitle = step.subtitle;
             progress.description = step.description.clone();
         }
-        progress.taskHint = task.getTaskHint().getString();
-        progress.hudIcon = task.getHudIcon();
+        progress.manualSubmitRequired = !task.allowsAutoSubmit();
+        TaskObjectiveProgress objective = TaskObjectiveProgress.fromTask(task, player);
+        progress.objectives.add(objective);
+        progress.taskHint = objective.hint;
+        progress.displayIcon = objective.displayIcon;
+        progress.guideMarker = objective.guideMarker.copy();
         progress.status = TaskStatus.ACTIVE;
         return progress;
+    }
+
+    public static TaskProgress fromTasks(String stepId, List<ITask> tasks, QuestStep step,
+                                         net.minecraft.server.level.ServerPlayer player) {
+        TaskProgress progress = new TaskProgress();
+        progress.stepId = stepId == null ? "" : stepId;
+        if (step != null) {
+            progress.title = step.title;
+            progress.subtitle = step.subtitle;
+            progress.description = step.description.clone();
+        }
+        if (tasks == null || tasks.isEmpty()) {
+            progress.status = TaskStatus.ACTIVE;
+            return progress;
+        }
+        progress.objectives.clear();
+        for (ITask task : tasks) {
+            progress.objectives.add(TaskObjectiveProgress.fromTask(task, player));
+        }
+        progress.manualSubmitRequired = progress.objectives.stream().anyMatch(objective -> objective.manualSubmitRequired);
+        progress.taskHint = progress.objectives.stream()
+                .map(objective -> objective.hint)
+                .filter(hint -> hint != null && !hint.isBlank())
+                .reduce((left, right) -> left + "\n" + right)
+                .orElse("");
+        TaskObjectiveProgress displayObjective = progress.objectives.stream()
+                .filter(objective -> objective.guideMarker != null && objective.guideMarker.isEnabled())
+                .findFirst()
+                .orElse(progress.objectives.getFirst());
+        progress.displayIcon = displayObjective.displayIcon;
+        progress.guideMarker = displayObjective.guideMarker == null
+                ? QuestGuideMarker.disabled()
+                : displayObjective.guideMarker.copy();
+        progress.status = TaskStatus.ACTIVE;
+        return progress;
+    }
+
+    public void refreshObjectives(QuestFile questFile, net.minecraft.server.level.ServerPlayer player) {
+        if (questFile == null || stepId == null || stepId.isBlank()) {
+            return;
+        }
+        List<ITask> tasks = questFile.findTasksForStep(stepId);
+        if (tasks.isEmpty()) {
+            return;
+        }
+        TaskProgress refreshed = fromTasks(stepId, tasks, questFile.findStep(stepId).orElse(null), player);
+        taskHint = refreshed.taskHint;
+        manualSubmitRequired = refreshed.manualSubmitRequired;
+        displayIcon = refreshed.displayIcon;
+        guideMarker = refreshed.guideMarker;
+        for (int i = 0; i < refreshed.objectives.size(); i++) {
+            TaskObjectiveProgress refreshedObjective = refreshed.objectives.get(i);
+            if (i >= objectives.size()) {
+                objectives.add(refreshedObjective);
+                continue;
+            }
+            TaskObjectiveProgress current = objectives.get(i);
+            current.hint = refreshedObjective.hint;
+            current.displayIcon = refreshedObjective.displayIcon;
+            current.requiredAmount = refreshedObjective.requiredAmount;
+            current.manualSubmitRequired = refreshedObjective.manualSubmitRequired;
+            current.guideMarker = refreshedObjective.guideMarker;
+            if (!current.completed && !current.manualSubmitRequired) {
+                current.currentAmount = refreshedObjective.currentAmount;
+                current.completed = refreshedObjective.completed;
+            } else if (current.manualSubmitRequired) {
+                current.currentAmount = Math.min(current.currentAmount, current.requiredAmount);
+                current.completed = current.completed || current.currentAmount >= current.requiredAmount;
+            }
+        }
+        while (objectives.size() > refreshed.objectives.size()) {
+            objectives.removeLast();
+        }
+    }
+
+    public boolean areAllObjectivesCompleted() {
+        return !objectives.isEmpty() && objectives.stream().allMatch(objective -> objective.completed);
     }
 }

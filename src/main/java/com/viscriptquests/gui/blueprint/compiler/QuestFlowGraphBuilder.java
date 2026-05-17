@@ -144,6 +144,7 @@ public final class QuestFlowGraphBuilder {
                 && Objects.equals(a.conditionVariable, b.conditionVariable)
                 && a.compareOp == b.compareOp
                 && Float.compare(a.compareValue, b.compareValue) == 0
+                && Objects.equals(a.variableMutations, b.variableMutations)
                 && Objects.equals(a.debugPrints, b.debugPrints);
     }
 

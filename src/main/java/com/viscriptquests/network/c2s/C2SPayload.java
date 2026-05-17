@@ -2,10 +2,13 @@ package com.viscriptquests.network.c2s;
 
 import com.lowdragmc.lowdraglib2.Platform;
 import com.lowdragmc.lowdraglib2.networking.rpc.RPCPacket;
+import com.lowdragmc.lowdraglib2.networking.rpc.RPCPacketDistributor;
 import com.lowdragmc.lowdraglib2.syncdata.rpc.RPCSender;
 import com.viscriptquests.ViScriptQuests;
+import com.viscriptquests.network.s2c.S2CPayload;
 import com.viscriptquests.quest.data.runtime.QuestCategoryListData;
 import com.viscriptquests.quest.data.QuestFile;
+import com.viscriptquests.quest.runtime.QuestManager;
 import com.viscriptquests.quest.runtime.QuestTrackingService;
 import com.viscriptquests.util.QuestFileHelper;
 import com.viscriptquests.quest.data.QuestSavedData;
@@ -20,6 +23,7 @@ public class C2SPayload {
     public static final String UPLOAD_QUEST_FILE = ViScriptQuests.MOD_ID + ":upload_quest_file";
     public static final String SAVE_DEFAULT_QUEST_CATEGORIES = ViScriptQuests.MOD_ID + ":save_default_quest_categories";
     public static final String SAVE_TRACKED_QUEST = ViScriptQuests.MOD_ID + ":save_tracked_quest";
+    public static final String SUBMIT_QUEST_TASK = ViScriptQuests.MOD_ID + ":submit_quest_task";
 
     // 客户端上传项目文件到服务端（.questproj），保存完整图数据供后续编辑
     @RPCPacket(value = UPLOAD_PROJECT_FILE, modId = ViScriptQuests.MOD_ID)
@@ -92,5 +96,23 @@ public class C2SPayload {
                 : "";
         savedData.setDirty();
         QuestTrackingService.refresh(player);
+    }
+
+    @RPCPacket(value = SUBMIT_QUEST_TASK, modId = ViScriptQuests.MOD_ID)
+    public static void submitQuestTask(RPCSender sender, CompoundTag data) {
+        ServerPlayer player = sender.asPlayer();
+        if (player == null) return;
+        String questId = data.getString("questId");
+        String stepId = data.getString("stepId");
+        int objectiveIndex = data.getInt("objectiveIndex");
+        if (!questId.isBlank() && !stepId.isBlank()) {
+            QuestManager.submitObjective(player, questId, stepId, objectiveIndex);
+        }
+        QuestManager.refreshQuestBookDisplayData(player);
+        QuestTrackingService.refresh(player);
+        CompoundTag response = QuestSavedData.get(player.getServer())
+                .getPlayer(player.getUUID())
+                .serializeNBT(Platform.getFrozenRegistry());
+        RPCPacketDistributor.rpcToPlayer(player, S2CPayload.SYNC_QUEST_BOOK, response);
     }
 }

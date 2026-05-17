@@ -3,14 +3,19 @@ package com.viscriptquests.quest.runtime;
 import com.lowdragmc.lowdraglib2.Platform;
 import com.lowdragmc.lowdraglib2.networking.rpc.RPCPacketDistributor;
 import com.viscriptquests.network.s2c.S2CPayload;
+import com.viscriptquests.quest.data.QuestFile;
 import com.viscriptquests.quest.data.QuestSavedData;
 import com.viscriptquests.quest.data.runtime.PlayerQuestState;
 import com.viscriptquests.quest.data.runtime.QuestPlayerData;
 import com.viscriptquests.quest.data.runtime.QuestStatus;
+import com.viscriptquests.quest.data.runtime.TaskProgress;
 import com.viscriptquests.quest.data.runtime.TaskStatus;
 import com.viscriptquests.util.QuestFileHelper;
 import lombok.experimental.UtilityClass;
 import net.minecraft.server.level.ServerPlayer;
+
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 /**
  * 管理玩家当前追踪的任务和小任务目标。
@@ -95,11 +100,15 @@ public class QuestTrackingService {
      * @param completedStepId 字符串标识，表示刚完成的小任务
      */
     public static void refreshAfterStepSubmit(ServerPlayer player, QuestPlayerData playerData,
-                                       PlayerQuestState questState, String completedStepId) {
+                                       PlayerQuestState questState, String completedStepId,
+                                       Set<String> activeStepIdsBeforeSubmit) {
         if (playerData.trackedQuestId.equals(questState.questId) && playerData.trackedStepId.equals(completedStepId)) {
-            playerData.trackedStepId = firstActiveStepId(questState);
-            if (playerData.trackedStepId.isEmpty() && questState.status != QuestStatus.ACTIVE) {
+            if (questState.status != QuestStatus.ACTIVE) {
                 playerData.trackedQuestId = "";
+                playerData.trackedStepId = "";
+            } else {
+                playerData.trackedQuestId = questState.questId;
+                playerData.trackedStepId = nextStepAfterSubmit(questState, completedStepId, activeStepIdsBeforeSubmit);
             }
         }
         refresh(player);
@@ -112,8 +121,28 @@ public class QuestTrackingService {
      */
     public static void refresh(ServerPlayer player) {
         QuestPlayerData playerData = QuestSavedData.get(player.getServer()).getPlayer(player.getUUID());
+        refreshTrackedTaskObjectives(player, playerData);
         RPCPacketDistributor.rpcToPlayer(player, S2CPayload.SYNC_QUEST_HUD,
                 playerData.serializeNBT(Platform.getFrozenRegistry()));
+    }
+
+    private static void refreshTrackedTaskObjectives(ServerPlayer player, QuestPlayerData playerData) {
+        if (playerData.trackedQuestId == null || playerData.trackedQuestId.isBlank()
+                || playerData.trackedStepId == null || playerData.trackedStepId.isBlank()) {
+            return;
+        }
+        PlayerQuestState state = playerData.findQuest(playerData.trackedQuestId).orElse(null);
+        if (state == null) {
+            return;
+        }
+        TaskProgress progress = state.findStepProgress(playerData.trackedStepId).orElse(null);
+        if (progress == null) {
+            return;
+        }
+        QuestFile questFile = QuestFileHelper.getQuest(playerData.trackedQuestId, player.registryAccess()).orElse(null);
+        if (questFile != null) {
+            progress.refreshObjectives(questFile, player);
+        }
     }
 
     /**
@@ -131,5 +160,39 @@ public class QuestTrackingService {
                 .map(progress -> progress.stepId)
                 .findFirst()
                 .orElse("");
+    }
+
+    /**
+     * 按提交后的任务流选择新的追踪小任务。
+     *
+     * <p>优先选择这次提交刚解锁的小任务；如果没有新解锁的小任务，再回到同一个大任务里
+     * 已经激活但未完成的小任务。这样并行分支不会被新分支抢乱，同时任务完成时也不会自动跳到别的大任务。
+     *
+     * @param state 玩家任务状态，提供提交后的最新小任务进度
+     * @param completedStepId 刚刚完成的小任务标识
+     * @param activeStepIdsBeforeSubmit 提交前已经处于激活状态的小任务集合
+     * @return 应该继续追踪的小任务标识；没有可追踪目标时返回空字符串
+     */
+    private static String nextStepAfterSubmit(PlayerQuestState state, String completedStepId,
+                                              Set<String> activeStepIdsBeforeSubmit) {
+        Set<String> activeStepIds = activeStepIds(state);
+        return activeStepIds.stream()
+                .filter(stepId -> !stepId.equals(completedStepId))
+                .filter(stepId -> activeStepIdsBeforeSubmit == null || !activeStepIdsBeforeSubmit.contains(stepId))
+                .findFirst()
+                .orElseGet(() -> activeStepIds.stream()
+                        .filter(stepId -> !stepId.equals(completedStepId))
+                        .findFirst()
+                        .orElse(""));
+    }
+
+    private static Set<String> activeStepIds(PlayerQuestState state) {
+        Set<String> stepIds = new LinkedHashSet<>();
+        for (TaskProgress progress : state.taskProgresses) {
+            if (progress.status == TaskStatus.ACTIVE) {
+                stepIds.add(progress.stepId);
+            }
+        }
+        return stepIds;
     }
 }

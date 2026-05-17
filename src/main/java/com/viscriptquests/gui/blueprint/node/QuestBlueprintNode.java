@@ -47,6 +47,10 @@ public abstract class QuestBlueprintNode extends Node {
         option(context, id, TypeHandles.INT, defaultValue);
     }
 
+    protected void colorOption(IOptionDefinitionContext context, String id, int defaultValue) {
+        option(context, id, TypeHandles.COLOR, defaultValue);
+    }
+
     protected void floatOption(IOptionDefinitionContext context, String id, float defaultValue) {
         option(context, id, TypeHandles.FLOAT, defaultValue);
     }

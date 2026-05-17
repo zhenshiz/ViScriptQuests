@@ -72,6 +72,10 @@ public class PlayerQuestState implements IPersistedSerializable {
     }
 
     public static PlayerQuestState fromQuestFile(QuestFile file, long gameTime) {
+        return fromQuestFile(file, gameTime, null);
+    }
+
+    public static PlayerQuestState fromQuestFile(QuestFile file, long gameTime, net.minecraft.server.level.ServerPlayer player) {
         PlayerQuestState state = new PlayerQuestState();
         state.questId = file.quest.questId;
         state.categoryId = file.quest.categoryId;
@@ -90,10 +94,22 @@ public class PlayerQuestState implements IPersistedSerializable {
             state.rewardDisplays.add(rd);
         }
 
-        // 创建所有任务进度，初始全部 LOCKED
+        // 按小任务聚合目标进度：一个 SubQuest 可以包含多个 ITask。
+        for (QuestStep step : file.steps) {
+            List<ITask> tasks = file.findTasksForStep(step.stepId);
+            if (tasks.isEmpty()) {
+                continue;
+            }
+            TaskProgress progress = TaskProgress.fromTasks(step.stepId, tasks, step, player);
+            progress.status = TaskStatus.LOCKED;
+            state.taskProgresses.add(progress);
+        }
         for (ITask task : file.tasks) {
+            if (state.findStepProgress(task.stepId).isPresent()) {
+                continue;
+            }
             QuestStep step = file.findStep(task.stepId).orElse(null);
-            TaskProgress progress = TaskProgress.fromTask(task, step);
+            TaskProgress progress = TaskProgress.fromTasks(task.stepId, file.findTasksForStep(task.stepId), step, player);
             progress.status = TaskStatus.LOCKED;
             state.taskProgresses.add(progress);
         }

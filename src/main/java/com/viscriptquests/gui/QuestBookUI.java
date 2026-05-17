@@ -27,6 +27,7 @@ import com.viscriptquests.quest.data.runtime.QuestCategoryData;
 import com.viscriptquests.quest.data.runtime.QuestPlayerData;
 import com.viscriptquests.quest.data.runtime.QuestStatus;
 import com.viscriptquests.quest.data.runtime.RewardDisplay;
+import com.viscriptquests.quest.data.runtime.TaskObjectiveProgress;
 import com.viscriptquests.quest.data.runtime.TaskProgress;
 import com.viscriptquests.quest.data.runtime.TaskStatus;
 import dev.vfyjxf.taffy.style.AlignContent;
@@ -61,6 +62,8 @@ public class QuestBookUI extends UIElement {
     private static final int QUEST_ICON_SIZE = 16;
     private static final int REWARD_SLOT_SIZE = 34;
     private static final int REWARD_ICON_SIZE = 18;
+    private static final int OBJECTIVE_ROW_HEIGHT = 18;
+    private static final int OBJECTIVE_ICON_SIZE = 16;
     private static final int SUB_TASK_INDENT = 24;
     private static final int CATEGORIES_PER_PAGE = 5;
     private static final float FONT_WINDOW_TITLE = 9.0f;
@@ -89,7 +92,7 @@ public class QuestBookUI extends UIElement {
     private static final IGuiTexture TRACK_BUTTON_HOVER = sprite("track_button_hover.png", 4);
     private static final IGuiTexture TRACK_BUTTON_PRESSED = sprite("track_button_pressed.png", 4);
 
-    private final QuestPlayerData playerData;
+    private QuestPlayerData playerData;
     private String selectedCategoryId = ALL_CATEGORY_ID;
     private PlayerQuestState selectedQuest;
     private String selectedStepId = "";
@@ -104,6 +107,14 @@ public class QuestBookUI extends UIElement {
     public QuestBookUI(QuestPlayerData playerData) {
         this.playerData = playerData;
         buildUI();
+    }
+
+    public void syncPlayerData(QuestPlayerData playerData) {
+        String selectedQuestId = selectedQuest == null ? "" : selectedQuest.questId;
+        this.playerData = playerData;
+        selectedQuest = playerData.findQuest(selectedQuestId).orElse(null);
+        ensureSelectedQuestInCategory();
+        refreshAll();
     }
 
     private void buildUI() {
@@ -622,7 +633,7 @@ public class QuestBookUI extends UIElement {
     private void addTaskDetail(PlayerQuestState quest, TaskProgress taskProgress) {
         addTaskDetailHeader(taskProgress);
         addTaskDescription(taskProgress);
-        addTaskRequirement(taskProgress);
+        addTaskRequirement(quest, taskProgress);
         addRewardsForTask(quest, taskProgress.stepId);
         addTrackTaskButton(quest, taskProgress);
     }
@@ -678,31 +689,58 @@ public class QuestBookUI extends UIElement {
         detailScroller.addScrollViewChild(card);
     }
 
-    private void addTaskRequirement(TaskProgress taskProgress) {
+    private void addTaskRequirement(PlayerQuestState quest, TaskProgress taskProgress) {
         addSectionHeader("viscript_quests.quest_book.objectives_label");
         UIElement card = texturedPanel(SECTION_PANEL);
         card.layout(layout -> {
             layout.widthPercent(100);
             layout.minHeight(24);
+            layout.flexDirection(FlexDirection.COLUMN);
+            layout.paddingAll(4);
+            layout.gapAll(3);
+        });
+
+        if (taskProgress.objectives.isEmpty()) {
+            card.addChild(wrappedLabel(Component.literal(taskHint(taskProgress)), 12, TEXT_MAIN));
+        } else {
+            for (int i = 0; i < taskProgress.objectives.size(); i++) {
+                card.addChild(createObjectiveRow(quest, taskProgress, i, taskProgress.objectives.get(i)));
+            }
+        }
+
+        detailScroller.addScrollViewChild(card);
+    }
+
+    private UIElement createObjectiveRow(PlayerQuestState quest, TaskProgress taskProgress,
+                                         int objectiveIndex, TaskObjectiveProgress objective) {
+        UIElement row = new UIElement();
+        row.layout(layout -> {
+            layout.widthPercent(100);
+            layout.height(OBJECTIVE_ROW_HEIGHT);
             layout.flexDirection(FlexDirection.ROW);
             layout.alignItems(AlignItems.CENTER);
-            layout.paddingAll(4);
             layout.gapAll(4);
         });
 
-        Label statusIcon = label(getTaskStatusIcon(taskProgress.status), 12);
-        statusIcon.layout(layout -> layout.width(12));
-        statusIcon.textStyle(style -> style.fontSize(FONT_SMALL));
-        card.addChild(statusIcon);
+        UIElement icon = createDisplayIcon(objective.displayIcon, Component.literal(objective.hint == null ? "" : objective.hint));
+        icon.layout(layout -> {
+            layout.width(OBJECTIVE_ICON_SIZE);
+            layout.height(OBJECTIVE_ICON_SIZE);
+        });
+        row.addChild(icon);
 
-        Label taskLabel = wrappedLabel(Component.literal(taskHint(taskProgress)), 12, TEXT_MAIN);
+        int textColor = objective.completed ? 0xFF9DE8A8 : TEXT_MAIN;
+        Label taskLabel = objectiveLabel(Component.literal(objective.progressText() + (objective.hint == null ? "" : objective.hint)), textColor);
         taskLabel.layout(layout -> {
             layout.width(0);
             layout.flex(1);
         });
-        card.addChild(taskLabel);
+        row.addChild(taskLabel);
 
-        detailScroller.addScrollViewChild(card);
+        if (taskProgress.status == TaskStatus.ACTIVE && objective.manualSubmitRequired && !objective.completed) {
+            row.addChild(createObjectiveSubmitButton(quest, taskProgress, objectiveIndex));
+        }
+        return row;
     }
 
     private void addRewardsForTask(PlayerQuestState quest, String stepId) {
@@ -786,6 +824,28 @@ public class QuestBookUI extends UIElement {
         button.addEventListener(UIEvents.CLICK, event -> toggleTrackedTask(quest, taskProgress));
         row.addChild(button);
         detailScroller.addScrollViewChild(row);
+    }
+
+    private Button createObjectiveSubmitButton(PlayerQuestState quest, TaskProgress taskProgress, int objectiveIndex) {
+        Button button = new Button();
+        button.setText(Component.translatable("viscript_quests.quest_book.submit_task_button"));
+        button.buttonStyle(style -> style
+                .baseTexture(TRACK_BUTTON)
+                .hoverTexture(TRACK_BUTTON_HOVER)
+                .pressedTexture(TRACK_BUTTON_PRESSED));
+        button.textStyle(style -> style
+                .textColor(TEXT_GOLD)
+                .fontSize(FONT_BODY)
+                .textAlignHorizontal(Horizontal.CENTER)
+                .textAlignVertical(Vertical.CENTER)
+                .textWrap(TextWrap.HIDE));
+        button.layout(layout -> {
+            layout.width(54);
+            layout.height(16);
+        });
+        button.style(style -> style.tooltips(Component.translatable("viscript_quests.quest_book.submit_task_button.tooltip")));
+        button.addEventListener(UIEvents.CLICK, event -> submitObjective(quest, taskProgress, objectiveIndex));
+        return button;
     }
 
     private void addSectionHeader(String key) {
@@ -921,6 +981,22 @@ public class QuestBookUI extends UIElement {
         return label;
     }
 
+    private Label objectiveLabel(Component text, int color) {
+        Label label = new Label();
+        label.setText(text);
+        label.layout(layout -> {
+            layout.widthPercent(100);
+            layout.height(OBJECTIVE_ROW_HEIGHT);
+        });
+        label.textStyle(style -> style
+                .textColor(color)
+                .fontSize(FONT_BODY)
+                .textAlignHorizontal(Horizontal.LEFT)
+                .textAlignVertical(Vertical.CENTER)
+                .textWrap(TextWrap.HIDE));
+        return label;
+    }
+
     private List<PlayerQuestState> getFilteredQuests() {
         List<PlayerQuestState> filtered = new ArrayList<>();
         for (PlayerQuestState quest : playerData.quests) {
@@ -1010,6 +1086,14 @@ public class QuestBookUI extends UIElement {
         tag.putString("trackedQuestId", playerData.trackedQuestId == null ? "" : playerData.trackedQuestId);
         tag.putString("trackedStepId", playerData.trackedStepId == null ? "" : playerData.trackedStepId);
         RPCPacketDistributor.rpcToServer(C2SPayload.SAVE_TRACKED_QUEST, tag);
+    }
+
+    private void submitObjective(PlayerQuestState quest, TaskProgress taskProgress, int objectiveIndex) {
+        CompoundTag tag = new CompoundTag();
+        tag.putString("questId", quest.questId);
+        tag.putString("stepId", taskProgress.stepId);
+        tag.putInt("objectiveIndex", objectiveIndex);
+        RPCPacketDistributor.rpcToServer(C2SPayload.SUBMIT_QUEST_TASK, tag);
     }
 
     private String taskTitle(TaskProgress taskProgress) {

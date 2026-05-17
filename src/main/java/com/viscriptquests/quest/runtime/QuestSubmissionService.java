@@ -2,34 +2,38 @@ package com.viscriptquests.quest.runtime;
 
 import com.viscriptquests.quest.data.QuestFile;
 import com.viscriptquests.quest.data.QuestSavedData;
+import com.viscriptquests.quest.data.runtime.PlayerQuestState;
 import com.viscriptquests.quest.data.runtime.QuestPlayerData;
 import com.viscriptquests.quest.data.runtime.QuestStatus;
+import com.viscriptquests.quest.data.runtime.TaskObjectiveProgress;
+import com.viscriptquests.quest.data.runtime.TaskProgress;
 import com.viscriptquests.quest.data.runtime.TaskStatus;
 import com.viscriptquests.quest.data.task.ITask;
 import com.viscriptquests.util.QuestFileHelper;
 import net.minecraft.server.level.ServerPlayer;
 
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
- * 处理玩家提交小任务的运行时服务。
+ * 处理玩家提交目标的运行时服务。
  *
- * <p>该类只负责“小任务是否允许提交”和“提交成功后的运行时收尾”。
- * 具体目标是否满足由 {@link ITask#checkCompletion(ServerPlayer)} 判断，
- * 蓝图流程后续推进由 {@link QuestFlowExecutor} 处理。
+ * <p>一个小任务可以包含多个目标。该服务先提交或自动完成单个目标，
+ * 只有同一个小任务下的所有目标完成后，才结算奖励并推进蓝图流程。
  */
 public class QuestSubmissionService {
     /**
-     * 尝试提交玩家指定任务中的一个小任务。
+     * 尝试提交玩家指定小任务中当前可提交的目标。
      *
-     * <p>提交成功后会标记小任务完成、发放该小任务奖励、继续推进任务流程，
-     * 并刷新玩家当前追踪状态。任一校验失败时返回 {@code false}，调用方自行决定如何反馈。
+     * <p>自动 tick 只处理允许自动提交的目标；手动命令会额外尝试提交手动目标。
+     * 小任务只有在所有目标都完成后才会真正完成。
      *
-     * @param player 服务端玩家，提交小任务的玩家
+     * @param player 服务端玩家，提交目标的玩家
      * @param questId 任务标识，必须已经是运行时使用的规范化标识
      * @param stepId 小任务标识，对应任务文件中的小任务节点
-     * @param automatic 是否来自自动提交逻辑；自动提交会额外要求目标允许自动提交
-     * @return 是否成功提交该小任务
+     * @param automatic 是否来自自动提交逻辑
+     * @return 是否有目标提交成功，或是否因此完成了该小任务
      */
     public static boolean submit(ServerPlayer player, String questId, String stepId, boolean automatic) {
         QuestSavedData savedData = QuestSavedData.get(player.getServer());
@@ -62,37 +66,114 @@ public class QuestSubmissionService {
         }
 
         List<ITask> tasks = questFile.findTasksForStep(stepId);
-        // 一个可提交的小任务至少要有一个目标定义，否则无法判断完成条件。
-        if (tasks.isEmpty()) {
+        if (!syncObjectiveShape(tasks, progress.get(), player)) {
             return false;
         }
-        // 自动提交只处理明确允许自动提交的目标，防止 tick 检查误提交手动目标。
-        if (automatic && tasks.stream().noneMatch(task -> task.submitMode.isAutoSubmit())) {
-            return false;
-        }
-        // 同一个小任务下的所有目标都要完成，才算这个小任务完成。
-        boolean completed = tasks.stream().allMatch(task -> task.checkCompletion(player));
-        if (!completed) {
-            return false;
-        }
-        // 目标完成后的副作用在这里执行，比如扣除物品；任意目标失败则本次提交失败。
-        boolean applied = true;
-        for (ITask task : tasks) {
-            if (!task.onComplete(player)) {
-                applied = false;
-                break;
+        boolean changed = false;
+        for (int i = 0; i < tasks.size(); i++) {
+            TaskObjectiveProgress objective = progress.get().objectives.get(i);
+            if (objective.completed) {
+                continue;
+            }
+            ITask task = tasks.get(i);
+            boolean submitted = task.allowsAutoSubmit()
+                    ? task.autoCompleteObjective(player, objective)
+                    : !automatic && task.submitObjective(player, objective);
+            if (submitted) {
+                changed = true;
             }
         }
-        if (!applied) {
+        if (!changed && !progress.get().areAllObjectivesCompleted()) {
             return false;
         }
+        return completeStepIfReady(player, savedData, playerData, questState, questFile, progress.get(), stepId);
+    }
 
+    public static boolean submitObjective(ServerPlayer player, String questId, String stepId, int objectiveIndex) {
+        QuestSavedData savedData = QuestSavedData.get(player.getServer());
+        QuestPlayerData playerData = savedData.getPlayer(player.getUUID());
+        var state = playerData.findQuest(questId);
+        if (state.isEmpty() || state.get().status != QuestStatus.ACTIVE) {
+            return false;
+        }
+        QuestFile questFile = QuestFileHelper.getQuest(questId, player.registryAccess()).orElse(null);
+        if (questFile == null) {
+            return false;
+        }
+        PlayerQuestState questState = state.get();
+        var progress = questState.findStepProgress(stepId);
+        if (progress.isEmpty() || progress.get().status != TaskStatus.ACTIVE) {
+            return false;
+        }
+        List<ITask> tasks = questFile.findTasksForStep(stepId);
+        if (!syncObjectiveShape(tasks, progress.get(), player)
+                || objectiveIndex < 0
+                || objectiveIndex >= tasks.size()
+                || objectiveIndex >= progress.get().objectives.size()) {
+            return false;
+        }
+        TaskObjectiveProgress objective = progress.get().objectives.get(objectiveIndex);
+        if (!tasks.get(objectiveIndex).submitObjective(player, objective)) {
+            return false;
+        }
+        return completeStepIfReady(player, savedData, playerData, questState, questFile, progress.get(), stepId);
+    }
+
+    private static boolean completeStepIfReady(ServerPlayer player, QuestSavedData savedData, QuestPlayerData playerData,
+                                               PlayerQuestState questState, QuestFile questFile,
+                                               TaskProgress progress, String stepId) {
+        if (!progress.areAllObjectivesCompleted()) {
+            savedData.setDirty();
+            QuestTrackingService.refresh(player);
+            return true;
+        }
+        // 记录提交前已经激活的小任务，提交后追踪服务会用它优先选出刚解锁的新小任务。
+        Set<String> activeStepIdsBeforeSubmit = activeStepIds(questState);
         // 到这里才真正提交成功：写进度、发奖励、推进蓝图流程，并刷新任务追踪。
-        progress.get().status = TaskStatus.COMPLETED;
+        progress.status = TaskStatus.COMPLETED;
         QuestRewardService.grantStepRewards(player, questFile, questState, stepId);
         QuestFlowExecutor.completeStepNode(player, questState, questFile, stepId);
         savedData.setDirty();
-        QuestTrackingService.refreshAfterStepSubmit(player, playerData, questState, stepId);
+        QuestTrackingService.refreshAfterStepSubmit(player, playerData, questState, stepId, activeStepIdsBeforeSubmit);
         return true;
+    }
+
+    private static boolean syncObjectiveShape(List<ITask> tasks, TaskProgress progress, ServerPlayer player) {
+        if (tasks.isEmpty()) {
+            return false;
+        }
+        TaskProgress refreshed = TaskProgress.fromTasks(progress.stepId, tasks, null, player);
+        for (int i = 0; i < refreshed.objectives.size(); i++) {
+            if (i >= progress.objectives.size()) {
+                progress.objectives.add(refreshed.objectives.get(i));
+                continue;
+            }
+            TaskObjectiveProgress current = progress.objectives.get(i);
+            TaskObjectiveProgress fresh = refreshed.objectives.get(i);
+            current.hint = fresh.hint;
+            current.displayIcon = fresh.displayIcon;
+            current.requiredAmount = fresh.requiredAmount;
+            current.manualSubmitRequired = fresh.manualSubmitRequired;
+            current.guideMarker = fresh.guideMarker;
+            if (!current.completed && !current.manualSubmitRequired) {
+                current.currentAmount = fresh.currentAmount;
+                current.completed = fresh.completed;
+            }
+        }
+        while (progress.objectives.size() > refreshed.objectives.size()) {
+            progress.objectives.removeLast();
+        }
+        progress.manualSubmitRequired = progress.objectives.stream().anyMatch(objective -> objective.manualSubmitRequired);
+        return true;
+    }
+
+    private static Set<String> activeStepIds(PlayerQuestState questState) {
+        Set<String> stepIds = new LinkedHashSet<>();
+        for (var progress : questState.taskProgresses) {
+            if (progress.status == TaskStatus.ACTIVE) {
+                stepIds.add(progress.stepId);
+            }
+        }
+        return stepIds;
     }
 }

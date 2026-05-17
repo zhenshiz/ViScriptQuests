@@ -11,10 +11,15 @@ public class ClientConfig {
     public static final ModConfigSpec.DoubleValue TRACKED_QUEST_HUD_Y_PERCENT;
     public static final ModConfigSpec.DoubleValue TRACKED_QUEST_HUD_WIDTH_PERCENT;
     public static final ModConfigSpec.DoubleValue TRACKED_QUEST_HUD_HEIGHT_PERCENT;
+    public static final ModConfigSpec.BooleanValue SHOW_QUEST_GUIDE_MARKER;
+    public static final ModConfigSpec.DoubleValue QUEST_GUIDE_MARKER_EDGE_MARGIN_PERCENT;
+    public static final ModConfigSpec.DoubleValue QUEST_GUIDE_MARKER_ICON_SIZE_PERCENT;
 
     static {
         ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
-        builder.push("questBook");
+        builder
+                .translation("viscript_quests.configuration.quest_book")
+                .push("questBook");
 
         // 是否在任务书中显示已经完成的大任务章节。
         SHOW_COMPLETED_QUESTS_IN_BOOK = builder
@@ -28,7 +33,9 @@ public class ClientConfig {
 
         builder.pop();
 
-        builder.push("trackedQuestHud");
+        builder
+                .translation("viscript_quests.configuration.tracked_quest_hud")
+                .push("trackedQuestHud");
 
         // 是否显示当前追踪小任务的 HUD。
         SHOW_TRACKED_QUEST_HUD = builder
@@ -54,6 +61,27 @@ public class ClientConfig {
         TRACKED_QUEST_HUD_HEIGHT_PERCENT = builder
                 .translation("viscript_quests.configuration.tracked_quest_hud.height_percent")
                 .defineInRange("heightPercent", 13.0, 4.0, 100.0);
+
+        builder.pop();
+
+        builder
+                .translation("viscript_quests.configuration.quest_guide_marker")
+                .push("questGuideMarker");
+
+        // 是否显示当前追踪小任务的导航标记。
+        SHOW_QUEST_GUIDE_MARKER = builder
+                .translation("viscript_quests.configuration.quest_guide_marker.show")
+                .define("showQuestGuideMarker", true);
+
+        // 导航标记吸附到屏幕边缘时保留的边距，占屏幕尺寸百分比。
+        QUEST_GUIDE_MARKER_EDGE_MARGIN_PERCENT = builder
+                .translation("viscript_quests.configuration.quest_guide_marker.edge_margin_percent")
+                .defineInRange("edgeMarginPercent", 3.0, 0.0, 20.0);
+
+        // 导航标记图标大小，占屏幕较短边百分比。
+        QUEST_GUIDE_MARKER_ICON_SIZE_PERCENT = builder
+                .translation("viscript_quests.configuration.quest_guide_marker.icon_size_percent")
+                .defineInRange("iconSizePercent", 2.6, 1.0, 8.0);
 
         builder.pop();
         SPEC = builder.build();
