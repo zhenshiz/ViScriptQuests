@@ -908,7 +908,7 @@ public class QuestBookUI extends UIElement {
             return texture;
         }
         ItemStack stack = icon instanceof DisplayIcon displayIcon
-                ? displayIcon.getItemStack()
+                ? displayIcon.renderItemStack()
                 : icon instanceof ItemStack itemStack ? itemStack : DEFAULT_ICON;
         ItemSlot iconSlot = displayItem(stack == null || stack.isEmpty() ? DEFAULT_ICON : stack);
         iconSlot.layout(layout -> {
@@ -925,7 +925,7 @@ public class QuestBookUI extends UIElement {
             texture.style(style -> style.tooltips(tooltip));
             return texture;
         }
-        ItemStack stack = icon == null ? ItemStack.EMPTY : icon.getItemStack();
+        ItemStack stack = icon == null ? ItemStack.EMPTY : icon.renderItemStack();
         ItemSlot slot = displayItem(stack == null || stack.isEmpty() ? DEFAULT_ICON : stack);
         slot.style(style -> style.tooltips(tooltip));
         return slot;

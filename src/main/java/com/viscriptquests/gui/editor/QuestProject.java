@@ -7,20 +7,17 @@ import com.lowdragmc.lowdraglib2.editor.project.ProjectType;
 import com.lowdragmc.lowdraglib2.editor.resource.Resources;
 import com.lowdragmc.lowdraglib2.editor.ui.Editor;
 import com.lowdragmc.lowdraglib2.gui.texture.Icons;
+import com.lowdragmc.lowdraglib2.gui.ui.data.TextWrap;
+import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Dialog;
-import com.lowdragmc.lowdraglib2.gui.util.TreeBuilder;
+import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.networking.rpc.RPCPacketDistributor;
-import com.lowdragmc.lowdraglib2.nodegraphtookit.api.node.Node;
-import com.lowdragmc.lowdraglib2.nodegraphtookit.api.node.NodeAttribute;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.editor.GraphEditorView;
-import com.lowdragmc.lowdraglib2.nodegraphtookit.gui.itemlibrary.ItemLibrary;
-import com.lowdragmc.lowdraglib2.nodegraphtookit.gui.itemlibrary.ItemLibraryItem;
-import com.lowdragmc.lowdraglib2.nodegraphtookit.gui.itemlibrary.NodeModelLibraryItem;
-import com.lowdragmc.lowdraglib2.nodegraphtookit.model.graph.CustomGraphModelImpl;
 import com.lowdragmc.lowdraglib2.syncdata.ISubscription;
 import com.viscriptquests.ViScriptQuests;
 import com.viscriptquests.gui.blueprint.QuestBlueprintCompiler;
 import com.viscriptquests.gui.blueprint.QuestBlueprintGraph;
+import com.viscriptquests.gui.blueprint.QuestBlueprintNodeLibrary;
 import com.viscriptquests.network.c2s.C2SPayload;
 import com.viscriptquests.quest.data.QuestFile;
 import com.viscriptquests.util.QuestFileHelper;
@@ -33,22 +30,33 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.function.Supplier;
 
 public class QuestProject implements IProject {
-    public static final ProjectType TYPE = ProjectType.of(
+    public static final ProjectType TYPE = new ProjectType(
             Icons.NODE,
             "viscript_quests.editor.quest.add",
             QuestFileHelper.PROJECT_SUFFIX,
             QuestProject::new
-    );
+    ) {
+        @Override
+        public IProject loadProjectFromFile(File file) throws Exception {
+            QuestProject project = new QuestProject();
+            project.deserializeProject(Platform.getFrozenRegistry(),
+                    QuestFileHelper.createProjectFileTag(
+                            QuestFileHelper.readProjectGraph(file.toPath()).orElseThrow()));
+            return project;
+        }
 
-    // 节点分类显示顺序
-    private static final String[] CATEGORY_ORDER = {"flow", "task", "reward", "logic", "math", "debug"};
+        @Override
+        public void saveProjectToFile(IProject project, File file) throws Exception {
+            if (project instanceof QuestProject questProject) {
+                NbtIo.write(QuestFileHelper.createProjectFileTag(questProject.currentGraphTag()), file.toPath());
+                return;
+            }
+            super.saveProjectToFile(project, file);
+        }
+    };
 
     @Getter
     private final Resources resources = Resources.EMPTY;
@@ -88,7 +96,7 @@ public class QuestProject implements IProject {
 
     @Override
     public void deserializeProject(@NotNull HolderLookup.Provider provider, @NotNull CompoundTag nbt) {
-        graphTag = nbt.contains("graph") ? nbt.getCompound("graph").copy() : new CompoundTag();
+        graphTag = QuestFileHelper.extractProjectGraph(nbt);
     }
 
     @Override
@@ -106,7 +114,7 @@ public class QuestProject implements IProject {
 
         editor.centerWindow.getLeftTop().addView(graphEditorView);
 
-        rebuildCategorizedNodeLibrary(graphEditorView.graphView.itemLibrary, graph);
+        QuestBlueprintNodeLibrary.rebuild(graphEditorView.graphView.itemLibrary, graph.graphModel);
 
         // 注册导出/上传菜单
         if (exportMenuSubscription != null) {
@@ -132,7 +140,8 @@ public class QuestProject implements IProject {
                                             QuestFile questFile = QuestBlueprintCompiler.compile(graphTag);
                                             NbtIo.writeCompressed(questFile.serializeNBT(Platform.getFrozenRegistry()), file.toPath());
                                             QuestFileHelper.clearCache();
-                                        } catch (Exception ignored) {
+                                        } catch (Exception exception) {
+                                            showExportFailure(editor, exception);
                                         }
                                     }
                                 }).show(editor);
@@ -166,7 +175,8 @@ public class QuestProject implements IProject {
                                         data.putString("fileName", result);
                                         data.put("quest", questFile.serializeNBT(Platform.getFrozenRegistry()));
                                         RPCPacketDistributor.rpcToServer(C2SPayload.UPLOAD_QUEST_FILE, data);
-                                    } catch (Exception ignored) {
+                                    } catch (Exception exception) {
+                                        showExportFailure(editor, exception);
                                     }
                                 }
                         ).show(editor);
@@ -196,73 +206,26 @@ public class QuestProject implements IProject {
         }
     }
 
-    /**
-     * 按 @NodeAttribute.group 分类重建节点库，使用翻译键显示分类和节点名称。
-     * 替换 LDLib2 默认的平铺英文类名列表。
-     */
-    private static void rebuildCategorizedNodeLibrary(ItemLibrary itemLibrary, QuestBlueprintGraph graph) {
-        List<Class<? extends Node>> nodes = graph.getSupportNodes();
-
-        // 按 group 分组
-        Map<String, List<Class<? extends Node>>> grouped = new LinkedHashMap<>();
-        for (var nodeClass : nodes) {
-            var attr = nodeClass.getAnnotation(NodeAttribute.class);
-            String group = (attr != null && !attr.group().isEmpty()) ? attr.group() : "other";
-            grouped.computeIfAbsent(group, k -> new ArrayList<>()).add(nodeClass);
-        }
-
-        var rootItem = new ItemLibraryItem()
-                .setIcon(Icons.NODE)
-                .setDisplayName(Component.translatable("graph.library.nodes"));
-        var builder = TreeBuilder.<ItemLibraryItem, Void>start(rootItem);
-
-        // 按预定义顺序遍历分类
-        for (String group : CATEGORY_ORDER) {
-            var nodesInGroup = grouped.remove(group);
-            if (nodesInGroup == null || nodesInGroup.isEmpty()) continue;
-
-            var categoryItem = new ItemLibraryItem()
-                    .setIcon(Icons.NODE)
-                    .setDisplayName(Component.translatable(
-                            ViScriptQuests.MOD_ID + ".blueprint.category." + group));
-
-            builder.branch(categoryItem, branchBuilder -> {
-                for (var nodeClass : nodesInGroup) {
-                    addNodeLeaf(branchBuilder, nodeClass);
-                }
-            });
-        }
-
-        // 处理不在预定义顺序中的其余分类
-        for (var entry : grouped.entrySet()) {
-            var categoryItem = new ItemLibraryItem()
-                    .setIcon(Icons.NODE)
-                    .setDisplayName(Component.translatable(
-                            ViScriptQuests.MOD_ID + ".blueprint.category." + entry.getKey()));
-
-            builder.branch(categoryItem, branchBuilder -> {
-                for (var nodeClass : entry.getValue()) {
-                    addNodeLeaf(branchBuilder, nodeClass);
-                }
-            });
-        }
-
-        var root = builder.build();
-        itemLibrary.nodeTree.setRoot(root);
-        itemLibrary.nodeTree.expandNode(root);
+    private CompoundTag currentGraphTag() {
+        refreshGraphSnapshot();
+        return graphTag.copy();
     }
 
-    private static void addNodeLeaf(TreeBuilder<ItemLibraryItem, Void> builder, Class<? extends Node> nodeClass) {
-        var attr = nodeClass.getAnnotation(NodeAttribute.class);
-        String nodeId = (attr != null && !attr.name().isEmpty()) ? attr.name() : nodeClass.getSimpleName();
-        String translationKey = ViScriptQuests.MOD_ID + ".blueprint.node." + nodeId;
-
-        var nodeItem = new NodeModelLibraryItem(
-                translationKey,
-                data -> CustomGraphModelImpl.createNodeFromData(data, nodeClass)
-        );
-        // searchableName 包含翻译键、节点 id 和类名，方便中英文搜索
-        nodeItem.setSearchableName(translationKey + " " + nodeId + " " + nodeClass.getSimpleName());
-        builder.leaf(nodeItem, null);
+    private static void showExportFailure(Editor editor, Exception exception) {
+        String message = exception.getMessage();
+        if (message == null || message.isBlank()) {
+            message = exception.getClass().getSimpleName();
+        }
+        Dialog dialog = new Dialog();
+        dialog.setTitle("viscript_quests.editor.quest.export.validation_failed");
+        dialog.addContent(new Label()
+                .textStyle(style -> style.textWrap(TextWrap.WRAP).adaptiveHeight(true))
+                .setText(Component.translatable("viscript_quests.editor.quest.export.validation_failed.detail", message))
+                .layout(layout -> layout.widthPercent(100)));
+        dialog.addButton(new Button()
+                .setOnClick(event -> dialog.close())
+                .setText("ldlib.gui.tips.confirm"));
+        dialog.show(editor);
     }
+
 }

@@ -26,7 +26,11 @@ public final class QuestFlowGraphBuilder {
         queue.add(new FlowEntry(startNode, "", new ArrayList<>(), new ArrayList<>()));
 
         int maxSteps = 1000;
-        while (!queue.isEmpty() && maxSteps-- > 0) {
+        while (!queue.isEmpty()) {
+            if (maxSteps-- <= 0) {
+                throw QuestBlueprintValidationException.create(
+                        "viscript_quests.editor.quest.export.validation.flow_trace_limit");
+            }
             FlowEntry entry = queue.poll();
             CustomNodeModelImpl currentNode = entry.node;
             String fromNodeId = entry.fromNodeId;
@@ -53,6 +57,7 @@ public final class QuestFlowGraphBuilder {
                 addFlowEdge(flowEdges, fromNodeId, branchNodeId, pendingMutations, pendingDebugPrints);
                 if (!visitedFlows.add(branchNodeId + "_" + fromNodeId)) continue;
                 CompareCondition condition = traceCondition(currentNode, context);
+                validateBranch(currentNode, branchNodeId, condition);
                 followBranchOutput(currentNode, "true", branchNodeId, new ArrayList<>(), new ArrayList<>(),
                         context,
                         condition, false, flowNodes, flowEdges, queue);
@@ -185,7 +190,11 @@ public final class QuestFlowGraphBuilder {
                                         Map<String, QuestFlowNode> flowNodes, List<QuestFlowEdge> flowEdges,
                                         Queue<FlowEntry> mainQueue) {
         int maxHops = 100;
-        while (!traceQueue.isEmpty() && maxHops-- > 0) {
+        while (!traceQueue.isEmpty()) {
+            if (maxHops-- <= 0) {
+                throw QuestBlueprintValidationException.create(
+                        "viscript_quests.editor.quest.export.validation.branch_trace_limit");
+            }
             FlowEntry entry = traceQueue.poll();
             CustomNodeModelImpl currentNode = entry.node;
             String fromNodeId = entry.fromNodeId;
@@ -217,6 +226,8 @@ public final class QuestFlowGraphBuilder {
                 String branchNodeId = "branch_" + currentNode.getUid();
                 flowNodes.putIfAbsent(branchNodeId, QuestBlueprintFlowTypes.createBranch(branchNodeId));
                 addConditionalFlowEdge(flowEdges, fromNodeId, branchNodeId, mutations, debugPrints, condition, negate);
+                CompareCondition nestedCondition = traceCondition(currentNode, context);
+                validateBranch(currentNode, branchNodeId, nestedCondition);
                 mainQueue.add(new FlowEntry(currentNode, branchNodeId, new ArrayList<>(), new ArrayList<>()));
                 continue;
             }
@@ -263,6 +274,22 @@ public final class QuestFlowGraphBuilder {
             }
         }
         return new CompareCondition("", CompareOp.EQ, 0f);
+    }
+
+    private static void validateBranch(CustomNodeModelImpl branchNode, String branchNodeId, CompareCondition condition) {
+        if (condition.variableName.isEmpty()) {
+            throw QuestBlueprintValidationException.create(
+                    "viscript_quests.editor.quest.export.validation.branch_missing_condition", branchNodeId);
+        }
+        if (!hasOutputConnection(branchNode, "true") || !hasOutputConnection(branchNode, "false")) {
+            throw QuestBlueprintValidationException.create(
+                    "viscript_quests.editor.quest.export.validation.branch_missing_output", branchNodeId);
+        }
+    }
+
+    private static boolean hasOutputConnection(CustomNodeModelImpl node, String portId) {
+        PortModel port = node.getOutputsById().get(portId);
+        return port != null && !port.getConnectedPorts().isEmpty();
     }
 
     private static CompareOp getOpFromCompareNode(com.lowdragmc.lowdraglib2.nodegraphtookit.api.node.Node node) {

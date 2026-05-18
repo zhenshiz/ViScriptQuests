@@ -5,6 +5,7 @@ import com.lowdragmc.lowdraglib2.nodegraphtookit.model.constant.Constant;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.graph.GraphModel;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.*;
 import com.viscriptquests.ViScriptQuestsRegistries;
+import com.viscriptquests.gui.blueprint.data.QuestRegistryId;
 import com.viscriptquests.gui.blueprint.node.QuestLinkedNode;
 import com.viscriptquests.quest.data.DisplayIcon;
 import com.viscriptquests.quest.data.QuestJoinMode;
@@ -73,6 +74,9 @@ public class QuestCompileContext {
         Constant constant = nodeModel.getInputConstantsById().get(NodeOption.PORT_ID_PREFIX + optionId);
         if (constant != null && constant.getValue() instanceof String value) {
             return value;
+        }
+        if (constant != null && constant.getValue() instanceof QuestRegistryId value) {
+            return value.value();
         }
         return "";
     }
@@ -151,7 +155,7 @@ public class QuestCompileContext {
         return QuestSubmitMode.AUTO;
     }
 
-    // 小任务关联 ID 的统一读取入口，后面切成子图自动注入时只需要改这里。
+    // 读取流程小任务节点的 ID；目标/奖励节点的 stepId 由所在小任务子图注入。
     public String resolveStepId(NodeModel nodeModel) {
         return getString(nodeModel, QuestLinkedNode.STEP_ID_OPTION);
     }
@@ -309,6 +313,14 @@ public class QuestCompileContext {
     }
 
     private void indexVariableInitialValues() {
+        Set<UUID> visitedGraphs = new HashSet<>();
+        indexVariableInitialValues(graphModel, visitedGraphs);
+    }
+
+    private void indexVariableInitialValues(GraphModel graphModel, Set<UUID> visitedGraphs) {
+        if (!visitedGraphs.add(graphModel.getUid())) {
+            return;
+        }
         for (var nodeModel : graphModel.getNodeModels()) {
             if (nodeModel instanceof VariableNodeModelImpl varNode) {
                 var declaration = varNode.getVariableDeclarationModel();
@@ -317,6 +329,20 @@ public class QuestCompileContext {
                 }
                 variableInitialValues.put(declaration.getName(),
                         QuestVariableValue.fromConstant(declaration.getDataTypeHandle(), declaration.getInitializationModel()));
+            }
+            if (nodeModel instanceof SubgraphNodeModel subgraphNode) {
+                GraphModel nested = subgraphNode.getSubgraphModel();
+                if (nested != null) {
+                    indexVariableInitialValues(nested, visitedGraphs);
+                }
+            }
+        }
+        List<GraphModel> localSubGraphs = graphModel.getLocalSubGraphs();
+        if (localSubGraphs != null) {
+            for (GraphModel subgraph : localSubGraphs) {
+                if (subgraph != null) {
+                    indexVariableInitialValues(subgraph, visitedGraphs);
+                }
             }
         }
     }

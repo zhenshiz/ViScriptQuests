@@ -4,11 +4,15 @@ import com.lowdragmc.lowdraglib2.Platform;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.graph.GraphModel;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.CustomNodeModelImpl;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.PortModel;
+import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.SubgraphNodeModel;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.VariableNodeModelImpl;
 import com.viscriptquests.gui.blueprint.compiler.IQuestRewardNodeCompiler;
 import com.viscriptquests.gui.blueprint.compiler.IQuestTaskNodeCompiler;
 import com.viscriptquests.gui.blueprint.compiler.QuestCompileContext;
 import com.viscriptquests.gui.blueprint.compiler.QuestFlowGraphBuilder;
+import com.viscriptquests.gui.blueprint.compiler.QuestBlueprintValidationException;
+import com.viscriptquests.gui.blueprint.compiler.QuestBlueprintValidator;
+import com.viscriptquests.gui.blueprint.model.QuestSubQuestNodeModel;
 import com.viscriptquests.gui.blueprint.node.flow.QuestStartNode;
 import com.viscriptquests.gui.blueprint.node.flow.SubQuestNode;
 import com.viscriptquests.quest.data.*;
@@ -46,9 +50,11 @@ public final class QuestBlueprintCompiler {
             if (node == null) continue;
 
             if (node instanceof QuestStartNode) {
-                if (startNodeModel == null) {
-                    startNodeModel = custom;
+                if (startNodeModel != null) {
+                    throw QuestBlueprintValidationException.create(
+                            "viscript_quests.editor.quest.export.validation.duplicate_start");
                 }
+                startNodeModel = custom;
                 continue;
             }
             if (node instanceof SubQuestNode) {
@@ -60,13 +66,14 @@ public final class QuestBlueprintCompiler {
                             context.getString(custom, "subtitle"),
                             context.getStringArray(custom, "description")
                     ));
+                    collectSubQuestContent(context, custom, stepId, taskNodes, rewardNodes);
                 }
                 continue;
             }
 
             IQuestTaskNodeCompiler taskCompiler = context.findTaskCompiler(custom);
             if (taskCompiler != null) {
-                String stepId = taskCompiler.getStepId(context, custom);
+                String stepId = context.resolveStepId(custom);
                 if (!stepId.isEmpty()) {
                     taskNodes.computeIfAbsent(stepId, ignored -> new ArrayList<>()).add(custom);
                 }
@@ -75,7 +82,7 @@ public final class QuestBlueprintCompiler {
 
             IQuestRewardNodeCompiler rewardCompiler = context.findRewardCompiler(custom);
             if (rewardCompiler != null) {
-                String stepId = rewardCompiler.getStepId(context, custom);
+                String stepId = context.resolveStepId(custom);
                 if (!stepId.isEmpty()) {
                     rewardNodes.computeIfAbsent(stepId, ignored -> new ArrayList<>()).add(custom);
                 }
@@ -83,7 +90,8 @@ public final class QuestBlueprintCompiler {
         }
 
         if (startNodeModel == null) {
-            throw new IllegalStateException("蓝图编译失败：未找到任务开始节点 (QuestStartNode)");
+            throw QuestBlueprintValidationException.create(
+                    "viscript_quests.editor.quest.export.validation.missing_start");
         }
 
         QuestFile questFile = new QuestFile();
@@ -120,7 +128,57 @@ public final class QuestBlueprintCompiler {
         }
 
         Set<String> processedVars = new LinkedHashSet<>();
-        for (var nodeModel : graph.graphModel.getNodeModels()) {
+        collectVariableDefaults(graph.graphModel, questFile, processedVars, new HashSet<>());
+
+        QuestBlueprintValidator.validateExport(questFile);
+        return questFile;
+    }
+
+    private static void collectSubQuestContent(QuestCompileContext context,
+                                               CustomNodeModelImpl subQuestNode,
+                                               String stepId,
+                                               Map<String, List<CustomNodeModelImpl>> taskNodes,
+                                               Map<String, List<CustomNodeModelImpl>> rewardNodes) {
+        GraphModel subgraph = null;
+        if (subQuestNode instanceof QuestSubQuestNodeModel subQuestModel) {
+            subgraph = subQuestModel.getSubgraphModel();
+        }
+        if (subgraph == null) {
+            return;
+        }
+        collectTaskAndRewardNodesInGraph(context, subgraph, stepId, taskNodes, rewardNodes);
+    }
+
+    private static void collectTaskAndRewardNodesInGraph(QuestCompileContext context,
+                                                         GraphModel graphModel,
+                                                         String stepId,
+                                                         Map<String, List<CustomNodeModelImpl>> taskNodes,
+                                                         Map<String, List<CustomNodeModelImpl>> rewardNodes) {
+        for (var nodeModel : graphModel.getNodeModels()) {
+            if (nodeModel instanceof CustomNodeModelImpl custom) {
+                if (context.findTaskCompiler(custom) != null) {
+                    taskNodes.computeIfAbsent(stepId, ignored -> new ArrayList<>()).add(custom);
+                    continue;
+                }
+                if (context.findRewardCompiler(custom) != null) {
+                    rewardNodes.computeIfAbsent(stepId, ignored -> new ArrayList<>()).add(custom);
+                }
+            }
+            if (nodeModel instanceof SubgraphNodeModel subgraphNode) {
+                GraphModel nested = subgraphNode.getSubgraphModel();
+                if (nested != null) {
+                    collectTaskAndRewardNodesInGraph(context, nested, stepId, taskNodes, rewardNodes);
+                }
+            }
+        }
+    }
+
+    private static void collectVariableDefaults(GraphModel graphModel, QuestFile questFile,
+                                                Set<String> processedVars, Set<UUID> visitedGraphs) {
+        if (!visitedGraphs.add(graphModel.getUid())) {
+            return;
+        }
+        for (var nodeModel : graphModel.getNodeModels()) {
             if (nodeModel instanceof VariableNodeModelImpl varNode) {
                 var decl = varNode.getVariableDeclarationModel();
                 if (decl != null && processedVars.add(decl.getName())) {
@@ -128,9 +186,21 @@ public final class QuestBlueprintCompiler {
                             QuestVariableValue.fromConstant(decl.getDataTypeHandle(), decl.getInitializationModel()));
                 }
             }
+            if (nodeModel instanceof SubgraphNodeModel subgraphNode) {
+                GraphModel nested = subgraphNode.getSubgraphModel();
+                if (nested != null) {
+                    collectVariableDefaults(nested, questFile, processedVars, visitedGraphs);
+                }
+            }
         }
-
-        return questFile;
+        List<GraphModel> localSubGraphs = graphModel.getLocalSubGraphs();
+        if (localSubGraphs != null) {
+            for (GraphModel subgraph : localSubGraphs) {
+                if (subgraph != null) {
+                    collectVariableDefaults(subgraph, questFile, processedVars, visitedGraphs);
+                }
+            }
+        }
     }
 
     private static void addCompiledTasksAndStep(QuestFile questFile, QuestCompileContext context,
@@ -165,6 +235,14 @@ public final class QuestBlueprintCompiler {
     // 构建变量端口连线反向映射：输入端口 UUID -> 变量名。
     private static Map<UUID, String> buildVarWireMap(GraphModel graphModel) {
         Map<UUID, String> map = new LinkedHashMap<>();
+        buildVarWireMap(graphModel, map, new HashSet<>());
+        return map;
+    }
+
+    private static void buildVarWireMap(GraphModel graphModel, Map<UUID, String> map, Set<UUID> visitedGraphs) {
+        if (!visitedGraphs.add(graphModel.getUid())) {
+            return;
+        }
         for (var nodeModel : graphModel.getNodeModels()) {
             if (nodeModel instanceof VariableNodeModelImpl varNode) {
                 var decl = varNode.getVariableDeclarationModel();
@@ -177,8 +255,21 @@ public final class QuestBlueprintCompiler {
                     }
                 }
             }
+            if (nodeModel instanceof SubgraphNodeModel subgraphNode) {
+                GraphModel nested = subgraphNode.getSubgraphModel();
+                if (nested != null) {
+                    buildVarWireMap(nested, map, visitedGraphs);
+                }
+            }
         }
-        return map;
+        List<GraphModel> localSubGraphs = graphModel.getLocalSubGraphs();
+        if (localSubGraphs != null) {
+            for (GraphModel subgraph : localSubGraphs) {
+                if (subgraph != null) {
+                    buildVarWireMap(subgraph, map, visitedGraphs);
+                }
+            }
+        }
     }
 
     private record SubQuestInfo(String stepId, String title, String subtitle, String[] description) {

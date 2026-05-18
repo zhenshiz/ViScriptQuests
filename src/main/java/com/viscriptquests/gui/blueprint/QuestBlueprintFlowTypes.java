@@ -22,9 +22,6 @@ public final class QuestBlueprintFlowTypes {
     public static final String JOIN = typeOf(QuestJoinNode.class);
     public static final String END = typeOf(QuestEndNode.class);
 
-    private QuestBlueprintFlowTypes() {
-    }
-
     public static Map<String, Class<? extends Node>> getFlowNodeTypes() {
         return getNodeTypesByGroup(QuestBlueprintNode.FLOW_GROUP);
     }

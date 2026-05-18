@@ -13,9 +13,5 @@ public interface IQuestRewardNodeCompiler extends ILDLRegister<IQuestRewardNodeC
 
     boolean supports(CustomNodeModelImpl node);
 
-    default String getStepId(QuestCompileContext context, CustomNodeModelImpl node) {
-        return context.resolveStepId(node);
-    }
-
     IReward compileReward(QuestCompileContext context, CustomNodeModelImpl node, String stepId);
 }

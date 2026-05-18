@@ -67,6 +67,15 @@ public class DisplayIcon implements IPersistedSerializable, IConfigurable {
         return CodecUtil.deserializeNBT(CODEC, tag, Platform.getFrozenRegistry());
     }
 
+    public ItemStack renderItemStack() {
+        if (itemStack == null || itemStack.isEmpty()) {
+            return ItemStack.EMPTY;
+        }
+        ItemStack stack = itemStack.copy();
+        stack.setCount(1);
+        return stack;
+    }
+
     public boolean isTexture() {
         return type == IconType.TEXTURE;
     }

@@ -22,7 +22,7 @@ import java.util.Optional;
  */
 public class QuestManager {
     /**
-     * 向指定玩家发放任务并归入指定分类。
+     * 向指定玩家发放任务，并根据任务文件里的分类信息归类。
      *
      * <p>方法会读取运行时任务文件，创建玩家独立的任务状态，推进初始流程节点，
      * 自动追踪第一个可执行的小任务，并将玩家任务数据标记为已修改。若任务文件不存在、
@@ -30,10 +30,9 @@ public class QuestManager {
      *
      * @param player 服务端玩家，接收该任务的玩家
      * @param questId 任务标识，允许传入未规范化的任务文件标识
-     * @param categoryId 分类标识，任务将显示在该玩家的此分类下
      * @return 是否成功发放任务
      */
-    public static boolean grant(ServerPlayer player, String questId, String categoryId) {
+    public static boolean grant(ServerPlayer player, String questId) {
         String normalizedQuestId = QuestFileHelper.normalizeQuestId(questId);
         Optional<QuestFile> questFile = QuestFileHelper.getQuest(normalizedQuestId, player.registryAccess());
         if (questFile.isEmpty()) {
@@ -42,7 +41,7 @@ public class QuestManager {
 
         QuestSavedData savedData = QuestSavedData.get(player.getServer());
         var playerData = savedData.getPlayer(player.getUUID());
-        String normalizedCategoryId = QuestCategoryData.normalizeId(categoryId);
+        String normalizedCategoryId = QuestCategoryData.normalizeId(questFile.get().quest.categoryId);
         if (playerData.findCategory(normalizedCategoryId).isEmpty()) {
             return false;
         }
@@ -165,6 +164,7 @@ public class QuestManager {
             if (questFile == null) {
                 continue;
             }
+            state.refreshRewardDisplays(questFile);
             for (TaskProgress progress : state.taskProgresses) {
                 progress.refreshObjectives(questFile, player);
             }

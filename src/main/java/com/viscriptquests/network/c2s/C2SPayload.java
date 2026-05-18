@@ -8,6 +8,7 @@ import com.viscriptquests.ViScriptQuests;
 import com.viscriptquests.network.s2c.S2CPayload;
 import com.viscriptquests.quest.data.runtime.QuestCategoryListData;
 import com.viscriptquests.quest.data.QuestFile;
+import com.viscriptquests.gui.blueprint.compiler.QuestBlueprintValidator;
 import com.viscriptquests.quest.runtime.QuestManager;
 import com.viscriptquests.quest.runtime.QuestTrackingService;
 import com.viscriptquests.util.QuestFileHelper;
@@ -51,6 +52,7 @@ public class C2SPayload {
         try {
             QuestFile questFile = new QuestFile();
             questFile.deserializeNBT(Platform.getFrozenRegistry(), questTag);
+            QuestBlueprintValidator.validateExport(questFile);
             QuestFileHelper.writeQuest(fileName, questFile, Platform.getFrozenRegistry());
             QuestFileHelper.clearCache();
         } catch (Exception e) {

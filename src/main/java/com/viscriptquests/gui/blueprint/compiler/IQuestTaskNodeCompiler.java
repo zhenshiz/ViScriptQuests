@@ -13,9 +13,5 @@ public interface IQuestTaskNodeCompiler extends ILDLRegister<IQuestTaskNodeCompi
 
     boolean supports(CustomNodeModelImpl node);
 
-    default String getStepId(QuestCompileContext context, CustomNodeModelImpl node) {
-        return context.resolveStepId(node);
-    }
-
     ITask compileTask(QuestCompileContext context, CustomNodeModelImpl node, String stepId);
 }

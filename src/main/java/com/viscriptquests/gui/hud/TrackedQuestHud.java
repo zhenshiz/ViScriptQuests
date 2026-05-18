@@ -158,7 +158,7 @@ public class TrackedQuestHud extends UIElement {
             ResourceLocation location = ResourceLocation.tryParse(icon.getTexture());
             element = textureIcon(location == null ? ViScriptQuests.id("textures/gui/quest_book/book_icon.png") : location);
         } else {
-            ItemStack stack = icon == null ? ItemStack.EMPTY : icon.getItemStack();
+            ItemStack stack = icon == null ? ItemStack.EMPTY : icon.renderItemStack();
             element = itemIcon(stack == null || stack.isEmpty() ? DEFAULT_ICON : stack);
         }
         element.layout(layout -> {
@@ -192,7 +192,7 @@ public class TrackedQuestHud extends UIElement {
         if (icon.isTexture()) {
             return "texture:" + icon.getTexture();
         }
-        ItemStack stack = icon.getItemStack();
+        ItemStack stack = icon.renderItemStack();
         return stack == null || stack.isEmpty() ? "item:" : "item:" + stack.getItem() + "x" + stack.getCount();
     }
 

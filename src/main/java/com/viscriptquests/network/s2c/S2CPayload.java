@@ -5,17 +5,14 @@ import com.lowdragmc.lowdraglib2.editor.ui.Editor;
 import com.lowdragmc.lowdraglib2.editor.ui.EditorWindow;
 import com.lowdragmc.lowdraglib2.gui.holder.ModularUIContainerScreen;
 import com.lowdragmc.lowdraglib2.gui.holder.ModularUIScreen;
-import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
-import com.lowdragmc.lowdraglib2.gui.ui.UI;
 import com.lowdragmc.lowdraglib2.networking.rpc.RPCPacket;
 import com.viscriptquests.ViScriptQuests;
+import com.viscriptquests.gui.blueprint.data.QuestBlueprintRegistryCache;
 import com.viscriptquests.gui.hud.QuestHudData;
-import com.viscriptquests.gui.editor.QuestEditor;
 import com.viscriptquests.gui.editor.QuestProject;
 import com.viscriptquests.util.ViScriptQuestsClientUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.Component;
 
 public class S2CPayload {
     public static final String OPEN_EDITOR_WITH_PROJECT = ViScriptQuests.MOD_ID + ":open_editor_with_project";
@@ -23,6 +20,7 @@ public class S2CPayload {
     public static final String OPEN_CATEGORY_CONFIG = ViScriptQuests.MOD_ID + ":open_category_config";
     public static final String SYNC_QUEST_HUD = ViScriptQuests.MOD_ID + ":sync_quest_hud";
     public static final String SYNC_QUEST_BOOK = ViScriptQuests.MOD_ID + ":sync_quest_book";
+    public static final String SYNC_BLUEPRINT_REGISTRIES = ViScriptQuests.MOD_ID + ":sync_blueprint_registries";
 
     // 服务端发送项目图数据到客户端，打开编辑器并加载该图
     @RPCPacket(OPEN_EDITOR_WITH_PROJECT)
@@ -78,6 +76,13 @@ public class S2CPayload {
     public static void openCategoryConfig(CompoundTag data) {
         if (LDLib2.isClient()) {
             ViScriptQuestsClientUtil.openCategoryConfig(data);
+        }
+    }
+
+    @RPCPacket(SYNC_BLUEPRINT_REGISTRIES)
+    public static void syncBlueprintRegistries(CompoundTag data) {
+        if (LDLib2.isClient()) {
+            QuestBlueprintRegistryCache.updateClientCache(data);
         }
     }
 }

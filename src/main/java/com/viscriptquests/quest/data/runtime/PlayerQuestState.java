@@ -11,7 +11,7 @@ import com.viscriptquests.quest.data.QuestVariableValue;
 import com.viscriptquests.quest.data.reward.IReward;
 import com.viscriptquests.quest.data.task.ITask;
 import net.minecraft.core.HolderLookup;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -85,14 +85,7 @@ public class PlayerQuestState implements IPersistedSerializable {
         state.status = QuestStatus.ACTIVE;
         state.grantedGameTime = gameTime;
 
-        // 提取奖励显示数据（用于客户端 UI 展示）
-        for (IReward reward : file.rewards) {
-            RewardDisplay rd = new RewardDisplay();
-            rd.stepId = reward.stepId;
-            rd.displayText = reward.getRewardHint().getString();
-            rd.icon = reward.getRewardIcon();
-            state.rewardDisplays.add(rd);
-        }
+        state.refreshRewardDisplays(file);
 
         // 按小任务聚合目标进度：一个 SubQuest 可以包含多个 ITask。
         for (QuestStep step : file.steps) {
@@ -153,5 +146,21 @@ public class PlayerQuestState implements IPersistedSerializable {
         return flowJoinProgresses.stream()
                 .filter(progress -> progress.joinNodeId.equals(joinNodeId))
                 .findFirst();
+    }
+
+    public void refreshRewardDisplays(QuestFile file) {
+        rewardDisplays.clear();
+        if (file == null) {
+            return;
+        }
+        for (IReward reward : file.rewards) {
+            RewardDisplay display = new RewardDisplay();
+            display.stepId = reward.stepId == null ? "" : reward.stepId;
+            Component hint = reward.getRewardHint();
+            display.displayText = hint == null ? "" : hint.getString();
+            DisplayIcon icon = reward.getRewardIcon();
+            display.icon = icon == null ? new DisplayIcon() : icon.copy();
+            rewardDisplays.add(display);
+        }
     }
 }

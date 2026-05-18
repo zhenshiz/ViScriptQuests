@@ -5,25 +5,10 @@ import com.lowdragmc.lowdraglib2.plugin.LDLibPlugin;
 import com.lowdragmc.lowdraglib2.syncdata.AccessorRegistries;
 import com.lowdragmc.lowdraglib2.syncdata.accessor.direct.CustomDirectAccessor;
 import com.lowdragmc.lowdraglib2.utils.PersistedParser;
-import com.viscriptquests.quest.data.DebugValuePrint;
-import com.viscriptquests.quest.data.DisplayIcon;
-import com.viscriptquests.quest.data.QuestFlowEdge;
-import com.viscriptquests.quest.data.QuestFlowNode;
-import com.viscriptquests.quest.data.QuestDebugPrint;
-import com.viscriptquests.quest.data.QuestValueToken;
-import com.viscriptquests.quest.data.QuestVariableValue;
-import com.viscriptquests.quest.data.QuestStep;
-import com.viscriptquests.quest.data.VariableMutation;
+import com.viscriptquests.gui.blueprint.data.QuestRegistryId;
+import com.viscriptquests.quest.data.*;
 import com.viscriptquests.quest.data.reward.IReward;
-import com.viscriptquests.quest.data.runtime.JoinProgress;
-import com.viscriptquests.quest.data.runtime.PlayerQuestState;
-import com.viscriptquests.quest.data.runtime.QuestCategoryData;
-import com.viscriptquests.quest.data.runtime.QuestCategoryListData;
-import com.viscriptquests.quest.data.runtime.QuestGuideMarker;
-import com.viscriptquests.quest.data.runtime.QuestPlayerData;
-import com.viscriptquests.quest.data.runtime.RewardDisplay;
-import com.viscriptquests.quest.data.runtime.TaskObjectiveProgress;
-import com.viscriptquests.quest.data.runtime.TaskProgress;
+import com.viscriptquests.quest.data.runtime.*;
 import com.viscriptquests.quest.data.task.ITask;
 
 import java.util.function.Supplier;
@@ -77,6 +62,7 @@ public class ViScriptQuestsPlugin implements ILDLibPlugin {
         register(QuestFlowEdge.class, QuestFlowEdge::new);
         register(JoinProgress.class, JoinProgress::new);
         register(RewardDisplay.class, RewardDisplay::new);
+        register(QuestRegistryId.class, QuestRegistryId::new);
     }
 
     private static <T> void register(Class<T> type, Supplier<T> factory) {

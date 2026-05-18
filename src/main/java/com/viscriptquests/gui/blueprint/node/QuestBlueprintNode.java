@@ -8,6 +8,7 @@ import com.lowdragmc.lowdraglib2.nodegraphtookit.api.type.TypeHandles;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.definition.IOptionDefinitionContext;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.definition.IPortDefinitionContext;
 import com.viscriptquests.gui.blueprint.QuestBlueprintTypes;
+import com.viscriptquests.gui.blueprint.data.QuestRegistryId;
 import com.viscriptquests.quest.data.DisplayIcon;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
@@ -37,6 +38,14 @@ public abstract class QuestBlueprintNode extends Node {
 
     protected void stringOption(IOptionDefinitionContext context, String id, String displayKey, String defaultValue) {
         option(context, id, displayKey, TypeHandles.STRING, defaultValue);
+    }
+
+    protected void dimensionOption(IOptionDefinitionContext context, String id, String defaultValue) {
+        registryIdOption(context, id, id, QuestBlueprintTypes.DIMENSION_ID, defaultValue);
+    }
+
+    protected void entityTypeOption(IOptionDefinitionContext context, String id, String defaultValue) {
+        registryIdOption(context, id, id, QuestBlueprintTypes.ENTITY_TYPE_ID, defaultValue);
     }
 
     protected void stringArrayOption(IOptionDefinitionContext context, String id) {
@@ -114,6 +123,10 @@ public abstract class QuestBlueprintNode extends Node {
                 .withDisplayName(portName(displayKey))
                 .withDefaultValue(defaultValue);
         builder.build();
+    }
+
+    private void registryIdOption(IOptionDefinitionContext context, String id, String displayKey, TypeHandle type, String defaultValue) {
+        option(context, id, displayKey, type, new QuestRegistryId(defaultValue));
     }
 
     private void input(IPortDefinitionContext context, String id, TypeHandle type, Object defaultValue) {

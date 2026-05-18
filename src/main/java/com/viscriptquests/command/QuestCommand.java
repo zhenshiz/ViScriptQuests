@@ -9,6 +9,7 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import com.viscriptquests.ViScriptQuests;
+import com.viscriptquests.gui.blueprint.data.QuestBlueprintRegistryCache;
 import com.viscriptquests.gui.editor.QuestEditor;
 import com.viscriptquests.network.s2c.S2CPayload;
 import com.viscriptquests.quest.data.runtime.QuestCategoryListData;
@@ -61,16 +62,6 @@ public class QuestCommand implements ICommand {
         return SharedSuggestionProvider.suggest(commonValues(players, player -> QuestManager.getStepIds(player, questId)), builder);
     };
 
-    private static final SuggestionProvider<CommandSourceStack> PLAYER_CATEGORY_SUGGESTIONS = (context, builder) -> {
-        Collection<ServerPlayer> players = EntityArgument.getPlayers(context, "target");
-        var ids = commonValues(players, player -> QuestSavedData.get(player.getServer()).getPlayer(player.getUUID())
-                .copyCategories()
-                .stream()
-                .map(category -> category.id)
-                .toList());
-        return SharedSuggestionProvider.suggest(ids, builder);
-    };
-
     @Override
     public void register(CommandDispatcher<CommandSourceStack> dispatcher, CommandBuildContext buildContext, Commands.CommandSelection commandSelection) {
         dispatcher.register(Commands.literal(ViScriptQuests.MOD_ID)
@@ -93,9 +84,7 @@ public class QuestCommand implements ICommand {
                         .then(Commands.argument("target", EntityArgument.players())
                                 .then(Commands.argument("quest", StringArgumentType.string())
                                         .suggests(QUEST_SUGGESTIONS)
-                                        .then(Commands.argument("category", StringArgumentType.string())
-                                                .suggests(PLAYER_CATEGORY_SUGGESTIONS)
-                                                .executes(this::grant)))))
+                                        .executes(this::grant))))
                 .then(Commands.literal("revoke")
                         .then(Commands.argument("target", EntityArgument.players())
                                 .then(Commands.argument("quest", StringArgumentType.string())
@@ -121,6 +110,7 @@ public class QuestCommand implements ICommand {
         if (player == null) {
             throw playerOnlyException();
         }
+        syncBlueprintRegistries(player);
         PlayerUIMenuType.openUI(player, QuestEditor.EDITOR_ID);
         return 1;
     }
@@ -139,6 +129,7 @@ public class QuestCommand implements ICommand {
                     Component.translatable("commands.viscript_quests.quest.editor.not_found", projectId));
             return 0;
         }
+        syncBlueprintRegistries(player);
         PlayerUIMenuType.openUI(player, QuestEditor.EDITOR_ID);
         RPCPacketDistributor.rpcToPlayer(player, S2CPayload.OPEN_EDITOR_WITH_PROJECT, graphTag.get());
         return 1;
@@ -171,6 +162,11 @@ public class QuestCommand implements ICommand {
         return 1;
     }
 
+    private static void syncBlueprintRegistries(ServerPlayer player) {
+        RPCPacketDistributor.rpcToPlayer(player, S2CPayload.SYNC_BLUEPRINT_REGISTRIES,
+                QuestBlueprintRegistryCache.createServerPayload(player.getServer()));
+    }
+
     @SneakyThrows
     private int reloadPlayers(CommandContext<CommandSourceStack> context) {
         Collection<ServerPlayer> players = EntityArgument.getPlayers(context, "target");
@@ -192,16 +188,15 @@ public class QuestCommand implements ICommand {
     private int grant(CommandContext<CommandSourceStack> context) {
         Collection<ServerPlayer> players = EntityArgument.getPlayers(context, "target");
         String questId = StringArgumentType.getString(context, "quest");
-        String categoryId = StringArgumentType.getString(context, "category");
         return applyToPlayers(context, players,
-                player -> QuestManager.grant(player, questId, categoryId),
+                player -> QuestManager.grant(player, questId),
                 player -> player.createCommandSourceStack().sendSuccess(
                         () -> Component.translatable("viscript_quests.quest.granted", questId), false),
-                player -> grantPrecheckFailure(player, questId, categoryId),
-                player -> grantPrecheckFailure(player, questId, categoryId),
+                player -> grantPrecheckFailure(player, questId),
+                player -> grantPrecheckFailure(player, questId),
                 player -> Component.translatable(
                         "commands.viscript_quests.quest.grant.success",
-                        player.getDisplayName(), QuestFileHelper.normalizeQuestId(questId), categoryId),
+                        player.getDisplayName(), QuestFileHelper.normalizeQuestId(questId), grantCategoryId(player, questId)),
                 false);
     }
 
@@ -319,12 +314,13 @@ public class QuestCommand implements ICommand {
         return new ArrayList<>(values);
     }
 
-    private Component grantPrecheckFailure(ServerPlayer player, String questId, String categoryId) {
+    private Component grantPrecheckFailure(ServerPlayer player, String questId) {
         String normalizedQuestId = QuestFileHelper.normalizeQuestId(questId);
-        if (QuestFileHelper.getQuest(normalizedQuestId, player.registryAccess()).isEmpty()) {
+        var questFile = QuestFileHelper.getQuest(normalizedQuestId, player.registryAccess());
+        if (questFile.isEmpty()) {
             return Component.translatable("commands.viscript_quests.quest.missing", normalizedQuestId);
         }
-        String normalizedCategoryId = QuestCategoryData.normalizeId(categoryId);
+        String normalizedCategoryId = QuestCategoryData.normalizeId(questFile.get().quest.categoryId);
         var playerData = QuestSavedData.get(player.getServer()).getPlayer(player.getUUID());
         if (playerData.findCategory(normalizedCategoryId).isEmpty()) {
             return Component.translatable("commands.viscript_quests.quest.category.missing", normalizedCategoryId);
@@ -336,6 +332,12 @@ public class QuestCommand implements ICommand {
         return Component.translatable(
                 "commands.viscript_quests.quest.grant.already_active",
                 normalizedQuestId, player.getDisplayName());
+    }
+
+    private String grantCategoryId(ServerPlayer player, String questId) {
+        return QuestFileHelper.getQuest(QuestFileHelper.normalizeQuestId(questId), player.registryAccess())
+                .map(file -> QuestCategoryData.normalizeId(file.quest.categoryId))
+                .orElse("");
     }
 
     private Component stateMissingFailure(ServerPlayer player, String questId) {

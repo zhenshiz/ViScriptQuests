@@ -5,13 +5,12 @@ import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.definition.IOptionDe
 import com.viscriptquests.gui.blueprint.QuestBlueprintGraph;
 import com.viscriptquests.gui.blueprint.QuestBlueprintTypes;
 import com.viscriptquests.gui.blueprint.node.QuestBlueprintNode;
-import com.viscriptquests.gui.blueprint.node.QuestLinkedNode;
 import com.viscriptquests.quest.data.QuestSubmitMode;
 import net.minecraft.network.chat.Component;
 
 // 物品目标配置节点，纯数据节点，参数与 ItemTask 数据类一一对应
 @NodeAttribute(name = "item_task", group = QuestBlueprintNode.TASK_GROUP, graphTypes = QuestBlueprintGraph.class)
-public class ItemTaskNode extends QuestLinkedNode {
+public class ItemTaskNode extends QuestBlueprintNode {
     @Override
     public Component getDisplayName() {
         return nodeName("item_task");
@@ -19,7 +18,6 @@ public class ItemTaskNode extends QuestLinkedNode {
 
     @Override
     public void onDefineOptions(IOptionDefinitionContext context) {
-        stepIdOption(context);
         itemStackOption(context, "item_stack");
         boolOption(context, "strict_components", false);
         boolOption(context, "consume_item", true);

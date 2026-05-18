@@ -254,7 +254,7 @@ public class QuestGuideMarkerElement extends UIElement {
                     : location)));
             return element;
         }
-        ItemStack stack = icon == null ? ItemStack.EMPTY : icon.getItemStack();
+        ItemStack stack = icon == null ? ItemStack.EMPTY : icon.renderItemStack();
         ItemSlot slot = new ItemSlot();
         slot.setItem(stack == null || stack.isEmpty() ? DEFAULT_ICON : stack);
         slot.style(style -> style.backgroundTexture(IGuiTexture.EMPTY));
@@ -365,7 +365,7 @@ public class QuestGuideMarkerElement extends UIElement {
         if (icon.isTexture()) {
             return "texture:" + icon.getTexture();
         }
-        ItemStack stack = icon.getItemStack();
+        ItemStack stack = icon.renderItemStack();
         return stack == null || stack.isEmpty() ? "item:" : "item:" + stack.getItem() + "x" + stack.getCount();
     }
 

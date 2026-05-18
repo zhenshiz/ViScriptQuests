@@ -7,20 +7,17 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtAccounter;
 import net.minecraft.nbt.NbtIo;
+import net.minecraft.nbt.Tag;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 public final class QuestFileHelper {
     public static final String QUEST_SUFFIX = ".quest";
     public static final String PROJECT_SUFFIX = ".questproj";
+    private static final String PROJECT_NAME = "viscript_quests.editor.quest.add";
     private static final Map<String, QuestFile> CACHE = new LinkedHashMap<>();
 
     public static Path questDirectory() {
@@ -157,7 +154,7 @@ public final class QuestFileHelper {
         String normalized = normalizeProjectId(projectId);
         Path path = resolveProjectPath(normalized);
         Files.createDirectories(path.getParent());
-        NbtIo.writeCompressed(graphTag, path);
+        NbtIo.write(createProjectFileTag(graphTag), path);
         return path;
     }
 
@@ -173,11 +170,50 @@ public final class QuestFileHelper {
         if (!Files.exists(path)) {
             return Optional.empty();
         }
+        return readProjectGraph(path);
+    }
+
+    public static Optional<CompoundTag> readProjectGraph(Path path) {
         try {
-            return Optional.of(NbtIo.readCompressed(path, NbtAccounter.unlimitedHeap()));
+            return Optional.of(extractProjectGraph(readProjectFileTag(path)));
         } catch (IOException ignored) {
             return Optional.empty();
         }
+    }
+
+    public static CompoundTag createProjectFileTag(CompoundTag graphTag) {
+        CompoundTag root = new CompoundTag();
+        root.putString("version", "1.0");
+
+        CompoundTag data = new CompoundTag();
+        data.put("graph", graphTag.copy());
+        root.put("data", data);
+        return root;
+    }
+
+    public static CompoundTag extractProjectGraph(CompoundTag projectOrGraphTag) {
+        if (projectOrGraphTag.contains("data", Tag.TAG_COMPOUND)) {
+            CompoundTag data = projectOrGraphTag.getCompound("data");
+            if (data.contains("graph", Tag.TAG_COMPOUND)) {
+                return data.getCompound("graph").copy();
+            }
+        }
+        if (projectOrGraphTag.contains("graph", Tag.TAG_COMPOUND)) {
+            return projectOrGraphTag.getCompound("graph").copy();
+        }
+        return projectOrGraphTag.copy();
+    }
+
+    private static CompoundTag readProjectFileTag(Path path) throws IOException {
+        try {
+            CompoundTag tag = NbtIo.read(path);
+            if (tag != null) {
+                return tag;
+            }
+        } catch (IOException | RuntimeException ignored) {
+            // 兼容旧版上传项目：旧文件是压缩的裸 graphTag，而 LDLib2 项目文件是不压缩的包装 NBT。
+        }
+        return NbtIo.readCompressed(path, NbtAccounter.unlimitedHeap());
     }
 
     // 扫描项目目录下的所有 .questproj 文件，用于命令 tab 补全

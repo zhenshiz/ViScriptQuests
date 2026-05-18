@@ -11,7 +11,7 @@ import com.lowdragmc.lowdraglib2.gui.texture.Icons;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.api.type.TypeHandle;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.api.type.TypeHandleHelpers;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.api.type.TypeHandles;
-import com.viscriptquests.gui.blueprint.QuestBlueprintCompiler.CompareOp;
+import com.viscriptquests.gui.blueprint.data.QuestRegistryId;
 import com.viscriptquests.quest.data.DisplayIcon;
 import com.viscriptquests.quest.data.DisplayIcon.IconType;
 import com.viscriptquests.quest.data.QuestJoinMode;
@@ -26,14 +26,16 @@ public final class QuestBlueprintTypes {
     public static final TypeHandle STRING_ARRAY = TypeHandleHelpers.fromType(String[].class, "String[]");
     // 任务提交模式枚举
     public static final TypeHandle SUBMIT_MODE = TypeHandleHelpers.fromType(QuestSubmitMode.class);
-    // 比较运算符枚举
-    public static final TypeHandle COMPARE_OP = TypeHandleHelpers.fromType(CompareOp.class);
     // 汇合模式枚举，表达任选、全做、至少完成 N 个
     public static final TypeHandle JOIN_MODE = TypeHandleHelpers.fromType(QuestJoinMode.class);
     // 任意类型，用于通用比较节点的输入端口，可接受所有类型的连线
     public static final TypeHandle OBJECT = TypeHandleHelpers.fromType(Object.class, "Object");
     // 显示图标，支持物品图标和资源包图片两种模式
     public static final TypeHandle DISPLAY_ICON = TypeHandleHelpers.fromType(DisplayIcon.class, "DisplayIcon");
+    // 维度 ID，底层保存为字符串包装，编辑器展示搜索补全框
+    public static final TypeHandle DIMENSION_ID = TypeHandleHelpers.customType(QuestRegistryId.class, "viscript_quests:dimension_id", "DimensionId");
+    // 实体类型 ID，底层保存为字符串包装，编辑器展示搜索补全框
+    public static final TypeHandle ENTITY_TYPE_ID = TypeHandleHelpers.customType(QuestRegistryId.class, "viscript_quests:entity_type_id", "EntityTypeId");
 
     static {
         TypeHandleHelpers.setCustomIcon(TypeHandles.ITEM_STACK, Icons.RESOURCE);
@@ -50,6 +52,8 @@ public final class QuestBlueprintTypes {
                     }
                     father.addConfigurator(createDisplayIconConfigurator(icon, valueConfigurable::notifyValueChanged));
                 }));
+        registerRegistryIdType(DIMENSION_ID, "minecraft:overworld");
+        registerRegistryIdType(ENTITY_TYPE_ID, "minecraft:pig");
     }
 
     private static DisplayIcon createDefaultDisplayIcon(Object defaultValue) {
@@ -148,5 +152,12 @@ public final class QuestBlueprintTypes {
                 yield textureConfigurator;
             }
         };
+    }
+
+    private static void registerRegistryIdType(TypeHandle typeHandle, String defaultValue) {
+        TypeHandleHelpers.setCustomColorAndIcon(typeHandle, 0xFF8FD8FF, Icons.RESOURCE.copy().setColor(0xFF8FD8FF));
+        TypeHandleHelpers.setCustomDefaultValue(typeHandle, () -> new QuestRegistryId(defaultValue));
+        TypeHandleHelpers.setCustomConfigurable(typeHandle, (valueConfigurable, type) ->
+                IConfigurable.create(father -> father.addConfigurator(QuestRegistryIdConfigurator.create(valueConfigurable, type))));
     }
 }
