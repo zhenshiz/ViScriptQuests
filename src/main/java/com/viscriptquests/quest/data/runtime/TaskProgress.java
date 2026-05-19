@@ -6,6 +6,7 @@ import com.viscriptquests.quest.data.DisplayIcon;
 import com.viscriptquests.quest.data.QuestFile;
 import com.viscriptquests.quest.data.QuestStep;
 import com.viscriptquests.quest.data.task.ITask;
+import net.minecraft.network.chat.Component;
 
 import java.util.List;
 import java.util.ArrayList;
@@ -21,7 +22,7 @@ public class TaskProgress implements IPersistedSerializable {
     @Persisted
     public String[] description = new String[0];
     @Persisted
-    public String taskHint = "";
+    public Component taskHint = Component.empty();
     @Persisted
     public boolean manualSubmitRequired = false;
     @Persisted
@@ -48,7 +49,7 @@ public class TaskProgress implements IPersistedSerializable {
         progress.manualSubmitRequired = !task.allowsAutoSubmit();
         TaskObjectiveProgress objective = TaskObjectiveProgress.fromTask(task, player);
         progress.objectives.add(objective);
-        progress.taskHint = objective.hint;
+        progress.taskHint = objective.displayHint();
         progress.displayIcon = objective.displayIcon;
         progress.guideMarker = objective.guideMarker.copy();
         progress.status = TaskStatus.ACTIVE;
@@ -73,11 +74,7 @@ public class TaskProgress implements IPersistedSerializable {
             progress.objectives.add(TaskObjectiveProgress.fromTask(task, player));
         }
         progress.manualSubmitRequired = progress.objectives.stream().anyMatch(objective -> objective.manualSubmitRequired);
-        progress.taskHint = progress.objectives.stream()
-                .map(objective -> objective.hint)
-                .filter(hint -> hint != null && !hint.isBlank())
-                .reduce((left, right) -> left + "\n" + right)
-                .orElse("");
+        progress.taskHint = joinObjectiveHints(progress.objectives);
         TaskObjectiveProgress displayObjective = progress.objectives.stream()
                 .filter(objective -> objective.guideMarker != null && objective.guideMarker.isEnabled())
                 .findFirst()
@@ -110,14 +107,18 @@ public class TaskProgress implements IPersistedSerializable {
                 continue;
             }
             TaskObjectiveProgress current = objectives.get(i);
-            current.hint = refreshedObjective.hint;
+            current.hint = refreshedObjective.displayHint();
             current.displayIcon = refreshedObjective.displayIcon;
             current.requiredAmount = refreshedObjective.requiredAmount;
             current.manualSubmitRequired = refreshedObjective.manualSubmitRequired;
             current.guideMarker = refreshedObjective.guideMarker;
-            if (!current.completed && !current.manualSubmitRequired) {
+            boolean refreshFromPlayerState = i < tasks.size() && tasks.get(i).refreshesProgressFromPlayerState();
+            if (!current.completed && !current.manualSubmitRequired && refreshFromPlayerState) {
                 current.currentAmount = refreshedObjective.currentAmount;
                 current.completed = refreshedObjective.completed;
+            } else if (!refreshFromPlayerState) {
+                current.currentAmount = Math.min(current.currentAmount, current.requiredAmount);
+                current.completed = current.completed || current.currentAmount >= current.requiredAmount;
             } else if (current.manualSubmitRequired) {
                 current.currentAmount = Math.min(current.currentAmount, current.requiredAmount);
                 current.completed = current.completed || current.currentAmount >= current.requiredAmount;
@@ -130,5 +131,25 @@ public class TaskProgress implements IPersistedSerializable {
 
     public boolean areAllObjectivesCompleted() {
         return !objectives.isEmpty() && objectives.stream().allMatch(objective -> objective.completed);
+    }
+
+    public Component displayTaskHint() {
+        return taskHint == null ? Component.empty() : taskHint;
+    }
+
+    private static Component joinObjectiveHints(List<TaskObjectiveProgress> objectives) {
+        Component result = Component.empty();
+        boolean appended = false;
+        for (TaskObjectiveProgress objective : objectives) {
+            if (objective == null || objective.displayHint().getString().isBlank()) {
+                continue;
+            }
+            if (appended) {
+                result = result.copy().append(Component.literal("\n"));
+            }
+            result = result.copy().append(objective.displayHint());
+            appended = true;
+        }
+        return result;
     }
 }

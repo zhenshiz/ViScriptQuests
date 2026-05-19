@@ -157,7 +157,7 @@ public class PlayerQuestState implements IPersistedSerializable {
             RewardDisplay display = new RewardDisplay();
             display.stepId = reward.stepId == null ? "" : reward.stepId;
             Component hint = reward.getRewardHint();
-            display.displayText = hint == null ? "" : hint.getString();
+            display.displayText = hint == null ? Component.empty() : hint.copy();
             DisplayIcon icon = reward.getRewardIcon();
             display.icon = icon == null ? new DisplayIcon() : icon.copy();
             rewardDisplays.add(display);

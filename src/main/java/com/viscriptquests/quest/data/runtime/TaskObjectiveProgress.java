@@ -4,12 +4,13 @@ import com.lowdragmc.lowdraglib2.syncdata.IPersistedSerializable;
 import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
 import com.viscriptquests.quest.data.DisplayIcon;
 import com.viscriptquests.quest.data.task.ITask;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 
 // HUD 展示单个目标用的数据。一个小任务可以包含多个目标，所以这里不要再聚合成一条文本。
 public class TaskObjectiveProgress implements IPersistedSerializable {
     @Persisted
-    public String hint = "";
+    public Component hint = Component.empty();
     @Persisted
     public DisplayIcon displayIcon = new DisplayIcon();
     @Persisted
@@ -28,7 +29,8 @@ public class TaskObjectiveProgress implements IPersistedSerializable {
         if (task == null) {
             return progress;
         }
-        progress.hint = task.getTaskHint().getString();
+        Component hint = task.getTaskHint();
+        progress.hint = hint == null ? Component.empty() : hint.copy();
         DisplayIcon icon = task.getDisplayIcon();
         progress.displayIcon = icon == null ? new DisplayIcon() : icon.copy();
         progress.manualSubmitRequired = !task.allowsAutoSubmit();
@@ -41,5 +43,13 @@ public class TaskObjectiveProgress implements IPersistedSerializable {
 
     public String progressText() {
         return "[" + Math.max(0, currentAmount) + "/" + Math.max(1, requiredAmount) + "] ";
+    }
+
+    public Component displayHint() {
+        return hint == null ? Component.empty() : hint;
+    }
+
+    public Component progressHint() {
+        return Component.literal(progressText()).append(displayHint());
     }
 }

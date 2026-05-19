@@ -1,6 +1,7 @@
 package com.viscriptquests.event;
 
 import com.viscriptquests.ViScriptQuests;
+import com.viscriptquests.quest.runtime.QuestRewardService;
 import com.viscriptquests.quest.runtime.QuestTrackingService;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -12,6 +13,7 @@ public class HudEvents {
     @SubscribeEvent
     public static void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
+            QuestRewardService.grantPendingRewards(player);
             QuestTrackingService.refresh(player);
         }
     }

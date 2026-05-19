@@ -1,5 +1,8 @@
 package com.viscriptquests.quest.runtime;
 
+import com.lowdragmc.lowdraglib2.Platform;
+import com.lowdragmc.lowdraglib2.networking.rpc.RPCPacketDistributor;
+import com.viscriptquests.network.s2c.S2CPayload;
 import com.viscriptquests.quest.data.QuestFile;
 import com.viscriptquests.quest.data.QuestSavedData;
 import com.viscriptquests.quest.data.runtime.PlayerQuestState;
@@ -21,6 +24,21 @@ import java.util.Optional;
  * 运行时只返回操作是否成功；指令、脚本或其它调用方自行决定如何反馈或记录日志。
  */
 public class QuestManager {
+    /**
+     * 向客户端发送任务书数据并打开任务书界面。
+     *
+     * <p>指令、客户端按键和未来脚本 API 都应复用这个入口，避免各处重复拼装任务书同步数据。
+     *
+     * @param player 服务端玩家，要为该玩家打开任务书
+     */
+    public static void openQuestBook(ServerPlayer player) {
+        refreshQuestBookDisplayData(player);
+        QuestTrackingService.refresh(player);
+        QuestPlayerData playerData = QuestSavedData.get(player.getServer()).getPlayer(player.getUUID());
+        RPCPacketDistributor.rpcToPlayer(player, S2CPayload.OPEN_QUEST_BOOK,
+                playerData.serializeNBT(Platform.getFrozenRegistry()));
+    }
+
     /**
      * 向指定玩家发放任务，并根据任务文件里的分类信息归类。
      *
@@ -45,9 +63,26 @@ public class QuestManager {
         if (playerData.findCategory(normalizedCategoryId).isEmpty()) {
             return false;
         }
+        var completedInScope = QuestTeamProgressService.findCompletedQuestInScope(player, savedData, normalizedQuestId);
+        if (completedInScope.isPresent()) {
+            PlayerQuestState copiedState = QuestTeamProgressService.copyState(completedInScope.get().state(), player.registryAccess());
+            playerData.putQuest(copiedState);
+            savedData.setDirty();
+            QuestTrackingService.refresh(player);
+            return false;
+        }
         Optional<PlayerQuestState> existing = playerData.findQuest(normalizedQuestId);
         if (existing.isPresent() && existing.get().status == QuestStatus.ACTIVE) {
             return false;
+        }
+        var activeInScope = QuestTeamProgressService.findActiveQuestInScope(player, savedData, normalizedQuestId);
+        if (activeInScope.isPresent()) {
+            PlayerQuestState copiedState = QuestTeamProgressService.copyState(activeInScope.get().state(), player.registryAccess());
+            playerData.putQuest(copiedState);
+            QuestTrackingService.trackFirstActiveStep(player, playerData, copiedState);
+            savedData.setDirty();
+            QuestTeamProgressService.syncQuestState(player, copiedState);
+            return true;
         }
 
         PlayerQuestState state = PlayerQuestState.fromQuestFile(questFile.get(), player.level().getGameTime(), player);
@@ -56,6 +91,7 @@ public class QuestManager {
         playerData.putQuest(state);
         QuestTrackingService.trackFirstActiveStep(player, playerData, state);
         savedData.setDirty();
+        QuestTeamProgressService.syncQuestState(player, state);
         return true;
     }
 
@@ -71,14 +107,7 @@ public class QuestManager {
      */
     public static boolean revoke(ServerPlayer player, String questId) {
         String normalizedQuestId = QuestFileHelper.normalizeQuestId(questId);
-        QuestSavedData savedData = QuestSavedData.get(player.getServer());
-        var playerData = savedData.getPlayer(player.getUUID());
-        if (!playerData.removeQuest(normalizedQuestId)) {
-            return false;
-        }
-        QuestTrackingService.clearTrackedQuest(player, normalizedQuestId);
-        savedData.setDirty();
-        return true;
+        return QuestTeamProgressService.revokeQuestInScope(player, normalizedQuestId);
     }
 
     /**
@@ -194,6 +223,7 @@ public class QuestManager {
                 QuestFileHelper.getQuest(normalizedQuestId, player.registryAccess()).orElse(null));
         savedData.setDirty();
         QuestTrackingService.refresh(player);
+        QuestTeamProgressService.syncQuestState(player, state.get());
         return true;
     }
 

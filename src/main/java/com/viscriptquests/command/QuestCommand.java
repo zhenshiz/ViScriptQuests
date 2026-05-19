@@ -14,13 +14,13 @@ import com.viscriptquests.gui.editor.QuestEditor;
 import com.viscriptquests.network.s2c.S2CPayload;
 import com.viscriptquests.quest.data.runtime.QuestCategoryListData;
 import com.viscriptquests.quest.data.runtime.QuestCategoryData;
-import com.viscriptquests.quest.data.runtime.QuestPlayerData;
 import com.viscriptquests.quest.data.runtime.PlayerQuestState;
 import com.viscriptquests.quest.data.runtime.QuestStatus;
 import com.viscriptquests.quest.data.runtime.TaskStatus;
 import com.viscriptquests.util.QuestFileHelper;
 import com.viscriptquests.quest.runtime.QuestManager;
 import com.viscriptquests.quest.data.QuestSavedData;
+import com.viscriptquests.quest.runtime.QuestTeamProgressService;
 import com.viscriptquests.quest.runtime.QuestTrackingService;
 import lombok.SneakyThrows;
 import net.minecraft.commands.CommandBuildContext;
@@ -28,7 +28,6 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.commands.arguments.EntityArgument;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 
@@ -141,11 +140,7 @@ public class QuestCommand implements ICommand {
         if (player == null) {
             throw playerOnlyException();
         }
-        QuestManager.refreshQuestBookDisplayData(player);
-        QuestTrackingService.refresh(player);
-        QuestPlayerData playerData = QuestSavedData.get(player.getServer()).getPlayer(player.getUUID());
-        CompoundTag data = playerData.serializeNBT(Platform.getFrozenRegistry());
-        RPCPacketDistributor.rpcToPlayer(player, S2CPayload.OPEN_QUEST_BOOK, data);
+        QuestManager.openQuestBook(player);
         return 1;
     }
 
@@ -324,6 +319,16 @@ public class QuestCommand implements ICommand {
         var playerData = QuestSavedData.get(player.getServer()).getPlayer(player.getUUID());
         if (playerData.findCategory(normalizedCategoryId).isEmpty()) {
             return Component.translatable("commands.viscript_quests.quest.category.missing", normalizedCategoryId);
+        }
+        var completedInScope = QuestTeamProgressService.findCompletedQuestInScope(player,
+                QuestSavedData.get(player.getServer()), normalizedQuestId);
+        if (completedInScope.isPresent()) {
+            playerData.putQuest(QuestTeamProgressService.copyState(completedInScope.get().state(), player.registryAccess()));
+            QuestSavedData.get(player.getServer()).setDirty();
+            QuestTrackingService.refresh(player);
+            return Component.translatable(
+                    "commands.viscript_quests.quest.grant.team_completed",
+                    normalizedQuestId, player.getDisplayName());
         }
         var state = playerData.findQuest(normalizedQuestId);
         if (state.isEmpty() || state.get().status != QuestStatus.ACTIVE) {

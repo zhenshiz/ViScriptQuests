@@ -13,14 +13,20 @@ import com.lowdragmc.lowdraglib2.utils.search.IResultHandler;
 import com.viscriptquests.gui.blueprint.data.QuestBlueprintRegistryCache;
 import com.viscriptquests.gui.blueprint.data.QuestRegistryId;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.Level;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Comparator;
+import java.util.IdentityHashMap;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
@@ -31,6 +37,8 @@ import java.util.stream.Stream;
  * 节点常量保存为 QuestRegistryId，编译时再降级为普通字符串，避免污染运行时数据结构。
  */
 public final class QuestRegistryIdConfigurator {
+    private static final Map<EntityType<?>, Boolean> LIVING_ENTITY_TYPE_CACHE = new IdentityHashMap<>();
+
     public static Configurator create(IFieldValueConfigurable valueConfigurable, TypeHandle typeHandle) {
         var configurator = new SearchComponentConfigurator<>(
                 "",
@@ -108,12 +116,12 @@ public final class QuestRegistryIdConfigurator {
         }
 
         protected void acceptMatches(String word, IResultHandler<QuestRegistryId> searchHandler, Supplier<Stream<String>> candidates) {
-            String lowerWord = word == null ? "" : word.toLowerCase();
+            String lowerWord = normalizeSearchWord(word);
             candidates.get()
                     .filter(Objects::nonNull)
                     .distinct()
                     .sorted()
-                    .filter(candidate -> lowerWord.isBlank() || candidate.toLowerCase().contains(lowerWord))
+                    .filter(candidate -> lowerWord.isBlank() || candidate.toLowerCase(Locale.ROOT).contains(lowerWord))
                     .limit(80)
                     .map(QuestRegistryId::new)
                     .forEach(searchHandler::acceptResult);
@@ -142,16 +150,87 @@ public final class QuestRegistryIdConfigurator {
 
         @Override
         public void search(String word, IResultHandler<QuestRegistryId> searchHandler) {
-            acceptMatches(word, searchHandler, () -> BuiltInRegistries.ENTITY_TYPE.keySet().stream()
-                    .sorted(Comparator.comparing(ResourceLocation::toString))
-                    .map(ResourceLocation::toString));
+            String lowerWord = normalizeSearchWord(word);
+            BuiltInRegistries.ENTITY_TYPE.entrySet().stream()
+                    .map(entry -> EntitySearchEntry.of(entry.getKey().location(), entry.getValue()))
+                    .filter(Objects::nonNull)
+                    .filter(EntitySearchEntry::livingEntityType)
+                    .sorted(Comparator.comparing(EntitySearchEntry::displayName))
+                    .filter(entry -> lowerWord.isBlank() || entry.matches(lowerWord))
+                    .limit(80)
+                    .map(entry -> new QuestRegistryId(entry.id()))
+                    .forEach(searchHandler::acceptResult);
+        }
+
+        @Override
+        public String resultText(@NotNull QuestRegistryId value) {
+            return entityDisplayName(value).getString();
         }
 
         @Override
         public Component mapping(@NotNull QuestRegistryId value) {
+            return entityDisplayName(value);
+        }
+
+        private Component entityDisplayName(@NotNull QuestRegistryId value) {
             ResourceLocation id = ResourceLocation.tryParse(value.value());
             EntityType<?> entityType = id == null ? null : BuiltInRegistries.ENTITY_TYPE.get(id);
-            return entityType == null ? super.mapping(value) : entityType.getDescription().copy().append(" (" + value.value() + ")");
+            return entityType == null ? super.mapping(value) : entityType.getDescription();
         }
+    }
+
+    private record EntitySearchEntry(String id, String path, String displayName, String descriptionId, boolean livingEntityType) {
+        private static EntitySearchEntry of(ResourceLocation id, EntityType<?> type) {
+            if (id == null || type == null) {
+                return null;
+            }
+            return new EntitySearchEntry(
+                    id.toString(),
+                    id.getPath(),
+                    type.getDescription().getString(),
+                    type.getDescriptionId(),
+                    isLivingEntityType(type)
+            );
+        }
+
+        private boolean matches(String lowerWord) {
+            return id.toLowerCase(Locale.ROOT).contains(lowerWord)
+                    || path.toLowerCase(Locale.ROOT).contains(lowerWord)
+                    || displayName.toLowerCase(Locale.ROOT).contains(lowerWord)
+                    || descriptionId.toLowerCase(Locale.ROOT).contains(lowerWord);
+        }
+    }
+
+    private static boolean isLivingEntityType(EntityType<?> type) {
+        Boolean cached = LIVING_ENTITY_TYPE_CACHE.get(type);
+        if (cached != null) {
+            return cached;
+        }
+        if (type == EntityType.PLAYER) {
+            LIVING_ENTITY_TYPE_CACHE.put(type, true);
+            return true;
+        }
+        Level level = Minecraft.getInstance().level;
+        if (level == null) {
+            return false;
+        }
+        try {
+            Entity entity = type.create(level);
+            if (entity == null) {
+                return false;
+            }
+            boolean living = entity instanceof LivingEntity;
+            entity.discard();
+            LIVING_ENTITY_TYPE_CACHE.put(type, living);
+            return living;
+        } catch (RuntimeException ignored) {
+            // 个别模组实体可能在仅用于补全的临时创建中依赖额外环境，失败时不加入击杀目标候选。
+            LIVING_ENTITY_TYPE_CACHE.put(type, false);
+            return false;
+        }
+    }
+
+    private static String normalizeSearchWord(String word) {
+        return word == null ? "" : word.toLowerCase(Locale.ROOT).trim();
     }
 }

@@ -27,6 +27,8 @@ public final class QuestBlueprintNodeLibrary {
     }
 
     public static void rebuild(ItemLibrary itemLibrary, List<Class<? extends Node>> nodes) {
+        hideDefaultLibraryTrees(itemLibrary);
+
         Map<String, List<Class<? extends Node>>> grouped = new LinkedHashMap<>();
         for (var nodeClass : nodes) {
             var attr = nodeClass.getAnnotation(NodeAttribute.class);
@@ -46,6 +48,11 @@ public final class QuestBlueprintNodeLibrary {
         var root = builder.build();
         itemLibrary.nodeTree.setRoot(root);
         itemLibrary.nodeTree.expandNode(root);
+    }
+
+    private static void hideDefaultLibraryTrees(ItemLibrary itemLibrary) {
+        itemLibrary.contextTree.setRoot(null);
+        itemLibrary.contextTree.setDisplay(false);
     }
 
     private static void addGroup(TreeBuilder<ItemLibraryItem, Void> builder, String group, List<Class<? extends Node>> nodes) {

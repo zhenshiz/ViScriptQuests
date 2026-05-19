@@ -69,6 +69,11 @@ public abstract class ITask implements ILDLRegister<ITask, Supplier<ITask>>, IPe
         progress.currentAmount = progress.completed ? required : 0;
     }
 
+    // 目标进度是否能从玩家当前状态直接重算；击杀次数这类事件累计目标需要保留已有进度。
+    public boolean refreshesProgressFromPlayerState() {
+        return true;
+    }
+
     // 手动提交单个目标。默认目标不提供手动提交能力。
     public boolean submitObjective(ServerPlayer player, TaskObjectiveProgress progress) {
         return false;

@@ -23,19 +23,16 @@ public class QuestCategoryData implements IPersistedSerializable, IConfigurable 
     public String title = "";
     @Configurable(name = "viscript_quests.questCategory.displayIcon", subConfigurable = true, collapse = false)
     public DisplayIcon displayIcon = new DisplayIcon();
-    @Configurable(name = "viscript_quests.questCategory.tooltip")
-    public String tooltip = "";
 
-    public static QuestCategoryData of(String id, String title, String iconItemId, String tooltip) {
-        return of(id, title, DisplayIcon.item(iconItemId), tooltip);
+    public static QuestCategoryData of(String id, String title, String iconItemId) {
+        return of(id, title, DisplayIcon.item(iconItemId));
     }
 
-    public static QuestCategoryData of(String id, String title, DisplayIcon displayIcon, String tooltip) {
+    public static QuestCategoryData of(String id, String title, DisplayIcon displayIcon) {
         QuestCategoryData category = new QuestCategoryData();
         category.id = normalizeId(id);
         category.title = title == null ? "" : title.trim();
         category.displayIcon = displayIcon == null ? new DisplayIcon() : displayIcon.copy();
-        category.tooltip = tooltip == null ? "" : tooltip.trim();
         return category;
     }
 

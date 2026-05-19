@@ -20,9 +20,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
-import java.util.Arrays;
-import java.util.List;
-
 // 当前追踪小任务 HUD。根元素全屏，面板位置和尺寸全部读取客户端百分比配置。
 public class TrackedQuestHud extends UIElement {
     private static final ItemStack DEFAULT_ICON = new ItemStack(Items.PAPER);
@@ -120,17 +117,15 @@ public class TrackedQuestHud extends UIElement {
         taskTitle.setText(Component.literal(snapshot.task().title));
         objectivesColumn.clearAllChildren();
         if (snapshot.task().objectives.isEmpty()) {
-            for (String line : fallbackObjectiveHints(snapshot.task().taskHint)) {
-                objectivesColumn.addChild(createObjectiveRow(snapshot.task().displayIcon, line));
-            }
+            objectivesColumn.addChild(createObjectiveRow(snapshot.task().displayIcon, snapshot.task().displayTaskHint()));
             return;
         }
         for (TaskObjectiveProgress objective : snapshot.task().objectives) {
-            objectivesColumn.addChild(createObjectiveRow(objective.displayIcon, objective.progressText() + objective.hint));
+            objectivesColumn.addChild(createObjectiveRow(objective.displayIcon, objective.progressHint()));
         }
     }
 
-    private static UIElement createObjectiveRow(DisplayIcon icon, String hint) {
+    private static UIElement createObjectiveRow(DisplayIcon icon, Component hint) {
         UIElement row = new UIElement();
         row.layout(layout -> {
             layout.widthPercent(100);
@@ -141,7 +136,7 @@ public class TrackedQuestHud extends UIElement {
         });
 
         Label text = label(FONT_BODY, TEXT_MAIN, true);
-        text.setText(Component.literal(hint == null ? "" : hint));
+        text.setText(hint == null ? Component.empty() : hint);
         text.layout(layout -> {
             layout.width(0);
             layout.flex(1);
@@ -198,11 +193,11 @@ public class TrackedQuestHud extends UIElement {
 
     private static String objectivesKey(QuestHudData.ComponentState snapshot) {
         if (snapshot.task().objectives.isEmpty()) {
-            return snapshot.task().taskHint + "|" + iconKey(snapshot.task().displayIcon);
+            return snapshot.task().displayTaskHint().getString() + "|" + iconKey(snapshot.task().displayIcon);
         }
         StringBuilder key = new StringBuilder();
         for (TaskObjectiveProgress objective : snapshot.task().objectives) {
-            key.append(objective.hint)
+            key.append(objective.displayHint().getString())
                     .append('|').append(objective.currentAmount)
                     .append('/').append(objective.requiredAmount)
                     .append('|').append(objective.completed)
@@ -210,16 +205,6 @@ public class TrackedQuestHud extends UIElement {
                     .append(';');
         }
         return key.toString();
-    }
-
-    private static List<String> fallbackObjectiveHints(String taskHint) {
-        if (taskHint == null || taskHint.isBlank()) {
-            return List.of("");
-        }
-        return Arrays.stream(taskHint.split("\\R"))
-                .map(String::trim)
-                .filter(line -> !line.isEmpty())
-                .toList();
     }
 
     private static Label label(float fontSize, int color, boolean wrap) {

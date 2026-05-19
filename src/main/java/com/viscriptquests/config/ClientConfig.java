@@ -6,6 +6,7 @@ public class ClientConfig {
     public static final ModConfigSpec SPEC;
     public static final ModConfigSpec.BooleanValue SHOW_COMPLETED_QUESTS_IN_BOOK;
     public static final ModConfigSpec.BooleanValue SHOW_COMPLETED_TASKS_IN_BOOK;
+    public static final ModConfigSpec.BooleanValue REGISTER_OPEN_QUEST_BOOK_KEY;
     public static final ModConfigSpec.BooleanValue SHOW_TRACKED_QUEST_HUD;
     public static final ModConfigSpec.DoubleValue TRACKED_QUEST_HUD_X_PERCENT;
     public static final ModConfigSpec.DoubleValue TRACKED_QUEST_HUD_Y_PERCENT;
@@ -30,6 +31,11 @@ public class ClientConfig {
         SHOW_COMPLETED_TASKS_IN_BOOK = builder
                 .translation("viscript_quests.configuration.quest_book.show_completed_tasks")
                 .define("showCompletedTasks", false);
+
+        // 是否注册打开任务书的快捷键；该选项需要重启客户端后生效。
+        REGISTER_OPEN_QUEST_BOOK_KEY = builder
+                .translation("viscript_quests.configuration.quest_book.register_open_key")
+                .define("registerOpenQuestBookKey", false);
 
         builder.pop();
 

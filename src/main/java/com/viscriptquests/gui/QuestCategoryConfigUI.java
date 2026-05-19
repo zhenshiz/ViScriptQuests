@@ -148,7 +148,7 @@ public class QuestCategoryConfigUI extends UIElement {
             index++;
             id = baseId + index;
         }
-        QuestCategoryData category = QuestCategoryData.of(id, id, DisplayIcon.item("minecraft:book"), id);
+        QuestCategoryData category = QuestCategoryData.of(id, id, DisplayIcon.item("minecraft:book"));
         categories.add(category);
         selectedCategory = category;
         reloadCategoryList();
@@ -287,7 +287,6 @@ public class QuestCategoryConfigUI extends UIElement {
         }
         category.id = QuestCategoryData.normalizeId(category.id);
         category.title = category.title == null ? "" : category.title.trim();
-        category.tooltip = category.tooltip == null ? "" : category.tooltip.trim();
         if (category.displayIcon == null) {
             category.displayIcon = new DisplayIcon();
         }

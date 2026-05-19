@@ -2,6 +2,7 @@ package com.viscriptquests.quest.data.runtime;
 
 import com.lowdragmc.lowdraglib2.syncdata.IPersistedSerializable;
 import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
+import com.viscriptquests.quest.data.reward.IReward;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -19,6 +20,8 @@ public class QuestPlayerData implements IPersistedSerializable {
     public final List<QuestCategoryData> categories = new ArrayList<>();
     @Persisted
     public final List<PlayerQuestState> quests = new ArrayList<>();
+    @Persisted
+    public final List<IReward> pendingRewards = new ArrayList<>();
 
     public Optional<PlayerQuestState> findQuest(String questId) {
         return quests.stream()

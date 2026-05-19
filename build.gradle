@@ -165,7 +165,7 @@ dependencies {
     //超越维度
     implementation "curse.maven:beyond-dimensions-1222890:${beyonddimensions_version}"
     //ViScriptTeam
-    implementation("com.zhenshiz:ViScriptTeam-neoforge-1.21.1:${viscriptteam_version}") {
+    compileOnly("com.zhenshiz:ViScriptTeam-neoforge-1.21.1:${viscriptteam_version}") {
         transitive = false
     }
 

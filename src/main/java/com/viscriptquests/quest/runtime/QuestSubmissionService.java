@@ -9,9 +9,12 @@ import com.viscriptquests.quest.data.runtime.TaskObjectiveProgress;
 import com.viscriptquests.quest.data.runtime.TaskProgress;
 import com.viscriptquests.quest.data.runtime.TaskStatus;
 import com.viscriptquests.quest.data.task.ITask;
+import com.viscriptquests.quest.data.task.KillEntityTask;
 import com.viscriptquests.util.QuestFileHelper;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.LivingEntity;
 
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -23,6 +26,11 @@ import java.util.Set;
  * 只有同一个小任务下的所有目标完成后，才结算奖励并推进蓝图流程。
  */
 public class QuestSubmissionService {
+    @FunctionalInterface
+    public interface TaskProgressRecorder<T extends ITask> {
+        boolean record(ServerPlayer player, T task, TaskObjectiveProgress objective);
+    }
+
     /**
      * 尝试提交玩家指定小任务中当前可提交的目标。
      *
@@ -41,6 +49,11 @@ public class QuestSubmissionService {
         var state = playerData.findQuest(questId);
         // 玩家没有接取该任务，或任务已经完成/失败时，不允许再提交小任务。
         if (state.isEmpty() || state.get().status != QuestStatus.ACTIVE) {
+            QuestTeamProgressService.findCompletedQuestInScope(player, savedData, questId).ifPresent(ref -> {
+                playerData.putQuest(QuestTeamProgressService.copyState(ref.state(), player.registryAccess()));
+                savedData.setDirty();
+                QuestTrackingService.refresh(player);
+            });
             return false;
         }
 
@@ -94,6 +107,11 @@ public class QuestSubmissionService {
         QuestPlayerData playerData = savedData.getPlayer(player.getUUID());
         var state = playerData.findQuest(questId);
         if (state.isEmpty() || state.get().status != QuestStatus.ACTIVE) {
+            QuestTeamProgressService.findCompletedQuestInScope(player, savedData, questId).ifPresent(ref -> {
+                playerData.putQuest(QuestTeamProgressService.copyState(ref.state(), player.registryAccess()));
+                savedData.setDirty();
+                QuestTrackingService.refresh(player);
+            });
             return false;
         }
         QuestFile questFile = QuestFileHelper.getQuest(questId, player.registryAccess()).orElse(null);
@@ -119,12 +137,138 @@ public class QuestSubmissionService {
         return completeStepIfReady(player, savedData, playerData, questState, questFile, progress.get(), stepId);
     }
 
+    /**
+     * 自动提交玩家当前所有激活小任务中指定类型的目标。
+     *
+     * <p>物品数量、当前位置等可以从玩家当前状态直接重算的目标，联动方不需要手动修改
+     * {@link TaskObjectiveProgress}，只需要在合适的服务端事件里调用这个入口。
+     * 该方法会复用标准提交流程，自动处理目标进度刷新、小任务完成、奖励、流程推进和 HUD 刷新。
+     */
+    public static boolean submitActiveTasks(ServerPlayer player, Class<? extends ITask> taskType) {
+        if (player == null || player.level().isClientSide()) {
+            return false;
+        }
+        QuestSavedData savedData = QuestSavedData.get(player.getServer());
+        QuestPlayerData playerData = savedData.getPlayer(player.getUUID());
+        boolean changed = false;
+        for (PlayerQuestState questState : new ArrayList<>(playerData.quests)) {
+            if (questState.status != QuestStatus.ACTIVE) {
+                continue;
+            }
+            QuestFile questFile = QuestFileHelper.getQuest(questState.questId, player.registryAccess()).orElse(null);
+            if (questFile == null) {
+                continue;
+            }
+            for (TaskProgress progress : new ArrayList<>(questState.taskProgresses)) {
+                if (progress.status != TaskStatus.ACTIVE
+                        || !stepContainsTaskType(questFile, progress.stepId, taskType)) {
+                    continue;
+                }
+                if (submit(player, questState.questId, progress.stepId, true)) {
+                    changed = true;
+                }
+            }
+        }
+        return changed;
+    }
+
+    /**
+     * 记录事件累计型目标的进度，并把后续结算交回任务系统。
+     *
+     * <p>击杀、对话、打开方块等事件驱动目标通常不能从玩家当前状态反推进度。
+     * 联动方在 recorder 中只修改当前目标的 {@code currentAmount / requiredAmount / completed}；
+     * 该方法会负责保存数据、完成小任务、发放奖励、推进流程、刷新追踪 HUD 和同步队伍状态。
+     */
+    public static <T extends ITask> boolean recordTaskProgress(ServerPlayer player, Class<T> taskType,
+                                                               TaskProgressRecorder<T> recorder) {
+        if (player == null || taskType == null || recorder == null || player.level().isClientSide()) {
+            return false;
+        }
+        QuestSavedData savedData = QuestSavedData.get(player.getServer());
+        QuestPlayerData playerData = savedData.getPlayer(player.getUUID());
+        boolean changed = false;
+        for (PlayerQuestState questState : new ArrayList<>(playerData.quests)) {
+            if (questState.status != QuestStatus.ACTIVE) {
+                continue;
+            }
+            QuestFile questFile = QuestFileHelper.getQuest(questState.questId, player.registryAccess()).orElse(null);
+            if (questFile == null) {
+                continue;
+            }
+            for (TaskProgress progress : new ArrayList<>(questState.taskProgresses)) {
+                if (progress.status != TaskStatus.ACTIVE) {
+                    continue;
+                }
+                if (recordTaskProgressForStep(player, savedData, playerData, questState, questFile,
+                        progress, taskType, recorder)) {
+                    changed = true;
+                }
+            }
+        }
+        return changed;
+    }
+
+    public static boolean recordEntityKill(ServerPlayer player, LivingEntity killedEntity) {
+        if (player == null || killedEntity == null || player.level().isClientSide()) {
+            return false;
+        }
+        return recordTaskProgress(player, KillEntityTask.class, (recordPlayer, killTask, objective) -> {
+            if (!killTask.matches(killedEntity)) {
+                return false;
+            }
+            if (objective.completed) {
+                return false;
+            }
+            int required = Math.max(1, killTask.getRequiredAmount());
+            objective.requiredAmount = required;
+            objective.currentAmount = Math.min(required, Math.max(0, objective.currentAmount) + 1);
+            objective.completed = objective.currentAmount >= required;
+            return true;
+        });
+    }
+
+    private static <T extends ITask> boolean recordTaskProgressForStep(ServerPlayer player, QuestSavedData savedData,
+                                                                       QuestPlayerData playerData,
+                                                                       PlayerQuestState questState,
+                                                                       QuestFile questFile,
+                                                                       TaskProgress progress,
+                                                                       Class<T> taskType,
+                                                                       TaskProgressRecorder<T> recorder) {
+        List<ITask> tasks = questFile.findTasksForStep(progress.stepId);
+        if (!syncObjectiveShape(tasks, progress, player)) {
+            return false;
+        }
+        boolean changed = false;
+        for (int i = 0; i < tasks.size() && i < progress.objectives.size(); i++) {
+            ITask task = tasks.get(i);
+            if (!taskType.isInstance(task)) {
+                continue;
+            }
+            if (recorder.record(player, taskType.cast(task), progress.objectives.get(i))) {
+                changed = true;
+            }
+        }
+        if (!changed) {
+            return false;
+        }
+        completeStepIfReady(player, savedData, playerData, questState, questFile, progress, progress.stepId);
+        return true;
+    }
+
+    private static boolean stepContainsTaskType(QuestFile questFile, String stepId, Class<? extends ITask> taskType) {
+        if (taskType == null) {
+            return true;
+        }
+        return questFile.findTasksForStep(stepId).stream().anyMatch(taskType::isInstance);
+    }
+
     private static boolean completeStepIfReady(ServerPlayer player, QuestSavedData savedData, QuestPlayerData playerData,
                                                PlayerQuestState questState, QuestFile questFile,
                                                TaskProgress progress, String stepId) {
         if (!progress.areAllObjectivesCompleted()) {
             savedData.setDirty();
             QuestTrackingService.refresh(player);
+            QuestTeamProgressService.syncQuestState(player, questState);
             return true;
         }
         // 记录提交前已经激活的小任务，提交后追踪服务会用它优先选出刚解锁的新小任务。
@@ -135,6 +279,7 @@ public class QuestSubmissionService {
         QuestFlowExecutor.completeStepNode(player, questState, questFile, stepId);
         savedData.setDirty();
         QuestTrackingService.refreshAfterStepSubmit(player, playerData, questState, stepId, activeStepIdsBeforeSubmit);
+        QuestTeamProgressService.syncQuestState(player, questState);
         return true;
     }
 
@@ -150,14 +295,18 @@ public class QuestSubmissionService {
             }
             TaskObjectiveProgress current = progress.objectives.get(i);
             TaskObjectiveProgress fresh = refreshed.objectives.get(i);
-            current.hint = fresh.hint;
+            current.hint = fresh.displayHint();
             current.displayIcon = fresh.displayIcon;
             current.requiredAmount = fresh.requiredAmount;
             current.manualSubmitRequired = fresh.manualSubmitRequired;
             current.guideMarker = fresh.guideMarker;
-            if (!current.completed && !current.manualSubmitRequired) {
+            boolean refreshFromPlayerState = i < tasks.size() && tasks.get(i).refreshesProgressFromPlayerState();
+            if (!current.completed && !current.manualSubmitRequired && refreshFromPlayerState) {
                 current.currentAmount = fresh.currentAmount;
                 current.completed = fresh.completed;
+            } else if (!refreshFromPlayerState) {
+                current.currentAmount = Math.min(current.currentAmount, current.requiredAmount);
+                current.completed = current.completed || current.currentAmount >= current.requiredAmount;
             }
         }
         while (progress.objectives.size() > refreshed.objectives.size()) {

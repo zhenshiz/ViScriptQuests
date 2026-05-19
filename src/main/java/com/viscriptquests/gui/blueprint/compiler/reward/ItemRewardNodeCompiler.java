@@ -20,6 +20,7 @@ public class ItemRewardNodeCompiler implements IQuestRewardNodeCompiler {
         ItemReward reward = new ItemReward();
         reward.stepId = stepId;
         reward.itemStack = context.getItemStack(node, "item_stack");
+        reward.teamLeaderOnly = context.getBool(node, "team_leader_only");
         return reward;
     }
 }

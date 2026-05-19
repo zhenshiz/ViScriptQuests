@@ -30,6 +30,9 @@ public abstract class IReward implements ILDLRegister<IReward, Supplier<IReward>
     // 关联的小任务 ID，为空表示大任务完成时发放的全局奖励
     @Persisted
     public String stepId = "";
+    // ViScriptTeam 联动：开启后队伍任务奖励只发给队长；未安装 VST 或玩家无队伍时仍发给当前玩家。
+    @Persisted
+    public boolean teamLeaderOnly = false;
 
     // 奖励类型的显示名称
     public Component getDisplayName() {

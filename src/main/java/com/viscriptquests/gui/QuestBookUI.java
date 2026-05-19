@@ -50,7 +50,6 @@ import java.util.Set;
 
 // 玩家正式任务书 UI：左侧分类书签，书页左侧展示任务树，右侧展示当前任务/目标详情。
 public class QuestBookUI extends UIElement {
-    private static final String ALL_CATEGORY_ID = "all";
     private static final ItemStack DEFAULT_ICON = new ItemStack(Items.WRITABLE_BOOK);
     private static final int CATEGORY_RAIL_WIDTH = 36;
     private static final int LEFT_PAGE_WIDTH = 230;
@@ -93,7 +92,7 @@ public class QuestBookUI extends UIElement {
     private static final IGuiTexture TRACK_BUTTON_PRESSED = sprite("track_button_pressed.png", 4);
 
     private QuestPlayerData playerData;
-    private String selectedCategoryId = ALL_CATEGORY_ID;
+    private String selectedCategoryId = "";
     private PlayerQuestState selectedQuest;
     private String selectedStepId = "";
     private int categoryPage = 0;
@@ -330,10 +329,26 @@ public class QuestBookUI extends UIElement {
     }
 
     private void refreshAll() {
+        ensureSelectedCategory();
         ensureSelectedQuestInCategory();
         reloadCategoryList();
         reloadQuestTree();
         reloadQuestDetail();
+    }
+
+    private void ensureSelectedCategory() {
+        categoryPage = Math.max(0, Math.min(categoryPage, maxCategoryPage()));
+        if (playerData.categories.isEmpty()) {
+            selectedCategoryId = "";
+            return;
+        }
+        if (findCategory(selectedCategoryId) == null) {
+            selectedCategoryId = playerData.categories.getFirst().id;
+        }
+        int selectedIndex = categoryIndex(selectedCategoryId);
+        if (selectedIndex >= 0 && selectedIndex / CATEGORIES_PER_PAGE != categoryPage) {
+            categoryPage = selectedIndex / CATEGORIES_PER_PAGE;
+        }
     }
 
     private void ensureSelectedQuestInCategory() {
@@ -355,7 +370,7 @@ public class QuestBookUI extends UIElement {
     }
 
     private void selectCategory(String categoryId) {
-        selectedCategoryId = categoryId == null || categoryId.isBlank() ? ALL_CATEGORY_ID : categoryId;
+        selectedCategoryId = QuestCategoryData.normalizeId(categoryId);
         selectedQuest = null;
         selectedStepId = "";
         refreshAll();
@@ -412,13 +427,6 @@ public class QuestBookUI extends UIElement {
         categoryPage = Math.max(0, Math.min(categoryPage, maxCategoryPage()));
         categoryListPanel.clearAllChildren();
         List<QuestCategoryData> categories = pagedCategories();
-        boolean showAllCategory = categoryPage == 0;
-        if (showAllCategory) {
-            addCategoryItem(ALL_CATEGORY_ID,
-                    Component.translatable("viscript_quests.quest_book.category.all"),
-                    DEFAULT_ICON);
-        }
-
         for (QuestCategoryData category : categories) {
             addCategoryItem(category.id,
                     Component.literal(category.title),
@@ -701,7 +709,7 @@ public class QuestBookUI extends UIElement {
         });
 
         if (taskProgress.objectives.isEmpty()) {
-            card.addChild(wrappedLabel(Component.literal(taskHint(taskProgress)), 12, TEXT_MAIN));
+            card.addChild(wrappedLabel(taskHint(taskProgress), 12, TEXT_MAIN));
         } else {
             for (int i = 0; i < taskProgress.objectives.size(); i++) {
                 card.addChild(createObjectiveRow(quest, taskProgress, i, taskProgress.objectives.get(i)));
@@ -722,7 +730,7 @@ public class QuestBookUI extends UIElement {
             layout.gapAll(4);
         });
 
-        UIElement icon = createDisplayIcon(objective.displayIcon, Component.literal(objective.hint == null ? "" : objective.hint));
+        UIElement icon = createDisplayIcon(objective.displayIcon, objective.displayHint());
         icon.layout(layout -> {
             layout.width(OBJECTIVE_ICON_SIZE);
             layout.height(OBJECTIVE_ICON_SIZE);
@@ -730,7 +738,7 @@ public class QuestBookUI extends UIElement {
         row.addChild(icon);
 
         int textColor = objective.completed ? 0xFF9DE8A8 : TEXT_MAIN;
-        Label taskLabel = objectiveLabel(Component.literal(objective.progressText() + (objective.hint == null ? "" : objective.hint)), textColor);
+        Label taskLabel = objectiveLabel(objective.progressHint(), textColor);
         taskLabel.layout(layout -> {
             layout.width(0);
             layout.flex(1);
@@ -776,13 +784,13 @@ public class QuestBookUI extends UIElement {
             layout.justifyContent(AlignContent.CENTER);
             layout.alignItems(AlignItems.CENTER);
         });
-        if (rewardDisplay.displayText != null && !rewardDisplay.displayText.isBlank()) {
-            slotFrame.style(style -> style.tooltips(Component.literal(rewardDisplay.displayText)));
+        if (!rewardDisplay.displayText().getString().isBlank()) {
+            slotFrame.style(style -> style.tooltips(rewardDisplay.displayText()));
         }
 
-        UIElement rewardIcon = createDisplayIcon(rewardDisplay.icon, rewardDisplay.displayText == null || rewardDisplay.displayText.isBlank()
+        UIElement rewardIcon = createDisplayIcon(rewardDisplay.icon, rewardDisplay.displayText().getString().isBlank()
                 ? Component.empty()
-                : Component.literal(rewardDisplay.displayText));
+                : rewardDisplay.displayText());
         rewardIcon.layout(layout -> {
             layout.width(REWARD_ICON_SIZE);
             layout.height(REWARD_ICON_SIZE);
@@ -904,7 +912,7 @@ public class QuestBookUI extends UIElement {
                 layout.width(BOOKMARK_ICON_SIZE);
                 layout.height(BOOKMARK_ICON_SIZE);
             });
-            texture.style(style -> style.tooltips(tooltip));
+            applyOptionalTooltip(texture, tooltip);
             return texture;
         }
         ItemStack stack = icon instanceof DisplayIcon displayIcon
@@ -915,20 +923,32 @@ public class QuestBookUI extends UIElement {
             layout.width(BOOKMARK_ICON_SIZE);
             layout.height(BOOKMARK_ICON_SIZE);
         });
-        iconSlot.style(style -> style.tooltips(tooltip));
+        applyOptionalTooltip(iconSlot, tooltip);
         return iconSlot;
     }
 
     private UIElement createDisplayIcon(DisplayIcon icon, Component tooltip) {
         if (icon != null && icon.isTexture()) {
             UIElement texture = texturedPanel(resolveCategoryTexture(icon.getTexture()));
-            texture.style(style -> style.tooltips(tooltip));
+            applyOptionalTooltip(texture, tooltip);
             return texture;
         }
         ItemStack stack = icon == null ? ItemStack.EMPTY : icon.renderItemStack();
         ItemSlot slot = displayItem(stack == null || stack.isEmpty() ? DEFAULT_ICON : stack);
-        slot.style(style -> style.tooltips(tooltip));
+        applyOptionalTooltip(slot, tooltip);
         return slot;
+    }
+
+    private void applyOptionalTooltip(UIElement element, Component tooltip) {
+        if (hasTooltipText(tooltip)) {
+            element.style(style -> style.tooltips(tooltip));
+        } else {
+            element.setAllowHitTest(false);
+        }
+    }
+
+    private boolean hasTooltipText(Component tooltip) {
+        return tooltip != null && !tooltip.getString().isBlank();
     }
 
     private UIElement texturedPanel(IGuiTexture texture) {
@@ -999,8 +1019,11 @@ public class QuestBookUI extends UIElement {
 
     private List<PlayerQuestState> getFilteredQuests() {
         List<PlayerQuestState> filtered = new ArrayList<>();
+        if (findCategory(selectedCategoryId) == null) {
+            return filtered;
+        }
         for (PlayerQuestState quest : playerData.quests) {
-            if (ALL_CATEGORY_ID.equals(selectedCategoryId) || selectedCategoryId.equals(quest.categoryId)) {
+            if (selectedCategoryId.equals(quest.categoryId)) {
                 filtered.add(quest);
             }
         }
@@ -1008,9 +1031,8 @@ public class QuestBookUI extends UIElement {
     }
 
     private List<QuestCategoryData> pagedCategories() {
-        int capacity = categoryPage == 0 ? CATEGORIES_PER_PAGE - 1 : CATEGORIES_PER_PAGE;
-        int start = categoryPage == 0 ? 0 : CATEGORIES_PER_PAGE - 1 + (categoryPage - 1) * CATEGORIES_PER_PAGE;
-        int end = Math.min(playerData.categories.size(), start + capacity);
+        int start = categoryPage * CATEGORIES_PER_PAGE;
+        int end = Math.min(playerData.categories.size(), start + CATEGORIES_PER_PAGE);
         if (start >= end) {
             return List.of();
         }
@@ -1019,26 +1041,44 @@ public class QuestBookUI extends UIElement {
 
     private int maxCategoryPage() {
         int count = playerData.categories.size();
-        if (count <= CATEGORIES_PER_PAGE - 1) {
+        if (count <= CATEGORIES_PER_PAGE) {
             return 0;
         }
-        return 1 + (count - (CATEGORIES_PER_PAGE - 1) - 1) / CATEGORIES_PER_PAGE;
+        return (count - 1) / CATEGORIES_PER_PAGE;
+    }
+
+    private QuestCategoryData findCategory(String categoryId) {
+        String normalizedId = QuestCategoryData.normalizeId(categoryId);
+        return playerData.categories.stream()
+                .filter(category -> category.id.equals(normalizedId))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private int categoryIndex(String categoryId) {
+        String normalizedId = QuestCategoryData.normalizeId(categoryId);
+        for (int i = 0; i < playerData.categories.size(); i++) {
+            if (playerData.categories.get(i).id.equals(normalizedId)) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     private String questTitle(PlayerQuestState quest) {
         return quest.title == null || quest.title.isBlank() ? quest.questId : quest.title;
     }
 
-    private String getQuestPreview(PlayerQuestState quest) {
+    private Component getQuestPreview(PlayerQuestState quest) {
         if (quest.subtitle != null && !quest.subtitle.isBlank()) {
-            return quest.subtitle;
+            return Component.literal(quest.subtitle);
         }
         for (TaskProgress taskProgress : quest.taskProgresses) {
             if (taskProgress.status == TaskStatus.ACTIVE) {
                 return taskHint(taskProgress);
             }
         }
-        return quest.questId;
+        return Component.literal(quest.questId);
     }
 
     private TaskProgress getSelectedTask(PlayerQuestState quest) {
@@ -1102,14 +1142,14 @@ public class QuestBookUI extends UIElement {
                 : taskProgress.title;
     }
 
-    private String taskHint(TaskProgress taskProgress) {
-        if (taskProgress.taskHint != null && !taskProgress.taskHint.isBlank()) {
-            return taskProgress.taskHint;
+    private Component taskHint(TaskProgress taskProgress) {
+        if (taskProgress.displayTaskHint() != null && !taskProgress.displayTaskHint().getString().isBlank()) {
+            return taskProgress.displayTaskHint();
         }
         if (taskProgress.title != null && !taskProgress.title.isBlank()) {
-            return taskProgress.title;
+            return Component.literal(taskProgress.title);
         }
-        return taskProgress.stepId;
+        return Component.literal(taskProgress.stepId);
     }
 
     private static Component getTaskStatusIcon(TaskStatus status) {
