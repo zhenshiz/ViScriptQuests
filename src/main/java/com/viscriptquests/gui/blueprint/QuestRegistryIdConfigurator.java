@@ -59,7 +59,13 @@ public final class QuestRegistryIdConfigurator {
 
     private static SearchComponentConfigurator.ISearchConfigurator<QuestRegistryId> searchConfigurator(TypeHandle typeHandle) {
         if (QuestBlueprintTypes.ENTITY_TYPE_ID.equals(typeHandle)) {
-            return new EntityTypeSearchConfigurator();
+            return new EntityTypeSearchConfigurator(true);
+        }
+        if (QuestBlueprintTypes.ANY_ENTITY_TYPE_ID.equals(typeHandle)) {
+            return new EntityTypeSearchConfigurator(false);
+        }
+        if (QuestBlueprintTypes.ADVANCEMENT_ID.equals(typeHandle)) {
+            return new AdvancementSearchConfigurator();
         }
         return new DimensionSearchConfigurator();
     }
@@ -144,15 +150,18 @@ public final class QuestRegistryIdConfigurator {
     }
 
     private static class EntityTypeSearchConfigurator extends RegistryIdSearchConfigurator {
-        private EntityTypeSearchConfigurator() {
+        private final boolean livingOnly;
+
+        private EntityTypeSearchConfigurator(boolean livingOnly) {
             super(BuiltInRegistries.ENTITY_TYPE.getKey(EntityType.PIG).toString());
+            this.livingOnly = livingOnly;
         }
 
         @Override
         public void search(String word, IResultHandler<QuestRegistryId> searchHandler) {
             String lowerWord = normalizeSearchWord(word);
             BuiltInRegistries.ENTITY_TYPE.entrySet().stream()
-                    .map(entry -> EntitySearchEntry.of(entry.getKey().location(), entry.getValue()))
+                    .map(entry -> EntitySearchEntry.of(entry.getKey().location(), entry.getValue(), livingOnly))
                     .filter(Objects::nonNull)
                     .filter(EntitySearchEntry::livingEntityType)
                     .sorted(Comparator.comparing(EntitySearchEntry::displayName))
@@ -179,8 +188,19 @@ public final class QuestRegistryIdConfigurator {
         }
     }
 
+    private static class AdvancementSearchConfigurator extends RegistryIdSearchConfigurator {
+        private AdvancementSearchConfigurator() {
+            super("minecraft:story/root");
+        }
+
+        @Override
+        public void search(String word, IResultHandler<QuestRegistryId> searchHandler) {
+            acceptMatches(word, searchHandler, QuestBlueprintRegistryCache::advancementIds);
+        }
+    }
+
     private record EntitySearchEntry(String id, String path, String displayName, String descriptionId, boolean livingEntityType) {
-        private static EntitySearchEntry of(ResourceLocation id, EntityType<?> type) {
+        private static EntitySearchEntry of(ResourceLocation id, EntityType<?> type, boolean livingOnly) {
             if (id == null || type == null) {
                 return null;
             }
@@ -189,7 +209,7 @@ public final class QuestRegistryIdConfigurator {
                     id.getPath(),
                     type.getDescription().getString(),
                     type.getDescriptionId(),
-                    isLivingEntityType(type)
+                    !livingOnly || isLivingEntityType(type)
             );
         }
 

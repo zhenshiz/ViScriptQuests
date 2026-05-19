@@ -32,6 +32,9 @@ public abstract class ITask implements ILDLRegister<ITask, Supplier<ITask>>, IPe
     // 所有任务类型共有的基础字段
     @Persisted
     public String stepId = "";
+    // 自定义目标提示文本；为空时使用具体目标自己的默认提示。
+    @Persisted
+    public String taskHint = "";
 
     // 任务类型的显示名称
     public Component getDisplayName() {
@@ -50,7 +53,15 @@ public abstract class ITask implements ILDLRegister<ITask, Supplier<ITask>>, IPe
     }
 
     // 返回任务提示文本，用于 UI 展示（如"需要收集 1 个 合成台"）
-    public abstract Component getTaskHint();
+    public final Component getTaskHint() {
+        if (taskHint != null && !taskHint.isBlank()) {
+            return Component.translatableWithFallback(taskHint, taskHint);
+        }
+        return getDefaultTaskHint();
+    }
+
+    // 具体目标提供自己的默认提示；公共 taskHint 为空时才会使用。
+    protected abstract Component getDefaultTaskHint();
 
     // 任务目标显示用图片，任务书和 HUD 都可以复用。
     public DisplayIcon getDisplayIcon() {

@@ -100,7 +100,11 @@ public class QuestCommand implements ICommand {
                                         .suggests(QUEST_SUGGESTIONS)
                                         .then(Commands.argument("step", StringArgumentType.string())
                                                 .suggests(STEP_SUGGESTIONS)
-                                                .executes(this::submit))))));
+                                                .executes(this::submit)))))
+                .then(Commands.literal("trigger")
+                        .then(Commands.argument("target", EntityArgument.players())
+                                .then(Commands.argument("trigger_id", StringArgumentType.string())
+                                        .executes(this::triggerCustom)))));
     }
 
     @SneakyThrows
@@ -241,6 +245,22 @@ public class QuestCommand implements ICommand {
                 player -> Component.translatable(
                         "commands.viscript_quests.quest.submit.success",
                         player.getDisplayName(), QuestFileHelper.normalizeQuestId(questId), stepId),
+                true);
+    }
+
+    @SneakyThrows
+    private int triggerCustom(CommandContext<CommandSourceStack> context) {
+        Collection<ServerPlayer> players = EntityArgument.getPlayers(context, "target");
+        String triggerId = StringArgumentType.getString(context, "trigger_id");
+        return applyToPlayers(context, players,
+                player -> QuestManager.triggerCustom(player, triggerId),
+                player -> player.createCommandSourceStack().sendSuccess(
+                        () -> Component.translatable("viscript_quests.quest.custom_trigger.completed", triggerId), true),
+                player -> null,
+                player -> Component.translatable("commands.viscript_quests.quest.trigger.no_match", player.getDisplayName(), triggerId),
+                player -> Component.translatable(
+                        "commands.viscript_quests.quest.trigger.success",
+                        player.getDisplayName(), triggerId),
                 true);
     }
 

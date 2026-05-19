@@ -6,19 +6,17 @@ import com.viscriptquests.gui.blueprint.QuestBlueprintGraph;
 import com.viscriptquests.gui.blueprint.node.QuestBlueprintNode;
 import net.minecraft.network.chat.Component;
 
-// 击杀实体目标节点，用于配置目标实体、累计击杀数量和可选的实体命令标签。
-@NodeAttribute(name = "kill_entity_task", group = QuestBlueprintNode.TASK_GROUP, graphTypes = QuestBlueprintGraph.class)
-public class KillEntityTaskNode extends QuestBlueprintNode {
+// 进度目标节点，用于选择玩家需要完成的 Minecraft Advancement。
+@NodeAttribute(name = "advancement_task", group = QuestBlueprintNode.TASK_GROUP, graphTypes = QuestBlueprintGraph.class)
+public class AdvancementTaskNode extends QuestBlueprintNode {
     @Override
     public Component getDisplayName() {
-        return nodeName("kill_entity_task");
+        return nodeName("advancement_task");
     }
 
     @Override
     public void onDefineOptions(IOptionDefinitionContext context) {
-        entityTypeOption(context, "entity_type", "minecraft:zombie");
-        intOption(context, "kill_count", 1);
-        stringOption(context, "tag", "");
+        advancementOption(context, "advancement_id", "minecraft:story/root");
         taskHintOption(context);
     }
 }

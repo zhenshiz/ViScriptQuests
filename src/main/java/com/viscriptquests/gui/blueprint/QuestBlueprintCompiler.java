@@ -215,6 +215,7 @@ public final class QuestBlueprintCompiler {
             if (task == null) {
                 continue;
             }
+            task.taskHint = context.getString(taskModel, "task_hint");
             questFile.tasks.add(task);
             addedTask = true;
         }

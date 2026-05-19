@@ -8,11 +8,18 @@ import com.viscriptquests.quest.data.runtime.QuestStatus;
 import com.viscriptquests.quest.data.runtime.TaskObjectiveProgress;
 import com.viscriptquests.quest.data.runtime.TaskProgress;
 import com.viscriptquests.quest.data.runtime.TaskStatus;
+import com.viscriptquests.quest.data.task.AdvancementTask;
+import com.viscriptquests.quest.data.task.BreakBlockTask;
+import com.viscriptquests.quest.data.task.CustomTriggerTask;
 import com.viscriptquests.quest.data.task.ITask;
+import com.viscriptquests.quest.data.task.InteractEntityTask;
 import com.viscriptquests.quest.data.task.KillEntityTask;
 import com.viscriptquests.util.QuestFileHelper;
+import net.minecraft.advancements.AdvancementHolder;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -223,6 +230,76 @@ public class QuestSubmissionService {
             objective.requiredAmount = required;
             objective.currentAmount = Math.min(required, Math.max(0, objective.currentAmount) + 1);
             objective.completed = objective.currentAmount >= required;
+            return true;
+        });
+    }
+
+    public static boolean recordBlockBreak(ServerPlayer player, BlockState blockState) {
+        if (player == null || blockState == null || player.level().isClientSide()) {
+            return false;
+        }
+        return recordTaskProgress(player, BreakBlockTask.class, (recordPlayer, breakTask, objective) -> {
+            if (!breakTask.matches(blockState)) {
+                return false;
+            }
+            if (objective.completed) {
+                return false;
+            }
+            int required = Math.max(1, breakTask.getRequiredAmount());
+            objective.requiredAmount = required;
+            objective.currentAmount = Math.min(required, Math.max(0, objective.currentAmount) + 1);
+            objective.completed = objective.currentAmount >= required;
+            return true;
+        });
+    }
+
+    public static boolean recordEntityInteraction(ServerPlayer player, Entity target) {
+        if (player == null || target == null || player.level().isClientSide()) {
+            return false;
+        }
+        return recordTaskProgress(player, InteractEntityTask.class, (recordPlayer, interactTask, objective) -> {
+            if (!interactTask.matches(target)) {
+                return false;
+            }
+            if (objective.completed) {
+                return false;
+            }
+            int required = Math.max(1, interactTask.getRequiredAmount());
+            objective.requiredAmount = required;
+            objective.currentAmount = required;
+            objective.completed = true;
+            return true;
+        });
+    }
+
+    public static boolean recordAdvancementEarn(ServerPlayer player, AdvancementHolder advancement) {
+        if (player == null || advancement == null || player.level().isClientSide()) {
+            return false;
+        }
+        return recordTaskProgress(player, AdvancementTask.class, (recordPlayer, advancementTask, objective) -> {
+            if (!advancementTask.matches(advancement) || objective.completed) {
+                return false;
+            }
+            int required = Math.max(1, advancementTask.getRequiredAmount());
+            objective.requiredAmount = required;
+            objective.currentAmount = required;
+            objective.completed = true;
+            return true;
+        });
+    }
+
+    public static boolean triggerCustom(ServerPlayer player, String triggerId) {
+        if (player == null || triggerId == null || triggerId.isBlank() || player.level().isClientSide()) {
+            return false;
+        }
+        return recordTaskProgress(player, CustomTriggerTask.class, (recordPlayer, triggerTask, objective) -> {
+            if (!triggerTask.matches(triggerId) || objective.completed) {
+                return false;
+            }
+            int required = Math.max(1, triggerTask.getRequiredAmount());
+            objective.requiredAmount = required;
+            objective.currentAmount = required;
+            objective.completed = true;
             return true;
         });
     }

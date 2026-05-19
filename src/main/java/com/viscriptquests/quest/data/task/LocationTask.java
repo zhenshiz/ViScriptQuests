@@ -26,8 +26,6 @@ public class LocationTask extends ITask {
     @Persisted
     public double arrivalRadius = 3.0;
     @Persisted
-    public String taskHint = "";
-    @Persisted
     public String markerLabel = "";
     @Persisted
     public DisplayIcon markerIcon = DisplayIcon.item(Items.COMPASS.getDefaultInstance());
@@ -48,10 +46,7 @@ public class LocationTask extends ITask {
     }
 
     @Override
-    public Component getTaskHint() {
-        if (taskHint != null && !taskHint.isBlank()) {
-            return Component.translatableWithFallback(taskHint, taskHint);
-        }
+    protected Component getDefaultTaskHint() {
         return Component.translatable("viscript_quests.task_hint.location_task", x, y, z);
     }
 

@@ -95,7 +95,7 @@ public class ItemTask extends ITask {
     }
 
     @Override
-    public Component getTaskHint() {
+    protected Component getDefaultTaskHint() {
         if (itemStack.isEmpty()) return Component.empty();
         int count = itemStack.getCount();
         String key = consumeItem

@@ -12,8 +12,14 @@ import com.viscriptquests.quest.data.QuestJoinMode;
 import com.viscriptquests.quest.data.QuestSubmitMode;
 import com.viscriptquests.quest.data.QuestValueToken;
 import com.viscriptquests.quest.data.QuestVariableValue;
+import com.viscriptquests.quest.data.LootTableConfig;
+import com.viscriptquests.quest.data.LootTableType;
 import lombok.Getter;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 
 import java.util.*;
 
@@ -155,6 +161,33 @@ public class QuestCompileContext {
         return QuestSubmitMode.AUTO;
     }
 
+    public LootTableType getLootTableType(NodeModel nodeModel, String optionId) {
+        Constant constant = nodeModel.getInputConstantsById().get(NodeOption.PORT_ID_PREFIX + optionId);
+        if (constant == null) {
+            return LootTableType.DATA_PACK;
+        }
+        Object value = constant.getValue();
+        if (value instanceof LootTableType type) {
+            return type;
+        }
+        if (value instanceof String serializedName) {
+            for (LootTableType type : LootTableType.values()) {
+                if (type.name().equalsIgnoreCase(serializedName)
+                        || type.getSerializedName().equals(serializedName)) {
+                    return type;
+                }
+            }
+        }
+        if (value instanceof Number index) {
+            LootTableType[] types = LootTableType.values();
+            int ordinal = index.intValue();
+            if (ordinal >= 0 && ordinal < types.length) {
+                return types[ordinal];
+            }
+        }
+        return LootTableType.DATA_PACK;
+    }
+
     // 读取流程小任务节点的 ID；目标/奖励节点的 stepId 由所在小任务子图注入。
     public String resolveStepId(NodeModel nodeModel) {
         return getString(nodeModel, QuestLinkedNode.STEP_ID_OPTION);
@@ -168,6 +201,24 @@ public class QuestCompileContext {
         return ItemStack.EMPTY;
     }
 
+    public Block getBlock(NodeModel nodeModel, String optionId) {
+        Constant constant = nodeModel.getInputConstantsById().get(NodeOption.PORT_ID_PREFIX + optionId);
+        if (constant == null) {
+            return Blocks.STONE;
+        }
+        Object value = constant.getValue();
+        if (value instanceof Block block) {
+            return block;
+        }
+        if (value instanceof QuestRegistryId registryId) {
+            return resolveBlock(registryId.value());
+        }
+        if (value instanceof String id) {
+            return resolveBlock(id);
+        }
+        return Blocks.STONE;
+    }
+
     public DisplayIcon getDisplayIcon(NodeModel nodeModel, String optionId) {
         Constant constant = nodeModel.getInputConstantsById().get(NodeOption.PORT_ID_PREFIX + optionId);
         if (constant != null && constant.getValue() instanceof DisplayIcon icon) {
@@ -176,12 +227,34 @@ public class QuestCompileContext {
         return new DisplayIcon();
     }
 
+    public List<LootTableConfig> getLootTableConfigs(NodeModel nodeModel, String optionId) {
+        Constant constant = nodeModel.getInputConstantsById().get(NodeOption.PORT_ID_PREFIX + optionId);
+        if (constant != null && constant.getValue() instanceof Collection<?> collection) {
+            List<LootTableConfig> configs = new ArrayList<>();
+            for (Object value : collection) {
+                if (value instanceof LootTableConfig config) {
+                    configs.add(config.copy());
+                }
+            }
+            return configs;
+        }
+        return List.of();
+    }
+
     public QuestJoinMode getJoinMode(NodeModel nodeModel) {
         Constant constant = nodeModel.getInputConstantsById().get(NodeOption.PORT_ID_PREFIX + "join_mode");
         if (constant != null && constant.getValue() instanceof QuestJoinMode mode) {
             return mode;
         }
         return QuestJoinMode.ANY;
+    }
+
+    private static Block resolveBlock(String id) {
+        ResourceLocation location = ResourceLocation.tryParse(id == null ? "" : id.trim());
+        if (location == null) {
+            return Blocks.STONE;
+        }
+        return BuiltInRegistries.BLOCK.getOptional(location).orElse(Blocks.STONE);
     }
 
     public int getPortInt(NodeModel nodeModel, String portId) {

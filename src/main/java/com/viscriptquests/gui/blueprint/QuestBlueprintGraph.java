@@ -18,6 +18,7 @@ public class QuestBlueprintGraph extends Graph {
             TypeHandles.INT,
             TypeHandles.FLOAT,
             TypeHandles.BOOL,
+            TypeHandles.BLOCK,
             TypeHandles.ITEM_STACK
     );
 

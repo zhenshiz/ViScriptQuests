@@ -164,6 +164,10 @@ dependencies {
     implementation "maven.modrinth:sophisticated-core:${sophisticated_core_version}"
     //超越维度
     implementation "curse.maven:beyond-dimensions-1222890:${beyonddimensions_version}"
+    //ViScriptShop
+    implementation("com:ViScriptShop-neoforge-1.21.1:${viscriptshop_version}") {
+        transitive = false
+    }
     //ViScriptTeam
     compileOnly("com.zhenshiz:ViScriptTeam-neoforge-1.21.1:${viscriptteam_version}") {
         transitive = false

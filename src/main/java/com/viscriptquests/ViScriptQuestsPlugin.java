@@ -7,6 +7,7 @@ import com.lowdragmc.lowdraglib2.syncdata.accessor.direct.CustomDirectAccessor;
 import com.lowdragmc.lowdraglib2.utils.PersistedParser;
 import com.viscriptquests.gui.blueprint.data.QuestRegistryId;
 import com.viscriptquests.quest.data.*;
+import com.viscriptquests.quest.data.LootTableConfig;
 import com.viscriptquests.quest.data.reward.IReward;
 import com.viscriptquests.quest.data.runtime.*;
 import com.viscriptquests.quest.data.task.ITask;
@@ -44,6 +45,7 @@ public class ViScriptQuestsPlugin implements ILDLibPlugin {
         // 基础嵌套类型要先注册，避免后续数据类创建 codec 时拿到只读 accessor。
         register(DisplayIcon.class, DisplayIcon::new);
         register(QuestGuideMarker.class, QuestGuideMarker::new);
+        register(LootTableConfig.class, LootTableConfig::new);
 
         // 运行时数据类型
         register(TaskObjectiveProgress.class, TaskObjectiveProgress::new);

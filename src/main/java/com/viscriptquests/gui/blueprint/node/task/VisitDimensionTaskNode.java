@@ -5,20 +5,19 @@ import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.definition.IOptionDe
 import com.viscriptquests.gui.blueprint.QuestBlueprintGraph;
 import com.viscriptquests.gui.blueprint.node.QuestBlueprintNode;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.level.Level;
 
-// 击杀实体目标节点，用于配置目标实体、累计击杀数量和可选的实体命令标签。
-@NodeAttribute(name = "kill_entity_task", group = QuestBlueprintNode.TASK_GROUP, graphTypes = QuestBlueprintGraph.class)
-public class KillEntityTaskNode extends QuestBlueprintNode {
+// 访问维度目标节点，维度参数复用项目里的资源 ID 补全输入框。
+@NodeAttribute(name = "visit_dimension_task", group = QuestBlueprintNode.TASK_GROUP, graphTypes = QuestBlueprintGraph.class)
+public class VisitDimensionTaskNode extends QuestBlueprintNode {
     @Override
     public Component getDisplayName() {
-        return nodeName("kill_entity_task");
+        return nodeName("visit_dimension_task");
     }
 
     @Override
     public void onDefineOptions(IOptionDefinitionContext context) {
-        entityTypeOption(context, "entity_type", "minecraft:zombie");
-        intOption(context, "kill_count", 1);
-        stringOption(context, "tag", "");
+        dimensionOption(context, "dimension", Level.OVERWORLD.location().toString());
         taskHintOption(context);
     }
 }

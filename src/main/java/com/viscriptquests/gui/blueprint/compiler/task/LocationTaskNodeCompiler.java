@@ -24,7 +24,6 @@ public class LocationTaskNodeCompiler implements IQuestTaskNodeCompiler {
         task.y = context.getFloat(node, "y");
         task.z = context.getFloat(node, "z");
         task.arrivalRadius = Math.max(0.0f, context.getFloat(node, "arrival_radius"));
-        task.taskHint = context.getString(node, "task_hint");
         task.markerLabel = context.getString(node, "marker_label");
         task.markerIcon = context.getDisplayIcon(node, "marker_icon");
         task.markerColor = context.getInt(node, "marker_color");

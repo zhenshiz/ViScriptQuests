@@ -140,6 +140,20 @@ public class QuestManager {
     }
 
     /**
+     * 触发玩家当前激活任务中的自定义目标。
+     *
+     * <p>该入口供指令、KubeJS 或其它模组联动调用。它不会检查物品、进度等通用条件，
+     * 只会完成标识相同且当前已经解锁的小任务目标，然后复用标准流程结算奖励和后续节点。
+     *
+     * @param player 服务端玩家，要触发该玩家身上的自定义目标
+     * @param triggerId 自定义触发标识，必须与蓝图目标里的标识一致
+     * @return 是否有匹配目标被触发
+     */
+    public static boolean triggerCustom(ServerPlayer player, String triggerId) {
+        return QuestSubmissionService.triggerCustom(player, triggerId);
+    }
+
+    /**
      * 手动提交指定小任务下的单个目标。
      *
      * @param player 服务端玩家，提交目标的玩家

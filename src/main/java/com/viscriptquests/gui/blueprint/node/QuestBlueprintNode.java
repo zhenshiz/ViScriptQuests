@@ -12,6 +12,7 @@ import com.viscriptquests.gui.blueprint.data.QuestRegistryId;
 import com.viscriptquests.quest.data.DisplayIcon;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.Block;
 
 // 任务蓝图节点的公共基类，提供端口/选项的便捷方法和翻译键支持
 public abstract class QuestBlueprintNode extends Node {
@@ -40,12 +41,24 @@ public abstract class QuestBlueprintNode extends Node {
         option(context, id, displayKey, TypeHandles.STRING, defaultValue);
     }
 
+    protected void taskHintOption(IOptionDefinitionContext context) {
+        stringOption(context, "task_hint", "");
+    }
+
     protected void dimensionOption(IOptionDefinitionContext context, String id, String defaultValue) {
         registryIdOption(context, id, id, QuestBlueprintTypes.DIMENSION_ID, defaultValue);
     }
 
     protected void entityTypeOption(IOptionDefinitionContext context, String id, String defaultValue) {
         registryIdOption(context, id, id, QuestBlueprintTypes.ENTITY_TYPE_ID, defaultValue);
+    }
+
+    protected void anyEntityTypeOption(IOptionDefinitionContext context, String id, String defaultValue) {
+        registryIdOption(context, id, id, QuestBlueprintTypes.ANY_ENTITY_TYPE_ID, defaultValue);
+    }
+
+    protected void advancementOption(IOptionDefinitionContext context, String id, String defaultValue) {
+        registryIdOption(context, id, id, QuestBlueprintTypes.ADVANCEMENT_ID, defaultValue);
     }
 
     protected void stringArrayOption(IOptionDefinitionContext context, String id) {
@@ -70,6 +83,10 @@ public abstract class QuestBlueprintNode extends Node {
 
     protected void itemStackOption(IOptionDefinitionContext context, String id) {
         option(context, id, TypeHandles.ITEM_STACK, ItemStack.EMPTY);
+    }
+
+    protected void blockOption(IOptionDefinitionContext context, String id, Block defaultValue) {
+        option(context, id, TypeHandles.BLOCK, defaultValue);
     }
 
     protected void displayIconOption(IOptionDefinitionContext context, String id) {
@@ -114,7 +131,7 @@ public abstract class QuestBlueprintNode extends Node {
                 .build();
     }
 
-    private void option(IOptionDefinitionContext context, String id, TypeHandle type, Object defaultValue) {
+    protected void option(IOptionDefinitionContext context, String id, TypeHandle type, Object defaultValue) {
         option(context, id, id, type, defaultValue);
     }
 
