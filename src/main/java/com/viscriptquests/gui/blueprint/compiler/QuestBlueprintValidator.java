@@ -29,7 +29,6 @@ public final class QuestBlueprintValidator {
         validateSubQuestTargets(questFile, nodes, reachable);
         validateBranchNodes(questFile, nodes, reachable);
         validateJoinNodes(questFile, nodes, reachable);
-        validateNoReachableCycles(nodes, questFile.flowEdges, reachable);
         validateAllReachableNodesCanFinish(nodes, questFile.flowEdges, reachable);
     }
 
@@ -241,7 +240,7 @@ public final class QuestBlueprintValidator {
                 List<QuestFlowEdge> outgoing = outgoing(nodeId, edges).stream()
                         .filter(edge -> reachable.contains(edge.toNodeId))
                         .toList();
-                if (!outgoing.isEmpty() && outgoing.stream().allMatch(edge -> canFinish.contains(edge.toNodeId))) {
+                if (!outgoing.isEmpty() && outgoing.stream().anyMatch(edge -> canFinish.contains(edge.toNodeId))) {
                     changed |= canFinish.add(nodeId);
                 }
             }

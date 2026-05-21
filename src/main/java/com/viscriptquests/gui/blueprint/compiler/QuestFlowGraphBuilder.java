@@ -258,8 +258,8 @@ public final class QuestFlowGraphBuilder {
         for (PortModel connectedPort : connected) {
             if (connectedPort.getNodeModel() instanceof CustomNodeModelImpl sourceNode) {
                 var sourceInstance = sourceNode.getNode();
-                if (sourceInstance instanceof CompareNode) {
-                    CompareOp op = getOpFromCompareNode(sourceInstance);
+                if (sourceInstance instanceof CompareOperationNode) {
+                    CompareOp op = CompareOperationNode.operationOf(sourceNode);
                     String varFromA = context.findVariableName(sourceNode, "value_a");
                     String varFromB = context.findVariableName(sourceNode, "value_b");
 
@@ -290,16 +290,6 @@ public final class QuestFlowGraphBuilder {
     private static boolean hasOutputConnection(CustomNodeModelImpl node, String portId) {
         PortModel port = node.getOutputsById().get(portId);
         return port != null && !port.getConnectedPorts().isEmpty();
-    }
-
-    private static CompareOp getOpFromCompareNode(com.lowdragmc.lowdraglib2.nodegraphtookit.api.node.Node node) {
-        if (node instanceof CompareEqNode) return CompareOp.EQ;
-        if (node instanceof CompareNeNode) return CompareOp.NE;
-        if (node instanceof CompareGtNode) return CompareOp.GT;
-        if (node instanceof CompareGeNode) return CompareOp.GE;
-        if (node instanceof CompareLtNode) return CompareOp.LT;
-        if (node instanceof CompareLeNode) return CompareOp.LE;
-        return CompareOp.EQ;
     }
 
     private static CompareOp reverseOp(CompareOp op) {

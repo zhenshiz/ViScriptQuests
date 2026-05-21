@@ -23,7 +23,9 @@ import com.viscriptquests.config.ClientConfig;
 import com.viscriptquests.network.c2s.C2SPayload;
 import com.viscriptquests.quest.data.DisplayIcon;
 import com.viscriptquests.quest.data.runtime.PlayerQuestState;
+import com.viscriptquests.quest.data.runtime.QuestBookData;
 import com.viscriptquests.quest.data.runtime.QuestCategoryData;
+import com.viscriptquests.quest.data.runtime.QuestCategoryListData;
 import com.viscriptquests.quest.data.runtime.QuestPlayerData;
 import com.viscriptquests.quest.data.runtime.QuestStatus;
 import com.viscriptquests.quest.data.runtime.RewardDisplay;
@@ -92,6 +94,7 @@ public class QuestBookUI extends UIElement {
     private static final IGuiTexture TRACK_BUTTON_PRESSED = sprite("track_button_pressed.png", 4);
 
     private QuestPlayerData playerData;
+    private QuestCategoryListData categoryData;
     private String selectedCategoryId = "";
     private PlayerQuestState selectedQuest;
     private String selectedStepId = "";
@@ -103,15 +106,17 @@ public class QuestBookUI extends UIElement {
     private ScrollerView questTreeView;
     private ScrollerView detailScroller;
 
-    public QuestBookUI(QuestPlayerData playerData) {
-        this.playerData = playerData;
+    public QuestBookUI(QuestBookData bookData) {
+        this.playerData = bookData.playerData == null ? new QuestPlayerData() : bookData.playerData;
+        this.categoryData = bookData.categoryData == null ? new QuestCategoryListData() : bookData.categoryData;
         buildUI();
     }
 
-    public void syncPlayerData(QuestPlayerData playerData) {
+    public void syncBookData(QuestBookData bookData) {
         String selectedQuestId = selectedQuest == null ? "" : selectedQuest.questId;
-        this.playerData = playerData;
-        selectedQuest = playerData.findQuest(selectedQuestId).orElse(null);
+        this.playerData = bookData.playerData == null ? new QuestPlayerData() : bookData.playerData;
+        this.categoryData = bookData.categoryData == null ? new QuestCategoryListData() : bookData.categoryData;
+        selectedQuest = this.playerData.findQuest(selectedQuestId).orElse(null);
         ensureSelectedQuestInCategory();
         refreshAll();
     }
@@ -338,12 +343,12 @@ public class QuestBookUI extends UIElement {
 
     private void ensureSelectedCategory() {
         categoryPage = Math.max(0, Math.min(categoryPage, maxCategoryPage()));
-        if (playerData.categories.isEmpty()) {
+        if (categoryData.categories.isEmpty()) {
             selectedCategoryId = "";
             return;
         }
         if (findCategory(selectedCategoryId) == null) {
-            selectedCategoryId = playerData.categories.getFirst().id;
+            selectedCategoryId = categoryData.categories.getFirst().id;
         }
         int selectedIndex = categoryIndex(selectedCategoryId);
         if (selectedIndex >= 0 && selectedIndex / CATEGORIES_PER_PAGE != categoryPage) {
@@ -1019,11 +1024,12 @@ public class QuestBookUI extends UIElement {
 
     private List<PlayerQuestState> getFilteredQuests() {
         List<PlayerQuestState> filtered = new ArrayList<>();
-        if (findCategory(selectedCategoryId) == null) {
+        QuestCategoryData category = findCategory(selectedCategoryId);
+        if (category == null) {
             return filtered;
         }
         for (PlayerQuestState quest : playerData.quests) {
-            if (selectedCategoryId.equals(quest.categoryId)) {
+            if (category.containsQuest(quest.questId) || selectedCategoryId.equals(quest.categoryId)) {
                 filtered.add(quest);
             }
         }
@@ -1032,15 +1038,15 @@ public class QuestBookUI extends UIElement {
 
     private List<QuestCategoryData> pagedCategories() {
         int start = categoryPage * CATEGORIES_PER_PAGE;
-        int end = Math.min(playerData.categories.size(), start + CATEGORIES_PER_PAGE);
+        int end = Math.min(categoryData.categories.size(), start + CATEGORIES_PER_PAGE);
         if (start >= end) {
             return List.of();
         }
-        return playerData.categories.subList(start, end);
+        return categoryData.categories.subList(start, end);
     }
 
     private int maxCategoryPage() {
-        int count = playerData.categories.size();
+        int count = categoryData.categories.size();
         if (count <= CATEGORIES_PER_PAGE) {
             return 0;
         }
@@ -1049,7 +1055,7 @@ public class QuestBookUI extends UIElement {
 
     private QuestCategoryData findCategory(String categoryId) {
         String normalizedId = QuestCategoryData.normalizeId(categoryId);
-        return playerData.categories.stream()
+        return categoryData.categories.stream()
                 .filter(category -> category.id.equals(normalizedId))
                 .findFirst()
                 .orElse(null);
@@ -1057,8 +1063,8 @@ public class QuestBookUI extends UIElement {
 
     private int categoryIndex(String categoryId) {
         String normalizedId = QuestCategoryData.normalizeId(categoryId);
-        for (int i = 0; i < playerData.categories.size(); i++) {
-            if (playerData.categories.get(i).id.equals(normalizedId)) {
+        for (int i = 0; i < categoryData.categories.size(); i++) {
+            if (categoryData.categories.get(i).id.equals(normalizedId)) {
                 return i;
             }
         }

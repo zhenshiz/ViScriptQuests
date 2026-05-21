@@ -4,6 +4,8 @@ import com.lowdragmc.lowdraglib2.syncdata.IPersistedSerializable;
 import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
 import net.minecraft.core.HolderLookup;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -16,6 +18,8 @@ public class VariableMutation implements IPersistedSerializable {
     public VariableMutationOp operation = VariableMutationOp.SET;
     @Persisted
     public float value = 0f;
+    @Persisted
+    public final List<QuestValueToken> expression = new ArrayList<>();
 
     // 将此修改应用到变量表
     public void applyTo(Map<String, QuestVariableValue> questVariables, HolderLookup.Provider provider) {
@@ -24,8 +28,9 @@ public class VariableMutation implements IPersistedSerializable {
         if (variableValue != null && !variableValue.supportsNumericMutation()) {
             return;
         }
+        float mutationValue = expression.isEmpty() ? value : QuestValueToken.evaluate(expression, questVariables);
         float current = variableValue == null ? 0f : variableValue.asFloat();
-        float next = operation.apply(current, value);
+        float next = operation.apply(current, mutationValue);
         questVariables.put(variableName, variableValue == null
                 ? QuestVariableValue.ofFloat(next)
                 : variableValue.withNumericValue(next));
@@ -37,11 +42,12 @@ public class VariableMutation implements IPersistedSerializable {
         if (!(object instanceof VariableMutation that)) return false;
         return Float.compare(value, that.value) == 0
                 && Objects.equals(variableName, that.variableName)
-                && operation == that.operation;
+                && operation == that.operation
+                && Objects.equals(expression, that.expression);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(variableName, operation, value);
+        return Objects.hash(variableName, operation, value, expression);
     }
 }

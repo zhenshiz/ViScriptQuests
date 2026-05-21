@@ -9,8 +9,6 @@ public class QuestDefinition implements IPersistedSerializable {
     @Persisted
     public String questId = "";
     @Persisted
-    public String categoryId = "";
-    @Persisted
     public String title = "";
     @Persisted
     public String subtitle = "";

@@ -78,7 +78,6 @@ public class PlayerQuestState implements IPersistedSerializable {
     public static PlayerQuestState fromQuestFile(QuestFile file, long gameTime, net.minecraft.server.level.ServerPlayer player) {
         PlayerQuestState state = new PlayerQuestState();
         state.questId = file.quest.questId;
-        state.categoryId = file.quest.categoryId;
         state.title = file.quest.title;
         state.subtitle = file.quest.subtitle;
         state.icon = file.quest.icon.copy();

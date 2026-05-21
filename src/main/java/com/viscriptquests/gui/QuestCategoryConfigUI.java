@@ -3,20 +3,26 @@ package com.viscriptquests.gui;
 import com.lowdragmc.lowdraglib2.Platform;
 import com.lowdragmc.lowdraglib2.configurator.ui.Configurator;
 import com.lowdragmc.lowdraglib2.configurator.ui.ConfiguratorGroup;
+import com.lowdragmc.lowdraglib2.gui.ui.data.Horizontal;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.data.ScrollDisplay;
 import com.lowdragmc.lowdraglib2.gui.ui.data.ScrollerMode;
+import com.lowdragmc.lowdraglib2.gui.ui.data.TextWrap;
+import com.lowdragmc.lowdraglib2.gui.ui.data.Vertical;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.ScrollerView;
+import com.lowdragmc.lowdraglib2.gui.ui.elements.Selector;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import com.lowdragmc.lowdraglib2.math.Size;
 import com.lowdragmc.lowdraglib2.networking.rpc.RPCPacketDistributor;
 import com.viscriptquests.gui.components.DraggableUI;
 import com.viscriptquests.network.c2s.C2SPayload;
 import com.viscriptquests.quest.data.DisplayIcon;
+import com.viscriptquests.quest.data.runtime.QuestCategoryConfigData;
 import com.viscriptquests.quest.data.runtime.QuestCategoryData;
 import com.viscriptquests.quest.data.runtime.QuestCategoryListData;
+import com.viscriptquests.util.QuestFileHelper;
 import dev.vfyjxf.taffy.style.AlignItems;
 import dev.vfyjxf.taffy.style.FlexDirection;
 import dev.vfyjxf.taffy.style.FlexWrap;
@@ -29,10 +35,25 @@ import java.util.List;
 
 public class QuestCategoryConfigUI extends UIElement {
     private final List<QuestCategoryData> categories = new ArrayList<>();
+    private final List<String> availableQuestIds = new ArrayList<>();
     private QuestCategoryData selectedCategory;
     private ScrollerView categoryListView;
     private DraggableUI<QuestCategoryData> categoryDragList;
     private ScrollerView editorView;
+
+    public QuestCategoryConfigUI(QuestCategoryConfigData data) {
+        QuestCategoryListData categoryData = data == null || data.categoryData == null
+                ? new QuestCategoryListData()
+                : data.categoryData;
+        categories.addAll(categoryData.copyCategories());
+        if (data != null) {
+            availableQuestIds.addAll(data.copyQuestIds());
+        }
+        if (!categories.isEmpty()) {
+            selectedCategory = categories.getFirst();
+        }
+        buildUI();
+    }
 
     public QuestCategoryConfigUI(QuestCategoryListData data) {
         categories.addAll(data.copyCategories());
@@ -160,7 +181,7 @@ public class QuestCategoryConfigUI extends UIElement {
     }
 
     private void deleteSelected() {
-        if (selectedCategory == null || categories.size() <= 1) {
+        if (selectedCategory == null) {
             return;
         }
         categories.remove(selectedCategory);
@@ -170,15 +191,20 @@ public class QuestCategoryConfigUI extends UIElement {
     }
 
     private void saveAll() {
+        saveCategories(true);
+    }
+
+    private boolean saveCategories(boolean notifyPlayer) {
         if (!applyBeforeSave()) {
-            return;
+            return false;
         }
         CompoundTag tag = QuestCategoryListData.of(categories).serializeNBT(Platform.getFrozenRegistry());
-        RPCPacketDistributor.rpcToServer(C2SPayload.SAVE_DEFAULT_QUEST_CATEGORIES, tag);
-        if (Minecraft.getInstance().player != null) {
+        RPCPacketDistributor.rpcToServer(C2SPayload.SAVE_QUEST_CATEGORIES, tag);
+        if (notifyPlayer && Minecraft.getInstance().player != null) {
             Minecraft.getInstance().player.displayClientMessage(
                     Component.translatable("viscript_quests.category_config.saved"), false);
         }
+        return true;
     }
 
     private void selectCategory(QuestCategoryData category) {
@@ -256,7 +282,141 @@ public class QuestCategoryConfigUI extends UIElement {
         });
         group.addEventListener(Configurator.CHANGE_EVENT, event -> reloadCategoryList());
         selectedCategory.buildConfigurator(group);
+        addQuestListEditor(group);
         editorView.addScrollViewChild(group);
+    }
+
+    private void addQuestListEditor(ConfiguratorGroup group) {
+        ConfiguratorGroup quests = new ConfiguratorGroup("viscript_quests.questCategory.questIds", false);
+        quests.setCanCollapse(false);
+        quests.layout(layout -> layout.widthPercent(100));
+        quests.configuratorContainer.layout(layout -> {
+            layout.widthPercent(100);
+            layout.flexDirection(FlexDirection.COLUMN);
+            layout.gapAll(3);
+        });
+        for (int i = 0; i < selectedCategory.questIds.size(); i++) {
+            quests.configuratorContainer.addChild(createQuestIdRow(i));
+        }
+
+        UIElement buttons = new UIElement();
+        buttons.layout(layout -> {
+            layout.widthPercent(100);
+            layout.flexDirection(FlexDirection.ROW);
+            layout.gapAll(4);
+        });
+
+        Button addQuest = new Button();
+        addQuest.setText(Component.translatable("viscript_quests.category_config.quest.add"));
+        addQuest.layout(layout -> layout.width(90).height(18));
+        addQuest.addEventListener(UIEvents.CLICK, event -> {
+            selectedCategory.questIds.add(defaultNewQuestId());
+            reloadEditor();
+        });
+        buttons.addChild(addQuest);
+
+        quests.addChild(buttons);
+        group.addChild(quests);
+    }
+
+    private UIElement createQuestIdRow(int index) {
+        UIElement row = new UIElement();
+        row.layout(layout -> {
+            layout.widthPercent(100);
+            layout.height(22);
+            layout.flexDirection(FlexDirection.ROW);
+            layout.alignItems(AlignItems.CENTER);
+            layout.gapAll(4);
+        });
+
+        Selector<String> selector = new Selector<>();
+        selector.setCandidates(createQuestCandidates(questId(index)));
+        selector.setCandidateUIProvider(candidate -> {
+            Label label = new Label();
+            label.layout(layout -> layout.widthPercent(100).height(18));
+            label.textStyle(style -> style
+                    .textWrap(TextWrap.HOVER_ROLL)
+                    .textAlignHorizontal(Horizontal.LEFT)
+                    .textAlignVertical(Vertical.CENTER));
+            label.setText(questCandidateText(candidate));
+            label.setOverflowVisible(false);
+            return label;
+        });
+        selector.setSelected(questId(index), false);
+        selector.setOnValueChanged(value -> {
+            if (index >= 0 && index < selectedCategory.questIds.size()) {
+                selectedCategory.questIds.set(index, QuestFileHelper.normalizeQuestId(value == null ? "" : value));
+            }
+        });
+        selector.selectorStyle(style -> style.maxItemCount(8).scrollerViewHeight(110));
+        selector.layout(layout -> {
+            layout.width(130);
+            layout.height(18);
+        });
+        row.addChild(selector);
+
+        Button editButton = new Button();
+        editButton.setText(Component.translatable("viscript_quests.category_config.quest.edit"));
+        editButton.layout(layout -> layout.width(42).height(18));
+        editButton.addEventListener(UIEvents.CLICK, event -> openQuestProject(questId(index)));
+        row.addChild(editButton);
+
+        Button removeButton = new Button();
+        removeButton.setText(Component.translatable("viscript_quests.category_config.quest.remove"));
+        removeButton.layout(layout -> layout.width(42).height(18));
+        removeButton.addEventListener(UIEvents.CLICK, event -> {
+            if (index >= 0 && index < selectedCategory.questIds.size()) {
+                selectedCategory.questIds.remove(index);
+                reloadEditor();
+            }
+        });
+        row.addChild(removeButton);
+        return row;
+    }
+
+    private String questId(int index) {
+        return index >= 0 && index < selectedCategory.questIds.size()
+                ? selectedCategory.questIds.get(index)
+                : "";
+    }
+
+    private List<String> createQuestCandidates(String currentQuestId) {
+        List<String> candidates = new ArrayList<>();
+        if (availableQuestIds.isEmpty()) {
+            candidates.add("");
+        } else {
+            candidates.addAll(availableQuestIds);
+        }
+        String normalizedCurrentId = QuestFileHelper.normalizeQuestId(currentQuestId == null ? "" : currentQuestId);
+        if (!normalizedCurrentId.isBlank() && !candidates.contains(normalizedCurrentId)) {
+            candidates.add(normalizedCurrentId);
+        }
+        return candidates;
+    }
+
+    private String defaultNewQuestId() {
+        return availableQuestIds.isEmpty() ? "" : availableQuestIds.getFirst();
+    }
+
+    private Component questCandidateText(String questId) {
+        String normalizedQuestId = QuestFileHelper.normalizeQuestId(questId == null ? "" : questId);
+        if (normalizedQuestId.isBlank()) {
+            return Component.translatable("viscript_quests.category_config.quest.empty");
+        }
+        return Component.literal(normalizedQuestId);
+    }
+
+    private void openQuestProject(String questId) {
+        String normalized = questId == null ? "" : questId.trim();
+        if (normalized.isBlank()) {
+            return;
+        }
+        if (!saveCategories(false)) {
+            return;
+        }
+        CompoundTag tag = new CompoundTag();
+        tag.putString("projectId", normalized);
+        RPCPacketDistributor.rpcToServer(C2SPayload.REQUEST_OPEN_EDITOR_PROJECT, tag);
     }
 
     private boolean normalizeCategories() {
@@ -290,6 +450,7 @@ public class QuestCategoryConfigUI extends UIElement {
         if (category.displayIcon == null) {
             category.displayIcon = new DisplayIcon();
         }
+        QuestCategoryListData.sanitizeQuestIds(category.questIds);
     }
 
     private record CategoryRow(UIElement root) {

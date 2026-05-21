@@ -95,7 +95,6 @@ public final class QuestBlueprintCompiler {
         }
 
         QuestFile questFile = new QuestFile();
-        questFile.quest.categoryId = context.getString(startNodeModel, "category_id");
         questFile.quest.title = context.getString(startNodeModel, "title");
         questFile.quest.subtitle = context.getString(startNodeModel, "subtitle");
         questFile.quest.icon = context.getDisplayIcon(startNodeModel, "icon");

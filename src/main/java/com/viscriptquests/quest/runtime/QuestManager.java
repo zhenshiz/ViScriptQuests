@@ -6,10 +6,12 @@ import com.viscriptquests.network.s2c.S2CPayload;
 import com.viscriptquests.quest.data.QuestFile;
 import com.viscriptquests.quest.data.QuestSavedData;
 import com.viscriptquests.quest.data.runtime.PlayerQuestState;
-import com.viscriptquests.quest.data.runtime.QuestCategoryData;
+import com.viscriptquests.quest.data.runtime.QuestBookData;
+import com.viscriptquests.quest.data.runtime.QuestCategoryListData;
 import com.viscriptquests.quest.data.runtime.QuestPlayerData;
 import com.viscriptquests.quest.data.runtime.QuestStatus;
 import com.viscriptquests.quest.data.runtime.TaskProgress;
+import com.viscriptquests.util.QuestCategoryFileHelper;
 import com.viscriptquests.util.QuestFileHelper;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
@@ -35,8 +37,9 @@ public class QuestManager {
         refreshQuestBookDisplayData(player);
         QuestTrackingService.refresh(player);
         QuestPlayerData playerData = QuestSavedData.get(player.getServer()).getPlayer(player.getUUID());
+        QuestBookData bookData = createBookData(playerData);
         RPCPacketDistributor.rpcToPlayer(player, S2CPayload.OPEN_QUEST_BOOK,
-                playerData.serializeNBT(Platform.getFrozenRegistry()));
+                bookData.serializeNBT(Platform.getFrozenRegistry()));
     }
 
     /**
@@ -59,8 +62,8 @@ public class QuestManager {
 
         QuestSavedData savedData = QuestSavedData.get(player.getServer());
         var playerData = savedData.getPlayer(player.getUUID());
-        String normalizedCategoryId = QuestCategoryData.normalizeId(questFile.get().quest.categoryId);
-        if (playerData.findCategory(normalizedCategoryId).isEmpty()) {
+        String normalizedCategoryId = QuestCategoryFileHelper.findCategoryIdForQuest(normalizedQuestId).orElse("");
+        if (normalizedCategoryId.isBlank()) {
             return false;
         }
         var completedInScope = QuestTeamProgressService.findCompletedQuestInScope(player, savedData, normalizedQuestId);
@@ -93,6 +96,13 @@ public class QuestManager {
         savedData.setDirty();
         QuestTeamProgressService.syncQuestState(player, state);
         return true;
+    }
+
+    public static QuestBookData createBookData(QuestPlayerData playerData) {
+        QuestBookData data = new QuestBookData();
+        data.playerData = playerData;
+        data.categoryData = QuestCategoryListData.of(QuestCategoryFileHelper.copyCategories());
+        return data;
     }
 
     /**
@@ -151,6 +161,12 @@ public class QuestManager {
      */
     public static boolean triggerCustom(ServerPlayer player, String triggerId) {
         return QuestSubmissionService.triggerCustom(player, triggerId);
+    }
+
+    public static void syncQuestBook(ServerPlayer player) {
+        QuestPlayerData playerData = QuestSavedData.get(player.getServer()).getPlayer(player.getUUID());
+        RPCPacketDistributor.rpcToPlayer(player, S2CPayload.SYNC_QUEST_BOOK,
+                createBookData(playerData).serializeNBT(Platform.getFrozenRegistry()));
     }
 
     /**

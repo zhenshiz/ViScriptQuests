@@ -12,8 +12,8 @@ import com.viscriptquests.ViScriptQuests;
 import com.viscriptquests.gui.blueprint.data.QuestBlueprintRegistryCache;
 import com.viscriptquests.gui.editor.QuestEditor;
 import com.viscriptquests.network.s2c.S2CPayload;
+import com.viscriptquests.quest.data.runtime.QuestCategoryConfigData;
 import com.viscriptquests.quest.data.runtime.QuestCategoryListData;
-import com.viscriptquests.quest.data.runtime.QuestCategoryData;
 import com.viscriptquests.quest.data.runtime.PlayerQuestState;
 import com.viscriptquests.quest.data.runtime.QuestStatus;
 import com.viscriptquests.quest.data.runtime.TaskStatus;
@@ -22,6 +22,7 @@ import com.viscriptquests.quest.runtime.QuestManager;
 import com.viscriptquests.quest.data.QuestSavedData;
 import com.viscriptquests.quest.runtime.QuestTeamProgressService;
 import com.viscriptquests.quest.runtime.QuestTrackingService;
+import com.viscriptquests.util.QuestCategoryFileHelper;
 import lombok.SneakyThrows;
 import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.commands.CommandSourceStack;
@@ -31,9 +32,6 @@ import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashSet;
@@ -154,8 +152,9 @@ public class QuestCommand implements ICommand {
         if (player == null) {
             throw playerOnlyException();
         }
-        QuestCategoryListData data = QuestCategoryListData.of(
-                QuestSavedData.get(player.getServer()).copyDefaultCategories());
+        QuestCategoryConfigData data = QuestCategoryConfigData.of(
+                QuestCategoryListData.of(QuestCategoryFileHelper.copyCategories()),
+                QuestFileHelper.getServerQuestIds());
         RPCPacketDistributor.rpcToPlayer(player, S2CPayload.OPEN_CATEGORY_CONFIG,
                 data.serializeNBT(Platform.getFrozenRegistry()));
         return 1;
@@ -335,11 +334,11 @@ public class QuestCommand implements ICommand {
         if (questFile.isEmpty()) {
             return Component.translatable("commands.viscript_quests.quest.missing", normalizedQuestId);
         }
-        String normalizedCategoryId = QuestCategoryData.normalizeId(questFile.get().quest.categoryId);
-        var playerData = QuestSavedData.get(player.getServer()).getPlayer(player.getUUID());
-        if (playerData.findCategory(normalizedCategoryId).isEmpty()) {
-            return Component.translatable("commands.viscript_quests.quest.category.missing", normalizedCategoryId);
+        String normalizedCategoryId = QuestCategoryFileHelper.findCategoryIdForQuest(normalizedQuestId).orElse("");
+        if (normalizedCategoryId.isBlank()) {
+            return Component.translatable("commands.viscript_quests.quest.category.quest_missing", normalizedQuestId);
         }
+        var playerData = QuestSavedData.get(player.getServer()).getPlayer(player.getUUID());
         var completedInScope = QuestTeamProgressService.findCompletedQuestInScope(player,
                 QuestSavedData.get(player.getServer()), normalizedQuestId);
         if (completedInScope.isPresent()) {
@@ -361,7 +360,7 @@ public class QuestCommand implements ICommand {
 
     private String grantCategoryId(ServerPlayer player, String questId) {
         return QuestFileHelper.getQuest(QuestFileHelper.normalizeQuestId(questId), player.registryAccess())
-                .map(file -> QuestCategoryData.normalizeId(file.quest.categoryId))
+                .flatMap(file -> QuestCategoryFileHelper.findCategoryIdForQuest(questId))
                 .orElse("");
     }
 
@@ -415,22 +414,8 @@ public class QuestCommand implements ICommand {
 
     // 扫描 quest 目录下的所有 .quest 文件，返回带引号的相对路径用于命令建议
     public static List<String> getServerQuestFiles() {
-        List<String> questFiles = new ArrayList<>();
-        Path directory = QuestFileHelper.questDirectory();
-        if (Files.exists(directory) && Files.isDirectory(directory)) {
-            try (var stream = Files.walk(directory)) {
-                stream.filter(Files::isRegularFile).forEach(file -> {
-                    String path = file.toString();
-                    if (path.endsWith(QuestFileHelper.QUEST_SUFFIX)) {
-                        String relative = directory.relativize(file).toString()
-                                .replace('\\', '/')
-                                .replace(QuestFileHelper.QUEST_SUFFIX, "");
-                        questFiles.add("\"" + relative + "\"");
-                    }
-                });
-            } catch (IOException ignored) {
-            }
-        }
-        return questFiles;
+        return QuestFileHelper.getServerQuestIds().stream()
+                .map(questId -> "\"" + questId + "\"")
+                .toList();
     }
 }

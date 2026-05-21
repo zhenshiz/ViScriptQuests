@@ -22,6 +22,7 @@ public abstract class QuestBlueprintNode extends Node {
     public static final String MATH_GROUP = "math";
     public static final String REWARD_GROUP = "reward";
     public static final String TASK_GROUP = "task";
+    public static final String VARIABLE_GROUP = "variable";
 
     protected void inputFlow(IPortDefinitionContext context) {
         input(context, "in", TypeHandles.EXECUTION_FLOW, null);

@@ -5,12 +5,16 @@ import com.lowdragmc.lowdraglib2.editor.ui.Editor;
 import com.lowdragmc.lowdraglib2.editor.ui.EditorWindow;
 import com.lowdragmc.lowdraglib2.gui.holder.ModularUIContainerScreen;
 import com.lowdragmc.lowdraglib2.gui.holder.ModularUIScreen;
+import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
+import com.lowdragmc.lowdraglib2.gui.ui.UI;
 import com.lowdragmc.lowdraglib2.networking.rpc.RPCPacket;
 import com.viscriptquests.ViScriptQuests;
 import com.viscriptquests.gui.blueprint.data.QuestBlueprintRegistryCache;
+import com.viscriptquests.gui.editor.QuestEditor;
 import com.viscriptquests.gui.hud.QuestHudData;
 import com.viscriptquests.gui.editor.QuestProject;
 import com.viscriptquests.util.ViScriptQuestsClientUtil;
+import net.minecraft.network.chat.Component;
 import net.minecraft.client.Minecraft;
 import net.minecraft.nbt.CompoundTag;
 
@@ -27,7 +31,12 @@ public class S2CPayload {
     public static void openEditorWithProject(CompoundTag graphTag) {
         QuestProject project = QuestProject.createProject(graphTag);
         EditorWindow editorWindow = getCurrentEditorWindow();
-        if (editorWindow == null) return;
+        if (editorWindow == null) {
+            editorWindow = EditorWindow.open(QuestEditor.EDITOR_ID, QuestEditor::new);
+            Minecraft.getInstance().setScreen(new ModularUIScreen(
+                    new ModularUI(UI.of(editorWindow)).shouldCloseOnKeyInventory(false),
+                    Component.translatable("screen.viscript_quests.quest_editor")));
+        }
 
         Editor editor = editorWindow.getCurrentEditor();
         if (editor == null) return;
@@ -52,7 +61,7 @@ public class S2CPayload {
     @RPCPacket(OPEN_QUEST_BOOK)
     public static void openQuestBook(CompoundTag data) {
         if (LDLib2.isClient()) {
-            QuestHudData.update(data);
+            QuestHudData.update(data.getCompound("playerData"));
             ViScriptQuestsClientUtil.openQuestBook(data);
         }
     }
@@ -60,7 +69,7 @@ public class S2CPayload {
     @RPCPacket(SYNC_QUEST_BOOK)
     public static void syncQuestBook(CompoundTag data) {
         if (LDLib2.isClient()) {
-            QuestHudData.update(data);
+            QuestHudData.update(data.getCompound("playerData"));
             ViScriptQuestsClientUtil.syncQuestBook(data);
         }
     }

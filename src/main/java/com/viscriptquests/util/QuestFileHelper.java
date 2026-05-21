@@ -71,6 +71,26 @@ public final class QuestFileHelper {
         return CACHE.keySet();
     }
 
+    // 扫描 quest 目录下的所有 .quest 文件，返回不带引号的逻辑任务文件 ID。
+    public static List<String> getServerQuestIds() {
+        List<String> questIds = new ArrayList<>();
+        Path directory = questDirectory();
+        if (!Files.isDirectory(directory)) {
+            return questIds;
+        }
+        try (var stream = Files.walk(directory)) {
+            stream.filter(Files::isRegularFile)
+                    .filter(path -> path.getFileName().toString().endsWith(QUEST_SUFFIX))
+                    .sorted()
+                    .forEach(path -> {
+                        String relative = directory.relativize(path).toString().replace('\\', '/');
+                        questIds.add(normalizeQuestId(relative));
+                    });
+        } catch (IOException ignored) {
+        }
+        return questIds;
+    }
+
     public static Optional<QuestFile> getQuest(String questId, HolderLookup.Provider provider) {
         String normalized = normalizeQuestId(questId);
         QuestFile cached = CACHE.get(normalized);

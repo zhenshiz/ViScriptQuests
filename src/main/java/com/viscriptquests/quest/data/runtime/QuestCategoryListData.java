@@ -2,6 +2,7 @@ package com.viscriptquests.quest.data.runtime;
 
 import com.lowdragmc.lowdraglib2.syncdata.IPersistedSerializable;
 import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
+import com.viscriptquests.util.QuestFileHelper;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -35,11 +36,31 @@ public class QuestCategoryListData implements IPersistedSerializable {
                 continue;
             }
             QuestCategoryData copy = category.copy();
+            copy.id = QuestCategoryData.normalizeId(copy.id);
+            copy.title = copy.title == null ? "" : copy.title.trim();
             if (copy.id.isBlank() || !seenIds.add(copy.id)) {
                 continue;
             }
+            sanitizeQuestIds(copy.questIds);
             result.add(copy);
         }
         return result;
+    }
+
+    public static void sanitizeQuestIds(List<String> questIds) {
+        Set<String> seenIds = new LinkedHashSet<>();
+        List<String> normalized = new ArrayList<>();
+        for (String questId : questIds) {
+            if (questId == null) {
+                continue;
+            }
+            String normalizedQuestId = QuestFileHelper.normalizeQuestId(questId);
+            if (normalizedQuestId.isBlank() || !seenIds.add(normalizedQuestId)) {
+                continue;
+            }
+            normalized.add(normalizedQuestId);
+        }
+        questIds.clear();
+        questIds.addAll(normalized);
     }
 }

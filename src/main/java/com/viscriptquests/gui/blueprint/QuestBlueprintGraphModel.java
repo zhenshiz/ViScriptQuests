@@ -13,8 +13,10 @@ import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.CustomNodeModelImpl;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.NodeModel;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.PortModel;
 import com.viscriptquests.gui.blueprint.model.QuestSubQuestNodeModel;
+import com.viscriptquests.gui.blueprint.model.QuestMathOperationNodeModel;
 import com.viscriptquests.gui.blueprint.node.QuestBlueprintNode;
 import com.viscriptquests.gui.blueprint.node.flow.SubQuestNode;
+import com.viscriptquests.gui.blueprint.node.math.MathOperationNode;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.Tag;
 import org.joml.Vector2f;
@@ -42,6 +44,20 @@ public class QuestBlueprintGraphModel extends CustomGraphModelImpl {
                     node -> {
                         if (node instanceof QuestSubQuestNodeModel customNode) {
                             customNode.initCustomNode(new SubQuestNode());
+                        }
+                    },
+                    data.spawnFlags()
+            );
+        }
+        if (nodeClass == MathOperationNode.class) {
+            return data.graphModel().createNode(
+                    QuestMathOperationNodeModel.class,
+                    "",
+                    data.position(),
+                    data.uuid(),
+                    node -> {
+                        if (node instanceof QuestMathOperationNodeModel customNode) {
+                            customNode.initCustomNode(new MathOperationNode());
                         }
                     },
                     data.spawnFlags()
@@ -99,6 +115,10 @@ public class QuestBlueprintGraphModel extends CustomGraphModelImpl {
             return createNodeWithType(QuestSubQuestNodeModel.class, "", position, null,
                     model -> model.initCustomNode(node), null);
         }
+        if (node instanceof MathOperationNode) {
+            return createNodeWithType(QuestMathOperationNodeModel.class, "", position, null,
+                    model -> model.initCustomNode(node), null);
+        }
         return super.createNodeModel(node, position);
     }
 
@@ -108,6 +128,10 @@ public class QuestBlueprintGraphModel extends CustomGraphModelImpl {
                 || node instanceof CustomNodeModelImpl custom && custom.getNode() instanceof SubQuestNode) {
             return "quest_sub_quest";
         }
+        if (node instanceof QuestMathOperationNodeModel
+                || node instanceof CustomNodeModelImpl custom && custom.getNode() instanceof MathOperationNode) {
+            return "quest_math_operation";
+        }
         return super.getNodeDiscriminator(node);
     }
 
@@ -115,6 +139,9 @@ public class QuestBlueprintGraphModel extends CustomGraphModelImpl {
     protected AbstractNodeModel createNodeFromDiscriminator(String type) {
         if ("quest_sub_quest".equals(type)) {
             return new QuestSubQuestNodeModel();
+        }
+        if ("quest_math_operation".equals(type)) {
+            return new QuestMathOperationNodeModel();
         }
         return super.createNodeFromDiscriminator(type);
     }

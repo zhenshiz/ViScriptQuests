@@ -175,6 +175,11 @@ public class QuestTrackingService {
      */
     private static String nextStepAfterSubmit(PlayerQuestState state, String completedStepId,
                                               Set<String> activeStepIdsBeforeSubmit) {
+        if (state.findStepProgress(completedStepId)
+                .filter(progress -> progress.status == TaskStatus.ACTIVE)
+                .isPresent()) {
+            return completedStepId;
+        }
         Set<String> activeStepIds = activeStepIds(state);
         return activeStepIds.stream()
                 .filter(stepId -> !stepId.equals(completedStepId))

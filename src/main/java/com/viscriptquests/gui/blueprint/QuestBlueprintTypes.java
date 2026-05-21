@@ -13,6 +13,8 @@ import com.lowdragmc.lowdraglib2.nodegraphtookit.api.type.TypeHandle;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.api.type.TypeHandleHelpers;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.api.type.TypeHandles;
 import com.viscriptquests.gui.blueprint.data.QuestRegistryId;
+import com.viscriptquests.gui.blueprint.data.MathOperation;
+import com.viscriptquests.gui.blueprint.QuestBlueprintCompiler.CompareOp;
 import com.viscriptquests.quest.data.DisplayIcon;
 import com.viscriptquests.quest.data.DisplayIcon.IconType;
 import com.viscriptquests.quest.data.QuestJoinMode;
@@ -36,6 +38,10 @@ public final class QuestBlueprintTypes {
     public static final TypeHandle JOIN_MODE = TypeHandleHelpers.fromType(QuestJoinMode.class);
     // 战利品表来源类型枚举
     public static final TypeHandle LOOT_TABLE_TYPE = TypeHandleHelpers.fromType(LootTableType.class);
+    // 数学节点的运算模式枚举
+    public static final TypeHandle MATH_OPERATION = TypeHandleHelpers.fromType(MathOperation.class);
+    // 比较节点的比较模式枚举
+    public static final TypeHandle COMPARE_OP = TypeHandleHelpers.fromType(CompareOp.class);
     // 任意类型，用于通用比较节点的输入端口，可接受所有类型的连线
     public static final TypeHandle OBJECT = TypeHandleHelpers.fromType(Object.class, "Object");
     // 显示图标，支持物品图标和资源包图片两种模式

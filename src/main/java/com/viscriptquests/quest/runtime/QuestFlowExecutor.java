@@ -49,7 +49,7 @@ public class QuestFlowExecutor {
                 }
 
                 if (QuestBlueprintFlowTypes.isSubQuest(node)) {
-                    activateStepNode(state, node.stepId);
+                    activateStepNode(state, questFile, node.stepId, player);
                     continue;
                 }
 
@@ -131,14 +131,33 @@ public class QuestFlowExecutor {
      * @param state 玩家任务状态，保存小任务进度和流程节点集合
      * @param stepId 小任务节点标识
      */
-    private static void activateStepNode(PlayerQuestState state, String stepId) {
-        if (stepId == null || stepId.isEmpty() || state.completedFlowNodes.contains(stepId)) {
+    private static void activateStepNode(PlayerQuestState state, QuestFile questFile, String stepId, ServerPlayer player) {
+        if (stepId == null || stepId.isEmpty()) {
             return;
         }
         state.activeFlowNodes.add(stepId);
-        state.findStepProgress(stepId)
-                .filter(progress -> progress.status == TaskStatus.LOCKED)
-                .ifPresent(progress -> progress.status = TaskStatus.ACTIVE);
+        state.findStepProgress(stepId).ifPresent(progress -> {
+            if (progress.status == TaskStatus.COMPLETED || progress.status == TaskStatus.SKIPPED) {
+                // 回环重新进入同一个小任务时，重置目标进度并允许再次等待玩家完成。
+                state.rewardedSteps.remove(stepId);
+                TaskProgress refreshed = TaskProgress.fromTasks(stepId, questFile.findTasksForStep(stepId),
+                        questFile.findStep(stepId).orElse(null), player);
+                progress.title = refreshed.title;
+                progress.subtitle = refreshed.subtitle;
+                progress.description = refreshed.description.clone();
+                progress.taskHint = refreshed.taskHint;
+                progress.manualSubmitRequired = refreshed.manualSubmitRequired;
+                progress.displayIcon = refreshed.displayIcon;
+                progress.guideMarker = refreshed.guideMarker;
+                progress.objectives.clear();
+                progress.objectives.addAll(refreshed.objectives);
+            }
+            if (progress.status == TaskStatus.LOCKED
+                    || progress.status == TaskStatus.COMPLETED
+                    || progress.status == TaskStatus.SKIPPED) {
+                progress.status = TaskStatus.ACTIVE;
+            }
+        });
     }
 
     /**
@@ -203,8 +222,16 @@ public class QuestFlowExecutor {
             printDebugMessages(player, state, edge);
 
             QuestFlowNode target = questFile.findFlowNode(edge.toNodeId).orElse(null);
-            if (target == null || state.completedFlowNodes.contains(edge.toNodeId)) {
+            if (target == null) {
                 continue;
+            }
+            boolean reenterable = QuestBlueprintFlowTypes.isSubQuest(target)
+                    || QuestBlueprintFlowTypes.isType(target, QuestBlueprintFlowTypes.BRANCH);
+            if (state.completedFlowNodes.contains(edge.toNodeId) && !reenterable) {
+                continue;
+            }
+            if (reenterable) {
+                state.completedFlowNodes.remove(edge.toNodeId);
             }
             if (QuestBlueprintFlowTypes.isJoin(target)) {
                 JoinProgress joinProgress = state.findFlowJoinProgress(target.nodeId).orElseGet(() -> {

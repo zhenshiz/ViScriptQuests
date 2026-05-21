@@ -1,4 +1,4 @@
-package com.viscriptquests.gui.blueprint.node.flow;
+package com.viscriptquests.gui.blueprint.node.variable;
 
 import com.lowdragmc.lowdraglib2.nodegraphtookit.api.node.NodeAttribute;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.definition.IOptionDefinitionContext;
@@ -7,23 +7,24 @@ import com.viscriptquests.gui.blueprint.QuestBlueprintGraph;
 import com.viscriptquests.gui.blueprint.node.QuestBlueprintNode;
 import net.minecraft.network.chat.Component;
 
-// 任务起点节点，定义任务的基本信息
-@NodeAttribute(name = "quest_start", group = QuestBlueprintNode.FLOW_GROUP, graphTypes = QuestBlueprintGraph.class)
-public class QuestStartNode extends QuestBlueprintNode {
+// 将数值表达式写回任务变量的流程节点，语义为“变量名 = 值”。
+@NodeAttribute(name = "set_variable", group = QuestBlueprintNode.VARIABLE_GROUP, graphTypes = QuestBlueprintGraph.class)
+public class SetVariableNode extends QuestBlueprintNode {
     @Override
     public Component getDisplayName() {
-        return nodeName("quest_start");
+        return nodeName("set_variable");
     }
 
     @Override
     public void onDefineOptions(IOptionDefinitionContext context) {
-        stringOption(context, "title", "");
-        stringOption(context, "subtitle", "");
-        displayIconOption(context, "icon");
+        stringOption(context, "variable_name", "");
     }
 
     @Override
     public void onDefinePorts(IPortDefinitionContext context) {
+        inputFlow(context);
+        floatInput(context, "value", 0f);
+        floatOutput(context, "result");
         outputFlow(context, "next");
     }
 }

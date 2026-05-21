@@ -57,6 +57,8 @@ public class ViScriptQuestsPlugin implements ILDLibPlugin {
         register(DebugValuePrint.class, DebugValuePrint::new);
         register(QuestCategoryData.class, QuestCategoryData::new);
         register(QuestCategoryListData.class, QuestCategoryListData::new);
+        register(QuestCategoryConfigData.class, QuestCategoryConfigData::new);
+        register(QuestBookData.class, QuestBookData::new);
         register(QuestPlayerData.class, QuestPlayerData::new);
         register(PlayerQuestState.class, PlayerQuestState::new);
         register(QuestFlowNode.class, QuestFlowNode::new);

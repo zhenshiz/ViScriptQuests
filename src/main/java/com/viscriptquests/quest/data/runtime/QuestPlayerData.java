@@ -17,8 +17,6 @@ public class QuestPlayerData implements IPersistedSerializable {
     @Persisted
     public String trackedStepId = "";
     @Persisted
-    public final List<QuestCategoryData> categories = new ArrayList<>();
-    @Persisted
     public final List<PlayerQuestState> quests = new ArrayList<>();
     @Persisted
     public final List<IReward> pendingRewards = new ArrayList<>();
@@ -36,51 +34,5 @@ public class QuestPlayerData implements IPersistedSerializable {
 
     public boolean removeQuest(String questId) {
         return quests.removeIf(quest -> quest.questId.equals(questId));
-    }
-
-    public Optional<QuestCategoryData> findCategory(String categoryId) {
-        String normalizedCategoryId = QuestCategoryData.normalizeId(categoryId);
-        return categories.stream()
-                .filter(category -> category.id.equals(normalizedCategoryId))
-                .findFirst();
-    }
-
-    public void putCategory(QuestCategoryData category) {
-        if (category == null || category.id.isBlank()) {
-            return;
-        }
-        categories.removeIf(existing -> existing.id.equals(category.id));
-        categories.add(category.copy());
-    }
-
-    public boolean removeCategory(String categoryId) {
-        String normalizedCategoryId = QuestCategoryData.normalizeId(categoryId);
-        return categories.removeIf(category -> category.id.equals(normalizedCategoryId));
-    }
-
-    public List<QuestCategoryData> copyCategories() {
-        return categories.stream()
-                .map(QuestCategoryData::copy)
-                .toList();
-    }
-
-    public void resetCategories(List<QuestCategoryData> defaultCategories) {
-        categories.clear();
-        categories.addAll(QuestCategoryListData.sanitize(defaultCategories));
-    }
-
-    public boolean ensureInitialCategories(List<QuestCategoryData> defaultCategories) {
-        boolean changed = false;
-        for (QuestCategoryData category : defaultCategories) {
-            if (category == null || category.id.isBlank()) {
-                continue;
-            }
-            if (findCategory(category.id).isPresent()) {
-                continue;
-            }
-            categories.add(category.copy());
-            changed = true;
-        }
-        return changed;
     }
 }

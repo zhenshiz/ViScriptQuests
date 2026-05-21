@@ -6,11 +6,12 @@ import com.lowdragmc.lowdraglib2.networking.rpc.RPCPacketDistributor;
 import com.lowdragmc.lowdraglib2.syncdata.rpc.RPCSender;
 import com.viscriptquests.ViScriptQuests;
 import com.viscriptquests.network.s2c.S2CPayload;
-import com.viscriptquests.quest.data.runtime.QuestCategoryListData;
 import com.viscriptquests.quest.data.QuestFile;
 import com.viscriptquests.gui.blueprint.compiler.QuestBlueprintValidator;
+import com.viscriptquests.quest.data.runtime.QuestCategoryListData;
 import com.viscriptquests.quest.runtime.QuestManager;
 import com.viscriptquests.quest.runtime.QuestTrackingService;
+import com.viscriptquests.util.QuestCategoryFileHelper;
 import com.viscriptquests.util.QuestFileHelper;
 import com.viscriptquests.quest.data.QuestSavedData;
 import net.minecraft.nbt.CompoundTag;
@@ -22,7 +23,8 @@ import java.io.IOException;
 public class C2SPayload {
     public static final String UPLOAD_PROJECT_FILE = ViScriptQuests.MOD_ID + ":upload_project_file";
     public static final String UPLOAD_QUEST_FILE = ViScriptQuests.MOD_ID + ":upload_quest_file";
-    public static final String SAVE_DEFAULT_QUEST_CATEGORIES = ViScriptQuests.MOD_ID + ":save_default_quest_categories";
+    public static final String SAVE_QUEST_CATEGORIES = ViScriptQuests.MOD_ID + ":save_quest_categories";
+    public static final String REQUEST_OPEN_EDITOR_PROJECT = ViScriptQuests.MOD_ID + ":request_open_editor_project";
     public static final String SAVE_TRACKED_QUEST = ViScriptQuests.MOD_ID + ":save_tracked_quest";
     public static final String SUBMIT_QUEST_TASK = ViScriptQuests.MOD_ID + ":submit_quest_task";
     public static final String REQUEST_OPEN_QUEST_BOOK = ViScriptQuests.MOD_ID + ":request_open_quest_book";
@@ -61,13 +63,27 @@ public class C2SPayload {
         }
     }
 
-    @RPCPacket(value = SAVE_DEFAULT_QUEST_CATEGORIES, modId = ViScriptQuests.MOD_ID)
-    public static void saveDefaultQuestCategories(RPCSender sender, CompoundTag data) {
+    @RPCPacket(value = SAVE_QUEST_CATEGORIES, modId = ViScriptQuests.MOD_ID)
+    public static void saveQuestCategories(RPCSender sender, CompoundTag data) {
         ServerPlayer player = sender.asPlayer();
         if (player == null || !player.hasPermissions(2)) return;
         QuestCategoryListData listData = new QuestCategoryListData();
         listData.deserializeNBT(Platform.getFrozenRegistry(), data);
-        QuestSavedData.get(player.getServer()).replaceDefaultCategories(listData.copyCategories());
+        try {
+            QuestCategoryFileHelper.saveCategories(listData.copyCategories());
+        } catch (IOException e) {
+            ViScriptQuests.LOGGER.error("Failed to save quest category config", e);
+        }
+    }
+
+    @RPCPacket(value = REQUEST_OPEN_EDITOR_PROJECT, modId = ViScriptQuests.MOD_ID)
+    public static void requestOpenEditorProject(RPCSender sender, CompoundTag data) {
+        ServerPlayer player = sender.asPlayer();
+        if (player == null || !player.hasPermissions(4)) return;
+        String projectId = QuestFileHelper.normalizeProjectId(data.getString("projectId"));
+        if (projectId.isBlank()) return;
+        QuestFileHelper.readProject(projectId)
+                .ifPresent(graphTag -> RPCPacketDistributor.rpcToPlayer(player, S2CPayload.OPEN_EDITOR_WITH_PROJECT, graphTag));
     }
 
     @RPCPacket(value = SAVE_TRACKED_QUEST, modId = ViScriptQuests.MOD_ID)
@@ -120,9 +136,6 @@ public class C2SPayload {
         }
         QuestManager.refreshQuestBookDisplayData(player);
         QuestTrackingService.refresh(player);
-        CompoundTag response = QuestSavedData.get(player.getServer())
-                .getPlayer(player.getUUID())
-                .serializeNBT(Platform.getFrozenRegistry());
-        RPCPacketDistributor.rpcToPlayer(player, S2CPayload.SYNC_QUEST_BOOK, response);
+        QuestManager.syncQuestBook(player);
     }
 }
