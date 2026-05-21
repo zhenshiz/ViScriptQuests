@@ -501,6 +501,10 @@ public class QuestCompileContext {
                     }
                     stack.push(value.asFloat());
                 }
+                case SCOREBOARD -> {
+                    // 计分板值依赖当前玩家和服务器运行时，导出阶段不能提前折叠成常量。
+                    return null;
+                }
                 case ADD -> {
                     Float b = pop(stack);
                     Float a = pop(stack);

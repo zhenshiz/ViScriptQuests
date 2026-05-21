@@ -44,9 +44,7 @@ public class CompareOperationNode extends QuestBlueprintNode {
         }
         if (value instanceof String serializedName) {
             for (CompareOp op : CompareOp.values()) {
-                if (op.name().equalsIgnoreCase(serializedName)
-                        || op.getSerializedName().equals(serializedName)
-                        || op.getName().equals(serializedName)) {
+                if (op.name().equalsIgnoreCase(serializedName) || op.getSerializedName().equals(serializedName)) {
                     return op;
                 }
             }

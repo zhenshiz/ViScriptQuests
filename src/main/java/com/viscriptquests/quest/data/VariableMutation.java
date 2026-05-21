@@ -3,6 +3,7 @@ package com.viscriptquests.quest.data;
 import com.lowdragmc.lowdraglib2.syncdata.IPersistedSerializable;
 import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.server.level.ServerPlayer;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -23,12 +24,17 @@ public class VariableMutation implements IPersistedSerializable {
 
     // 将此修改应用到变量表
     public void applyTo(Map<String, QuestVariableValue> questVariables, HolderLookup.Provider provider) {
+        applyTo(questVariables, provider, null);
+    }
+
+    // 将此修改应用到变量表，带玩家上下文时表达式可以读取计分板值。
+    public void applyTo(Map<String, QuestVariableValue> questVariables, HolderLookup.Provider provider, ServerPlayer player) {
         if (variableName == null || variableName.isEmpty()) return;
         QuestVariableValue variableValue = questVariables.get(variableName);
         if (variableValue != null && !variableValue.supportsNumericMutation()) {
             return;
         }
-        float mutationValue = expression.isEmpty() ? value : QuestValueToken.evaluate(expression, questVariables);
+        float mutationValue = expression.isEmpty() ? value : QuestValueToken.evaluate(expression, questVariables, player);
         float current = variableValue == null ? 0f : variableValue.asFloat();
         float next = operation.apply(current, mutationValue);
         questVariables.put(variableName, variableValue == null

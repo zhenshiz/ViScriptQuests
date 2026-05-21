@@ -4,6 +4,7 @@ import com.lowdragmc.lowdraglib2.syncdata.IPersistedSerializable;
 import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
 import com.viscriptquests.gui.blueprint.QuestBlueprintCompiler;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.server.level.ServerPlayer;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,11 +23,26 @@ public class QuestFlowEdge implements IPersistedSerializable {
     @Persisted
     public float compareValue = 0f;
     @Persisted
+    public final List<QuestValueToken> conditionLeftExpression = new ArrayList<>();
+    @Persisted
+    public final List<QuestValueToken> conditionRightExpression = new ArrayList<>();
+    @Persisted
     public final List<VariableMutation> variableMutations = new ArrayList<>();
+    @Persisted
+    public final List<ScoreboardMutation> scoreboardMutations = new ArrayList<>();
     @Persisted
     public final List<QuestDebugPrint> debugPrints = new ArrayList<>();
 
     public boolean evaluate(Map<String, QuestVariableValue> questVariables, HolderLookup.Provider provider) {
+        return evaluate(questVariables, provider, null);
+    }
+
+    public boolean evaluate(Map<String, QuestVariableValue> questVariables, HolderLookup.Provider provider, ServerPlayer player) {
+        if (!conditionLeftExpression.isEmpty() || !conditionRightExpression.isEmpty()) {
+            float actual = QuestValueToken.evaluate(conditionLeftExpression, questVariables, player);
+            float expected = QuestValueToken.evaluate(conditionRightExpression, questVariables, player);
+            return compareOp.test(actual, expected);
+        }
         if (conditionVariable == null || conditionVariable.isEmpty()) {
             return true;
         }
@@ -36,8 +52,15 @@ public class QuestFlowEdge implements IPersistedSerializable {
     }
 
     public void applyMutations(Map<String, QuestVariableValue> questVariables, HolderLookup.Provider provider) {
+        applyMutations(questVariables, provider, null);
+    }
+
+    public void applyMutations(Map<String, QuestVariableValue> questVariables, HolderLookup.Provider provider, ServerPlayer player) {
         for (VariableMutation mutation : variableMutations) {
-            mutation.applyTo(questVariables, provider);
+            mutation.applyTo(questVariables, provider, player);
+        }
+        for (ScoreboardMutation mutation : scoreboardMutations) {
+            mutation.applyTo(player, questVariables);
         }
     }
 }

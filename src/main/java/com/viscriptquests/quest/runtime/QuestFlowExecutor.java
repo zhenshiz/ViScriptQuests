@@ -215,10 +215,10 @@ public class QuestFlowExecutor {
      */
     private static void applyOutgoingEdges(ServerPlayer player, PlayerQuestState state, QuestFile questFile, String fromNodeId) {
         for (QuestFlowEdge edge : questFile.findFlowEdgesFrom(fromNodeId)) {
-            if (!edge.evaluate(state.questVariables, player.registryAccess())) {
+            if (!edge.evaluate(state.questVariables, player.registryAccess(), player)) {
                 continue;
             }
-            edge.applyMutations(state.questVariables, player.registryAccess());
+            edge.applyMutations(state.questVariables, player.registryAccess(), player);
             printDebugMessages(player, state, edge);
 
             QuestFlowNode target = questFile.findFlowNode(edge.toNodeId).orElse(null);
@@ -366,7 +366,7 @@ public class QuestFlowExecutor {
                 continue;
             }
             String interpolated = interpolateVariables(debugPrint.message, state.questVariables,
-                    debugPrint.valuePrints, player.registryAccess());
+                    debugPrint.valuePrints, player.registryAccess(), player);
             if (debugPrint.sendToChat) {
                 player.sendSystemMessage(Component.literal(interpolated));
             } else {
@@ -378,12 +378,13 @@ public class QuestFlowExecutor {
 
     private static String interpolateVariables(String message, Map<String, QuestVariableValue> variables,
                                                List<DebugValuePrint> debugValuePrints,
-                                               net.minecraft.core.HolderLookup.Provider provider) {
+                                               net.minecraft.core.HolderLookup.Provider provider,
+                                               ServerPlayer player) {
         if (message == null || message.isEmpty()) return message;
         for (DebugValuePrint debugValuePrint : debugValuePrints) {
             if (debugValuePrint.placeholder == null || debugValuePrint.placeholder.isEmpty()) continue;
             message = message.replace("{" + debugValuePrint.placeholder + "}",
-                    formatFloatValue(debugValuePrint.evaluate(variables, provider)));
+                    formatFloatValue(debugValuePrint.evaluate(variables, provider, player)));
         }
         for (var entry : variables.entrySet()) {
             message = message.replace("{" + entry.getKey() + "}", entry.getValue().displayValue());

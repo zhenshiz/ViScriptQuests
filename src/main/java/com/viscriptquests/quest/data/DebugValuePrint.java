@@ -3,6 +3,7 @@ package com.viscriptquests.quest.data;
 import com.lowdragmc.lowdraglib2.syncdata.IPersistedSerializable;
 import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.server.level.ServerPlayer;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -18,6 +19,10 @@ public class DebugValuePrint implements IPersistedSerializable {
 
     public float evaluate(Map<String, QuestVariableValue> questVariables, HolderLookup.Provider provider) {
         return QuestValueToken.evaluate(expression, questVariables);
+    }
+
+    public float evaluate(Map<String, QuestVariableValue> questVariables, HolderLookup.Provider provider, ServerPlayer player) {
+        return QuestValueToken.evaluate(expression, questVariables, player);
     }
 
     @Override

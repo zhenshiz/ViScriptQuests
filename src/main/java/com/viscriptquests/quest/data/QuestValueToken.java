@@ -2,6 +2,11 @@ package com.viscriptquests.quest.data;
 
 import com.lowdragmc.lowdraglib2.syncdata.IPersistedSerializable;
 import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.scores.Objective;
+import net.minecraft.world.scores.ReadOnlyScoreInfo;
+import net.minecraft.world.scores.ScoreHolder;
+import net.minecraft.world.scores.Scoreboard;
 
 import java.util.ArrayDeque;
 import java.util.List;
@@ -17,6 +22,10 @@ public class QuestValueToken implements IPersistedSerializable {
     public String variableName = "";
     @Persisted
     public float value = 0f;
+    @Persisted
+    public String objectiveName = "";
+    @Persisted
+    public String scoreHolder = "";
 
     public static QuestValueToken constant(float value) {
         QuestValueToken token = new QuestValueToken();
@@ -32,6 +41,14 @@ public class QuestValueToken implements IPersistedSerializable {
         return token;
     }
 
+    public static QuestValueToken scoreboard(String objectiveName, String scoreHolder) {
+        QuestValueToken token = new QuestValueToken();
+        token.kind = Kind.SCOREBOARD;
+        token.objectiveName = objectiveName == null ? "" : objectiveName.trim();
+        token.scoreHolder = scoreHolder == null ? "" : scoreHolder.trim();
+        return token;
+    }
+
     public static QuestValueToken operator(Kind kind) {
         QuestValueToken token = new QuestValueToken();
         token.kind = kind;
@@ -40,6 +57,11 @@ public class QuestValueToken implements IPersistedSerializable {
 
     // 按运行时变量表求值蓝图导出的逆波兰数值表达式。
     public static float evaluate(List<QuestValueToken> expression, Map<String, QuestVariableValue> questVariables) {
+        return evaluate(expression, questVariables, null);
+    }
+
+    // 按运行时变量表和当前玩家求值蓝图导出的逆波兰数值表达式。
+    public static float evaluate(List<QuestValueToken> expression, Map<String, QuestVariableValue> questVariables, ServerPlayer player) {
         if (expression == null || expression.isEmpty()) {
             return 0f;
         }
@@ -48,9 +70,10 @@ public class QuestValueToken implements IPersistedSerializable {
             switch (token.kind) {
                 case CONSTANT -> stack.push(token.value);
                 case VARIABLE -> {
-                    QuestVariableValue variableValue = questVariables.get(token.variableName);
+                    QuestVariableValue variableValue = questVariables == null ? null : questVariables.get(token.variableName);
                     stack.push(variableValue == null ? 0f : variableValue.asFloat());
                 }
+                case SCOREBOARD -> stack.push(readScoreboardValue(player, token.objectiveName, token.scoreHolder));
                 case ADD -> stack.push(pop(stack) + pop(stack));
                 case SUBTRACT -> {
                     float b = pop(stack);
@@ -85,6 +108,22 @@ public class QuestValueToken implements IPersistedSerializable {
         return stack.isEmpty() ? 0f : stack.pop();
     }
 
+    public static float readScoreboardValue(ServerPlayer player, String objectiveName, String scoreHolderName) {
+        if (player == null || objectiveName == null || objectiveName.isBlank()) {
+            return 0f;
+        }
+        Scoreboard scoreboard = player.getScoreboard();
+        Objective objective = scoreboard.getObjective(objectiveName.trim());
+        if (objective == null) {
+            return 0f;
+        }
+        String holderName = scoreHolderName == null || scoreHolderName.isBlank()
+                ? player.getScoreboardName()
+                : scoreHolderName.trim();
+        ReadOnlyScoreInfo scoreInfo = scoreboard.getPlayerScoreInfo(ScoreHolder.forNameOnly(holderName), objective);
+        return scoreInfo == null ? 0f : scoreInfo.value();
+    }
+
     private static float pop(ArrayDeque<Float> stack) {
         return stack.isEmpty() ? 0f : stack.pop();
     }
@@ -92,6 +131,7 @@ public class QuestValueToken implements IPersistedSerializable {
     public enum Kind {
         CONSTANT,
         VARIABLE,
+        SCOREBOARD,
         ADD,
         SUBTRACT,
         MULTIPLY,
@@ -106,11 +146,13 @@ public class QuestValueToken implements IPersistedSerializable {
         if (!(object instanceof QuestValueToken that)) return false;
         return Float.compare(value, that.value) == 0
                 && kind == that.kind
-                && Objects.equals(variableName, that.variableName);
+                && Objects.equals(variableName, that.variableName)
+                && Objects.equals(objectiveName, that.objectiveName)
+                && Objects.equals(scoreHolder, that.scoreHolder);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(kind, variableName, value);
+        return Objects.hash(kind, variableName, value, objectiveName, scoreHolder);
     }
 }

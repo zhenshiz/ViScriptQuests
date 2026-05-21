@@ -28,6 +28,28 @@ public enum VariableMutationOp implements StringRepresentable {
         };
     }
 
+    public static VariableMutationOp fromValue(Object value) {
+        if (value instanceof VariableMutationOp operation) {
+            return operation;
+        }
+        if (value instanceof String serializedName) {
+            for (VariableMutationOp operation : values()) {
+                if (operation.name().equalsIgnoreCase(serializedName)
+                        || operation.getSerializedName().equals(serializedName)) {
+                    return operation;
+                }
+            }
+        }
+        if (value instanceof Number index) {
+            VariableMutationOp[] operations = values();
+            int ordinal = index.intValue();
+            if (ordinal >= 0 && ordinal < operations.length) {
+                return operations[ordinal];
+            }
+        }
+        return SET;
+    }
+
     @Override
     public @NotNull String getSerializedName() {
         return name;

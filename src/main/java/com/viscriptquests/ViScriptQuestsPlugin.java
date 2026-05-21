@@ -52,6 +52,7 @@ public class ViScriptQuestsPlugin implements ILDLibPlugin {
         register(TaskProgress.class, TaskProgress::new);
         register(QuestStep.class, QuestStep::new);
         register(VariableMutation.class, VariableMutation::new);
+        register(ScoreboardMutation.class, ScoreboardMutation::new);
         register(QuestValueToken.class, QuestValueToken::new);
         register(QuestVariableValue.class, QuestVariableValue::new);
         register(DebugValuePrint.class, DebugValuePrint::new);

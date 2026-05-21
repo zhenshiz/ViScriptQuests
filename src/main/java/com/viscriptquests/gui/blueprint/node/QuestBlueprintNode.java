@@ -21,6 +21,7 @@ public abstract class QuestBlueprintNode extends Node {
     public static final String LOGIC_GROUP = "logic";
     public static final String MATH_GROUP = "math";
     public static final String REWARD_GROUP = "reward";
+    public static final String SCOREBOARD_GROUP = "scoreboard";
     public static final String TASK_GROUP = "task";
     public static final String VARIABLE_GROUP = "variable";
 

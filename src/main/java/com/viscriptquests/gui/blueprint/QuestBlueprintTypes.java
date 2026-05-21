@@ -21,6 +21,7 @@ import com.viscriptquests.quest.data.QuestJoinMode;
 import com.viscriptquests.quest.data.QuestSubmitMode;
 import com.viscriptquests.quest.data.LootTableConfig;
 import com.viscriptquests.quest.data.LootTableType;
+import com.viscriptquests.quest.data.VariableMutationOp;
 import dev.vfyjxf.taffy.style.FlexDirection;
 import net.minecraft.world.item.ItemStack;
 
@@ -42,6 +43,8 @@ public final class QuestBlueprintTypes {
     public static final TypeHandle MATH_OPERATION = TypeHandleHelpers.fromType(MathOperation.class);
     // 比较节点的比较模式枚举
     public static final TypeHandle COMPARE_OP = TypeHandleHelpers.fromType(CompareOp.class);
+    // 计分板/变量修改节点复用的数值写入运算模式
+    public static final TypeHandle VARIABLE_MUTATION_OP = TypeHandleHelpers.fromType(VariableMutationOp.class);
     // 任意类型，用于通用比较节点的输入端口，可接受所有类型的连线
     public static final TypeHandle OBJECT = TypeHandleHelpers.fromType(Object.class, "Object");
     // 显示图标，支持物品图标和资源包图片两种模式
