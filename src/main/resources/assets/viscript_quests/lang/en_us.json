@@ -182,6 +182,7 @@
   "viscript_quests.blueprint.port.y": "Y",
   "viscript_quests.blueprint.port.z": "Z",
   "viscript_quests.blueprint.port.arrival_radius": "Arrival Radius",
+  "viscript_quests.blueprint.port.objective_type": "Objective Type",
   "viscript_quests.blueprint.port.task_hint": "Objective Hint",
   "viscript_quests.blueprint.port.marker_label": "Guide Marker Label",
   "viscript_quests.blueprint.port.marker_icon": "Guide Marker Icon",
@@ -195,9 +196,12 @@
   "viscript_quests.blueprint.port.trigger_id": "Trigger ID",
   "viscript_quests.blueprint.port.experience": "Experience",
   "viscript_quests.blueprint.port.command": "Command",
+  "viscript_quests.blueprint.port.loot_table_config": "Loot Table Config",
   "viscript_quests.blueprint.port.loot_table_type": "Loot Table Type",
   "viscript_quests.blueprint.port.data_pack_path": "Data Pack Path",
   "viscript_quests.blueprint.port.custom_loot_table": "Custom Loot Table",
+  "viscript_quests.blueprint.port.reward_icon": "Reward Icon",
+  "viscript_quests.blueprint.port.reward_tooltip": "Reward Tooltip",
   "viscript_quests.blueprint.port.currency": "Currency",
 
   "viscript_quests.compare_op.eq": "== (Equal)",
@@ -289,6 +293,9 @@
 
   "viscript_quests.quest.submit_mode.auto": "Auto Submit",
   "viscript_quests.quest.submit_mode.manual": "Manual Submit",
+  "viscript_quests.task_objective_type.required": "Required",
+  "viscript_quests.task_objective_type.optional": "Optional",
+  "viscript_quests.task_objective_type.failure": "Failure Condition",
 
   "viscript_quests.join_mode.any": "Any",
   "viscript_quests.join_mode.all": "All",

@@ -29,11 +29,11 @@ public class CommandReward extends IReward {
 
     @Override
     public Component getRewardHint() {
-        return Component.translatable("viscript_quests.reward_hint.command_reward");
+        return rewardHintOrDefault(Component.translatable("viscript_quests.reward_hint.command_reward"));
     }
 
     @Override
     public DisplayIcon getRewardIcon() {
-        return DisplayIcon.item(Items.COMMAND_BLOCK.getDefaultInstance());
+        return rewardIconOrDefault(DisplayIcon.item(Items.COMMAND_BLOCK.getDefaultInstance()));
     }
 }

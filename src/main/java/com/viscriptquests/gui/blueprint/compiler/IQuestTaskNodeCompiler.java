@@ -3,6 +3,7 @@ package com.viscriptquests.gui.blueprint.compiler;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.CustomNodeModelImpl;
 import com.lowdragmc.lowdraglib2.registry.ILDLRegister;
 import com.viscriptquests.ViScriptQuests;
+import com.viscriptquests.quest.data.TaskObjectiveType;
 import com.viscriptquests.quest.data.task.ITask;
 
 import java.util.function.Supplier;
@@ -14,4 +15,12 @@ public interface IQuestTaskNodeCompiler extends ILDLRegister<IQuestTaskNodeCompi
     boolean supports(CustomNodeModelImpl node);
 
     ITask compileTask(QuestCompileContext context, CustomNodeModelImpl node, String stepId);
+
+    static void applyCommonOptions(QuestCompileContext context, CustomNodeModelImpl node, ITask task) {
+        task.taskHint = context.getString(node, "task_hint");
+        task.objectiveType = context.getObjectiveType(node, "objective_type");
+        if (task.objectiveType == null) {
+            task.objectiveType = TaskObjectiveType.REQUIRED;
+        }
+    }
 }

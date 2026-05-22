@@ -7,9 +7,11 @@ import com.lowdragmc.lowdraglib2.nodegraphtookit.api.type.TypeHandle;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.api.type.TypeHandles;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.definition.IOptionDefinitionContext;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.definition.IPortDefinitionContext;
+import com.viscriptquests.compat.team.QuestTeamService;
 import com.viscriptquests.gui.blueprint.QuestBlueprintTypes;
 import com.viscriptquests.gui.blueprint.data.QuestRegistryId;
 import com.viscriptquests.quest.data.DisplayIcon;
+import com.viscriptquests.quest.data.TaskObjectiveType;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
@@ -45,6 +47,19 @@ public abstract class QuestBlueprintNode extends Node {
 
     protected void taskHintOption(IOptionDefinitionContext context) {
         stringOption(context, "task_hint", "");
+    }
+
+    protected void taskCommonOptions(IOptionDefinitionContext context) {
+        enumOption(context, "objective_type", QuestBlueprintTypes.OBJECTIVE_TYPE, TaskObjectiveType.REQUIRED);
+        taskHintOption(context);
+    }
+
+    protected void rewardCommonOptions(IOptionDefinitionContext context) {
+        displayIconOption(context, "reward_icon");
+        stringOption(context, "reward_tooltip", "");
+        if (QuestTeamService.isLoaded()) {
+            boolOption(context, "team_leader_only", false);
+        }
     }
 
     protected void dimensionOption(IOptionDefinitionContext context, String id, String defaultValue) {
@@ -137,7 +152,7 @@ public abstract class QuestBlueprintNode extends Node {
         option(context, id, id, type, defaultValue);
     }
 
-    private void option(IOptionDefinitionContext context, String id, String displayKey, TypeHandle type, Object defaultValue) {
+    protected void option(IOptionDefinitionContext context, String id, String displayKey, TypeHandle type, Object defaultValue) {
         IOptionBuilder<?> builder = context.addOption(id, type)
                 .withDisplayName(portName(displayKey))
                 .withDefaultValue(defaultValue);

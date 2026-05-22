@@ -96,6 +96,18 @@ public class QuestFlowExecutor {
     }
 
     /**
+     * 由失败条件目标触发任务失败。
+     *
+     * <p>当前子图还没有独立的失败分支语义，所以失败条件先结束整个任务，
+     * 后续如果给子图添加成功/失败出口，可以把这里替换成“进入失败出口”的推进逻辑。
+     */
+    public static void failQuest(ServerPlayer player, PlayerQuestState state, QuestFile questFile, String failedStepId) {
+        state.findStepProgress(failedStepId)
+                .ifPresent(progress -> progress.status = TaskStatus.FAILED);
+        finish(player, state, questFile, false);
+    }
+
+    /**
      * 强制完成指定玩家任务。
      *
      * <p>该方法用于指令、调试或脚本控制路径。它会把所有小任务标记为完成，

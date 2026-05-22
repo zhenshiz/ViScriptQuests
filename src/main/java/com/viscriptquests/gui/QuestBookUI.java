@@ -742,8 +742,10 @@ public class QuestBookUI extends UIElement {
         });
         row.addChild(icon);
 
-        int textColor = objective.completed ? 0xFF9DE8A8 : TEXT_MAIN;
-        Label taskLabel = objectiveLabel(objective.progressHint(), textColor);
+        int textColor = objective.isFailureCondition()
+                ? 0xFFFF8A8A
+                : objective.completed ? 0xFF9DE8A8 : TEXT_MAIN;
+        Label taskLabel = objectiveLabel(objective.progressHintWithType(), textColor);
         taskLabel.layout(layout -> {
             layout.width(0);
             layout.flex(1);

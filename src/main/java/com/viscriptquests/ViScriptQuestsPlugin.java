@@ -9,6 +9,7 @@ import com.viscriptquests.gui.blueprint.data.QuestRegistryId;
 import com.viscriptquests.quest.data.*;
 import com.viscriptquests.quest.data.LootTableConfig;
 import com.viscriptquests.quest.data.reward.IReward;
+import com.viscriptquests.quest.data.reward.LootTableReward;
 import com.viscriptquests.quest.data.runtime.*;
 import com.viscriptquests.quest.data.task.ITask;
 
@@ -46,6 +47,7 @@ public class ViScriptQuestsPlugin implements ILDLibPlugin {
         register(DisplayIcon.class, DisplayIcon::new);
         register(QuestGuideMarker.class, QuestGuideMarker::new);
         register(LootTableConfig.class, LootTableConfig::new);
+        register(LootTableReward.class, LootTableReward::new);
 
         // 运行时数据类型
         register(TaskObjectiveProgress.class, TaskObjectiveProgress::new);

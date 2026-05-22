@@ -214,7 +214,7 @@ public final class QuestBlueprintCompiler {
             if (task == null) {
                 continue;
             }
-            task.taskHint = context.getString(taskModel, "task_hint");
+            IQuestTaskNodeCompiler.applyCommonOptions(context, taskModel, task);
             questFile.tasks.add(task);
             addedTask = true;
         }

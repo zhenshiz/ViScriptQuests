@@ -9,6 +9,7 @@ import com.mojang.serialization.Codec;
 import com.viscriptquests.ViScriptQuests;
 import com.viscriptquests.ViScriptQuestsRegistries;
 import com.viscriptquests.quest.data.DisplayIcon;
+import com.viscriptquests.quest.data.TaskObjectiveType;
 import com.viscriptquests.quest.data.runtime.QuestGuideMarker;
 import com.viscriptquests.quest.data.runtime.TaskObjectiveProgress;
 import io.netty.buffer.ByteBuf;
@@ -35,6 +36,9 @@ public abstract class ITask implements ILDLRegister<ITask, Supplier<ITask>>, IPe
     // 自定义目标提示文本；为空时使用具体目标自己的默认提示。
     @Persisted
     public String taskHint = "";
+    // 目标在小任务里的语义：必做、可选，或作为失败条件监听。
+    @Persisted
+    public TaskObjectiveType objectiveType = TaskObjectiveType.REQUIRED;
 
     // 任务类型的显示名称
     public Component getDisplayName() {
@@ -92,7 +96,10 @@ public abstract class ITask implements ILDLRegister<ITask, Supplier<ITask>>, IPe
 
     // 自动提交单个目标，成功时只标记该目标完成，不直接完成整个小任务。
     public boolean autoCompleteObjective(ServerPlayer player, TaskObjectiveProgress progress) {
-        if (!allowsAutoSubmit() || progress.completed || !checkCompletion(player) || !onComplete(player)) {
+        if ((!allowsAutoSubmit() && !progress.isFailureCondition())
+                || progress.completed
+                || !checkCompletion(player)
+                || (!progress.isFailureCondition() && !onComplete(player))) {
             return false;
         }
         progress.completed = true;

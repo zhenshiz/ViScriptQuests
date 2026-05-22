@@ -19,6 +19,6 @@ public class KillEntityTaskNode extends QuestBlueprintNode {
         entityTypeOption(context, "entity_type", "minecraft:zombie");
         intOption(context, "kill_count", 1);
         stringOption(context, "tag", "");
-        taskHintOption(context);
+        taskCommonOptions(context);
     }
 }

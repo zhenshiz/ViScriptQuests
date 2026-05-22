@@ -18,6 +18,6 @@ public class InteractEntityTaskNode extends QuestBlueprintNode {
     public void onDefineOptions(IOptionDefinitionContext context) {
         anyEntityTypeOption(context, "entity_type", "minecraft:pig");
         stringOption(context, "tag", "");
-        taskHintOption(context);
+        taskCommonOptions(context);
     }
 }

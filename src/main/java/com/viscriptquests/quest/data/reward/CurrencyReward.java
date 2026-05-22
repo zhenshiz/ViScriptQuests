@@ -22,11 +22,11 @@ public class CurrencyReward extends IReward {
 
     @Override
     public Component getRewardHint() {
-        return Component.translatable("viscript_quests.reward_hint.currency_reward", Math.max(0, currency));
+        return rewardHintOrDefault(Component.translatable("viscript_quests.reward_hint.currency_reward", Math.max(0, currency)));
     }
 
     @Override
     public DisplayIcon getRewardIcon() {
-        return DisplayIcon.item(Items.EMERALD.getDefaultInstance());
+        return rewardIconOrDefault(DisplayIcon.item(Items.EMERALD.getDefaultInstance()));
     }
 }

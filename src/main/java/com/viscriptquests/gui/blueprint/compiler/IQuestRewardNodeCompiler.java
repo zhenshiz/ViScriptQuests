@@ -14,4 +14,10 @@ public interface IQuestRewardNodeCompiler extends ILDLRegister<IQuestRewardNodeC
     boolean supports(CustomNodeModelImpl node);
 
     IReward compileReward(QuestCompileContext context, CustomNodeModelImpl node, String stepId);
+
+    static void applyCommonOptions(QuestCompileContext context, CustomNodeModelImpl node, IReward reward) {
+        reward.rewardIcon = context.getDisplayIcon(node, "reward_icon");
+        reward.rewardTooltip = context.getString(node, "reward_tooltip").trim();
+        reward.teamLeaderOnly = context.getBool(node, "team_leader_only");
+    }
 }

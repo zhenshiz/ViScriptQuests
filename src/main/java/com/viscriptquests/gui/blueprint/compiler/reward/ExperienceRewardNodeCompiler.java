@@ -20,7 +20,7 @@ public class ExperienceRewardNodeCompiler implements IQuestRewardNodeCompiler {
         ExperienceReward reward = new ExperienceReward();
         reward.stepId = stepId;
         reward.experience = Math.max(0, context.getInt(node, "experience"));
-        reward.teamLeaderOnly = context.getBool(node, "team_leader_only");
+        IQuestRewardNodeCompiler.applyCommonOptions(context, node, reward);
         return reward;
     }
 }

@@ -2,7 +2,6 @@ package com.viscriptquests.gui.blueprint.node.reward;
 
 import com.lowdragmc.lowdraglib2.nodegraphtookit.api.node.NodeAttribute;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.definition.IOptionDefinitionContext;
-import com.viscriptquests.compat.team.QuestTeamService;
 import com.viscriptquests.gui.blueprint.QuestBlueprintGraph;
 import com.viscriptquests.gui.blueprint.node.QuestBlueprintNode;
 import net.minecraft.network.chat.Component;
@@ -18,8 +17,6 @@ public class CommandRewardNode extends QuestBlueprintNode {
     @Override
     public void onDefineOptions(IOptionDefinitionContext context) {
         stringOption(context, "command", "");
-        if (QuestTeamService.isLoaded()) {
-            boolOption(context, "team_leader_only", false);
-        }
+        rewardCommonOptions(context);
     }
 }

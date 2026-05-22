@@ -20,7 +20,7 @@ public class CurrencyRewardNodeCompiler implements IQuestRewardNodeCompiler {
         CurrencyReward reward = new CurrencyReward();
         reward.stepId = stepId;
         reward.currency = Math.max(0, context.getInt(node, "currency"));
-        reward.teamLeaderOnly = context.getBool(node, "team_leader_only");
+        IQuestRewardNodeCompiler.applyCommonOptions(context, node, reward);
         return reward;
     }
 }

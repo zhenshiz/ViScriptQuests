@@ -17,6 +17,6 @@ public class CustomTriggerTaskNode extends QuestBlueprintNode {
     @Override
     public void onDefineOptions(IOptionDefinitionContext context) {
         stringOption(context, "trigger_id", "viscript_quests:custom_trigger");
-        taskHintOption(context);
+        taskCommonOptions(context);
     }
 }

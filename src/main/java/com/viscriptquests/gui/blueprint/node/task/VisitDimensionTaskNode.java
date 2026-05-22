@@ -18,6 +18,6 @@ public class VisitDimensionTaskNode extends QuestBlueprintNode {
     @Override
     public void onDefineOptions(IOptionDefinitionContext context) {
         dimensionOption(context, "dimension", Level.OVERWORLD.location().toString());
-        taskHintOption(context);
+        taskCommonOptions(context);
     }
 }

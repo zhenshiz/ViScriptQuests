@@ -21,12 +21,14 @@ public class ItemReward extends IReward {
 
     @Override
     public Component getRewardHint() {
-        if (itemStack.isEmpty()) return Component.empty();
-        return Component.translatable("viscript_quests.reward_hint.item_reward", itemStack.getDisplayName(), itemStack.getCount());
+        Component defaultHint = itemStack.isEmpty()
+                ? Component.empty()
+                : Component.translatable("viscript_quests.reward_hint.item_reward", itemStack.getDisplayName(), itemStack.getCount());
+        return rewardHintOrDefault(defaultHint);
     }
 
     @Override
     public DisplayIcon getRewardIcon() {
-        return DisplayIcon.item(itemStack);
+        return rewardIconOrDefault(DisplayIcon.item(itemStack));
     }
 }

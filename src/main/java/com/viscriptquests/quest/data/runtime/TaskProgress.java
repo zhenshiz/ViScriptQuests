@@ -46,9 +46,9 @@ public class TaskProgress implements IPersistedSerializable {
             progress.subtitle = step.subtitle;
             progress.description = step.description.clone();
         }
-        progress.manualSubmitRequired = !task.allowsAutoSubmit();
         TaskObjectiveProgress objective = TaskObjectiveProgress.fromTask(task, player);
         progress.objectives.add(objective);
+        progress.manualSubmitRequired = objective.manualSubmitRequired;
         progress.taskHint = objective.displayHint();
         progress.displayIcon = objective.displayIcon;
         progress.guideMarker = objective.guideMarker.copy();
@@ -75,10 +75,7 @@ public class TaskProgress implements IPersistedSerializable {
         }
         progress.manualSubmitRequired = progress.objectives.stream().anyMatch(objective -> objective.manualSubmitRequired);
         progress.taskHint = joinObjectiveHints(progress.objectives);
-        TaskObjectiveProgress displayObjective = progress.objectives.stream()
-                .filter(objective -> objective.guideMarker != null && objective.guideMarker.isEnabled())
-                .findFirst()
-                .orElse(progress.objectives.getFirst());
+        TaskObjectiveProgress displayObjective = selectDisplayObjective(progress.objectives);
         progress.displayIcon = displayObjective.displayIcon;
         progress.guideMarker = displayObjective.guideMarker == null
                 ? QuestGuideMarker.disabled()
@@ -109,6 +106,7 @@ public class TaskProgress implements IPersistedSerializable {
             TaskObjectiveProgress current = objectives.get(i);
             current.hint = refreshedObjective.displayHint();
             current.displayIcon = refreshedObjective.displayIcon;
+            current.objectiveType = refreshedObjective.objectiveType;
             current.requiredAmount = refreshedObjective.requiredAmount;
             current.manualSubmitRequired = refreshedObjective.manualSubmitRequired;
             current.guideMarker = refreshedObjective.guideMarker;
@@ -130,7 +128,29 @@ public class TaskProgress implements IPersistedSerializable {
     }
 
     public boolean areAllObjectivesCompleted() {
-        return !objectives.isEmpty() && objectives.stream().allMatch(objective -> objective.completed);
+        if (objectives.isEmpty() || hasTriggeredFailureObjective()) {
+            return false;
+        }
+        boolean hasRequired = objectives.stream()
+                .anyMatch(objective -> objective != null && objective.isRequired());
+        if (hasRequired) {
+            return objectives.stream()
+                    .filter(objective -> objective != null && objective.isRequired())
+                    .allMatch(objective -> objective.completed);
+        }
+        boolean hasOptional = objectives.stream()
+                .anyMatch(objective -> objective != null && objective.isOptional());
+        if (!hasOptional) {
+            return false;
+        }
+        return objectives.stream()
+                .filter(objective -> objective != null && objective.isOptional())
+                .allMatch(objective -> objective.completed);
+    }
+
+    public boolean hasTriggeredFailureObjective() {
+        return objectives.stream()
+                .anyMatch(objective -> objective != null && objective.isFailureCondition() && objective.completed);
     }
 
     public Component displayTaskHint() {
@@ -151,5 +171,19 @@ public class TaskProgress implements IPersistedSerializable {
             appended = true;
         }
         return result;
+    }
+
+    private static TaskObjectiveProgress selectDisplayObjective(List<TaskObjectiveProgress> objectives) {
+        return objectives.stream()
+                .filter(objective -> objective != null && !objective.isFailureCondition())
+                .filter(objective -> objective.guideMarker != null && objective.guideMarker.isEnabled())
+                .findFirst()
+                .orElseGet(() -> objectives.stream()
+                        .filter(objective -> objective != null && objective.guideMarker != null && objective.guideMarker.isEnabled())
+                        .findFirst()
+                        .orElseGet(() -> objectives.stream()
+                                .filter(objective -> objective != null && !objective.isFailureCondition())
+                                .findFirst()
+                                .orElse(objectives.getFirst())));
     }
 }

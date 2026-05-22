@@ -19,6 +19,6 @@ public class BreakBlockTaskNode extends QuestBlueprintNode {
     public void onDefineOptions(IOptionDefinitionContext context) {
         blockOption(context, "block", Blocks.STONE);
         intOption(context, "break_count", 1);
-        taskHintOption(context);
+        taskCommonOptions(context);
     }
 }

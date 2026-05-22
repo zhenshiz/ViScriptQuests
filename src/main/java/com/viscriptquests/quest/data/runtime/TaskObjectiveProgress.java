@@ -3,6 +3,7 @@ package com.viscriptquests.quest.data.runtime;
 import com.lowdragmc.lowdraglib2.syncdata.IPersistedSerializable;
 import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
 import com.viscriptquests.quest.data.DisplayIcon;
+import com.viscriptquests.quest.data.TaskObjectiveType;
 import com.viscriptquests.quest.data.task.ITask;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
@@ -23,17 +24,20 @@ public class TaskObjectiveProgress implements IPersistedSerializable {
     public boolean completed = false;
     @Persisted
     public QuestGuideMarker guideMarker = new QuestGuideMarker();
+    @Persisted
+    public TaskObjectiveType objectiveType = TaskObjectiveType.REQUIRED;
 
     public static TaskObjectiveProgress fromTask(ITask task, ServerPlayer player) {
         TaskObjectiveProgress progress = new TaskObjectiveProgress();
         if (task == null) {
             return progress;
         }
+        progress.objectiveType = task.objectiveType == null ? TaskObjectiveType.REQUIRED : task.objectiveType;
         Component hint = task.getTaskHint();
         progress.hint = hint == null ? Component.empty() : hint.copy();
         DisplayIcon icon = task.getDisplayIcon();
         progress.displayIcon = icon == null ? new DisplayIcon() : icon.copy();
-        progress.manualSubmitRequired = !task.allowsAutoSubmit();
+        progress.manualSubmitRequired = !progress.isFailureCondition() && !task.allowsAutoSubmit();
         progress.requiredAmount = Math.max(1, task.getRequiredAmount());
         task.refreshObjectiveProgress(player, progress);
         QuestGuideMarker marker = task.getGuideMarker(player);
@@ -43,6 +47,33 @@ public class TaskObjectiveProgress implements IPersistedSerializable {
 
     public String progressText() {
         return "[" + Math.max(0, currentAmount) + "/" + Math.max(1, requiredAmount) + "] ";
+    }
+
+    public Component objectiveTypeLabel() {
+        return Component.translatable((objectiveType == null ? TaskObjectiveType.REQUIRED : objectiveType).getName());
+    }
+
+    public Component progressHintWithType() {
+        if (isRequired()) {
+            return progressHint();
+        }
+        return Component.literal(progressText())
+                .append(Component.literal("["))
+                .append(objectiveTypeLabel())
+                .append(Component.literal("] "))
+                .append(displayHint());
+    }
+
+    public boolean isRequired() {
+        return objectiveType == null || objectiveType.isRequired();
+    }
+
+    public boolean isOptional() {
+        return objectiveType != null && objectiveType.isOptional();
+    }
+
+    public boolean isFailureCondition() {
+        return objectiveType != null && objectiveType.isFailureCondition();
     }
 
     public Component displayHint() {

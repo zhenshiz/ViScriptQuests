@@ -19,9 +19,10 @@ import com.viscriptquests.quest.data.DisplayIcon;
 import com.viscriptquests.quest.data.DisplayIcon.IconType;
 import com.viscriptquests.quest.data.QuestJoinMode;
 import com.viscriptquests.quest.data.QuestSubmitMode;
+import com.viscriptquests.quest.data.TaskObjectiveType;
 import com.viscriptquests.quest.data.LootTableConfig;
-import com.viscriptquests.quest.data.LootTableType;
 import com.viscriptquests.quest.data.VariableMutationOp;
+import com.viscriptquests.quest.data.reward.LootTableReward;
 import dev.vfyjxf.taffy.style.FlexDirection;
 import net.minecraft.world.item.ItemStack;
 
@@ -35,10 +36,12 @@ public final class QuestBlueprintTypes {
     public static final TypeHandle STRING_ARRAY = TypeHandleHelpers.fromType(String[].class, "String[]");
     // 任务提交模式枚举
     public static final TypeHandle SUBMIT_MODE = TypeHandleHelpers.fromType(QuestSubmitMode.class);
+    // 小任务目标语义：必做、可选、失败条件
+    public static final TypeHandle OBJECTIVE_TYPE = TypeHandleHelpers.fromType(TaskObjectiveType.class);
     // 汇合模式枚举，表达任选、全做、至少完成 N 个
     public static final TypeHandle JOIN_MODE = TypeHandleHelpers.fromType(QuestJoinMode.class);
     // 战利品表来源类型枚举
-    public static final TypeHandle LOOT_TABLE_TYPE = TypeHandleHelpers.fromType(LootTableType.class);
+    public static final TypeHandle LOOT_TABLE_TYPE = TypeHandleHelpers.fromType(LootTableReward.LootTableType.class);
     // 数学节点的运算模式枚举
     public static final TypeHandle MATH_OPERATION = TypeHandleHelpers.fromType(MathOperation.class);
     // 比较节点的比较模式枚举
@@ -49,6 +52,8 @@ public final class QuestBlueprintTypes {
     public static final TypeHandle OBJECT = TypeHandleHelpers.fromType(Object.class, "Object");
     // 显示图标，支持物品图标和资源包图片两种模式
     public static final TypeHandle DISPLAY_ICON = TypeHandleHelpers.fromType(DisplayIcon.class, "DisplayIcon");
+    // 战利品奖励本体，蓝图里只把战利品相关字段当作一个复合配置来编辑。
+    public static final TypeHandle LOOT_TABLE_REWARD = TypeHandleHelpers.fromType(LootTableReward.class, "LootTableReward");
     // 维度 ID，底层保存为字符串包装，编辑器展示搜索补全框
     public static final TypeHandle DIMENSION_ID = TypeHandleHelpers.customType(QuestRegistryId.class, "viscript_quests:dimension_id", "DimensionId");
     // 实体类型 ID，底层保存为字符串包装，编辑器展示搜索补全框
@@ -75,6 +80,17 @@ public final class QuestBlueprintTypes {
                         valueConfigurable.setValue(icon);
                     }
                     father.addConfigurator(createDisplayIconConfigurator(icon, valueConfigurable::notifyValueChanged));
+                }));
+        TypeHandleHelpers.setCustomColorAndIcon(LOOT_TABLE_REWARD, 0xFFFFD166, Icons.RESOURCE.copy().setColor(0xFFFFD166));
+        TypeHandleHelpers.setCustomDefaultValue(LOOT_TABLE_REWARD, QuestBlueprintTypes::defaultLootTableReward);
+        TypeHandleHelpers.setCustomConfigurable(LOOT_TABLE_REWARD, (valueConfigurable, typeHandle) ->
+                IConfigurable.create(father -> {
+                    LootTableReward reward = valueConfigurable.getValue();
+                    if (reward == null) {
+                        reward = copyOrDefaultLootTableReward(valueConfigurable.getDefaultValue());
+                        valueConfigurable.setValue(reward);
+                    }
+                    father.addConfigurator(createLootTableRewardConfigurator(reward, valueConfigurable::notifyValueChanged));
                 }));
         registerRegistryIdType(DIMENSION_ID, "minecraft:overworld");
         registerRegistryIdType(ENTITY_TYPE_ID, "minecraft:pig");
@@ -194,6 +210,119 @@ public final class QuestBlueprintTypes {
             lootConfigs.addAll(list);
             valueConfigurable.setValue(lootConfigs);
             valueConfigurable.notifyValueChanged();
+        });
+        group.layout(layout -> layout.widthPercent(100));
+        group.configuratorContainer.layout(layout -> {
+            layout.widthPercent(100);
+            layout.paddingAll(2);
+            layout.marginLeft(0);
+        });
+        return group;
+    }
+
+    public static LootTableReward defaultLootTableReward() {
+        LootTableReward reward = new LootTableReward();
+        reward.dataPackPath = "minecraft:chests/simple_dungeon";
+        return reward;
+    }
+
+    private static LootTableReward copyOrDefaultLootTableReward(Object defaultValue) {
+        if (defaultValue instanceof LootTableReward reward) {
+            return reward.copyLootOptions();
+        }
+        return defaultLootTableReward();
+    }
+
+    private static Configurator createLootTableRewardConfigurator(LootTableReward reward, Runnable onChanged) {
+        if (reward.lootTableType == null) {
+            reward.lootTableType = LootTableReward.LootTableType.DATA_PACK;
+        }
+        var selector = new ConfiguratorSelectorConfigurator<>(
+                "",
+                () -> reward.lootTableType,
+                type -> {
+                    reward.lootTableType = type == null ? LootTableReward.LootTableType.DATA_PACK : type;
+                    onChanged.run();
+                },
+                LootTableReward.LootTableType.DATA_PACK,
+                true,
+                List.of(LootTableReward.LootTableType.values()),
+                EnumAccessor::getEnumName,
+                (type, group) -> group.addConfigurator(createLootTableRewardValueConfigurator(reward, onChanged))
+        );
+        selector.layout(layout -> layout.widthPercent(100));
+        selector.lineContainer.layout(layout -> layout.widthPercent(100));
+        selector.inlineContainer.layout(layout -> layout.widthPercent(100));
+        selector.selector.layout(layout -> {
+            layout.width(120);
+            layout.minWidth(120);
+        });
+        selector.container.layout(layout -> layout.widthPercent(100));
+        selector.container.configuratorContainer.layout(layout -> {
+            layout.widthPercent(100);
+            layout.paddingAll(0);
+            layout.marginLeft(0);
+        });
+        return selector;
+    }
+
+    private static Configurator createLootTableRewardValueConfigurator(LootTableReward reward, Runnable onChanged) {
+        return switch (reward.lootTableType == null ? LootTableReward.LootTableType.DATA_PACK : reward.lootTableType) {
+            case DATA_PACK -> {
+                var pathConfigurator = new StringConfigurator(
+                        "",
+                        () -> reward.dataPackPath,
+                        value -> {
+                            reward.dataPackPath = value == null ? "" : value;
+                            onChanged.run();
+                        },
+                        "minecraft:chests/simple_dungeon",
+                        true
+                ).setResourceLocation(true);
+                pathConfigurator.layout(layout -> layout.widthPercent(100));
+                pathConfigurator.lineContainer.layout(layout -> layout.widthPercent(100));
+                pathConfigurator.inlineContainer.layout(layout -> layout.widthPercent(100));
+                pathConfigurator.textField.layout(layout -> {
+                    layout.width(150);
+                    layout.minWidth(150);
+                });
+                yield pathConfigurator;
+            }
+            case CUSTOM -> {
+                var listConfigurator = createLootTableConfigListConfigurator(reward.customLootTable, onChanged);
+                yield listConfigurator;
+            }
+        };
+    }
+
+    private static Configurator createLootTableConfigListConfigurator(List<LootTableConfig> lootConfigs, Runnable onChanged) {
+        ArrayConfiguratorGroup<LootTableConfig> group = new ArrayConfiguratorGroup<>(
+                "",
+                false,
+                () -> lootConfigs,
+                (getter, setter) -> {
+                    ConfiguratorGroup itemGroup = new ConfiguratorGroup("", false).hideTitle();
+                    itemGroup.setCanCollapse(false);
+                    LootTableConfig config = getter.get();
+                    if (config == null) {
+                        config = new LootTableConfig();
+                        setter.accept(config);
+                    }
+                    LootTableConfig finalConfig = config;
+                    finalConfig.buildConfigurator(itemGroup);
+                    itemGroup.addEventListener(Configurator.CHANGE_EVENT, event -> {
+                        setter.accept(finalConfig);
+                        onChanged.run();
+                    });
+                    return itemGroup;
+                },
+                true
+        );
+        group.setAddDefault(LootTableConfig::new);
+        group.setOnUpdate(list -> {
+            lootConfigs.clear();
+            lootConfigs.addAll(list);
+            onChanged.run();
         });
         group.layout(layout -> layout.widthPercent(100));
         group.configuratorContainer.layout(layout -> {

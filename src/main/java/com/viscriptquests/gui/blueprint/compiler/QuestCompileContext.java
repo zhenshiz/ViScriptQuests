@@ -10,10 +10,11 @@ import com.viscriptquests.gui.blueprint.node.QuestLinkedNode;
 import com.viscriptquests.quest.data.DisplayIcon;
 import com.viscriptquests.quest.data.QuestJoinMode;
 import com.viscriptquests.quest.data.QuestSubmitMode;
+import com.viscriptquests.quest.data.TaskObjectiveType;
 import com.viscriptquests.quest.data.QuestValueToken;
 import com.viscriptquests.quest.data.QuestVariableValue;
 import com.viscriptquests.quest.data.LootTableConfig;
-import com.viscriptquests.quest.data.LootTableType;
+import com.viscriptquests.quest.data.reward.LootTableReward;
 import lombok.Getter;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
@@ -161,17 +162,45 @@ public class QuestCompileContext {
         return QuestSubmitMode.AUTO;
     }
 
-    public LootTableType getLootTableType(NodeModel nodeModel, String optionId) {
+    public TaskObjectiveType getObjectiveType(NodeModel nodeModel, String optionId) {
         Constant constant = nodeModel.getInputConstantsById().get(NodeOption.PORT_ID_PREFIX + optionId);
         if (constant == null) {
-            return LootTableType.DATA_PACK;
+            return TaskObjectiveType.REQUIRED;
         }
         Object value = constant.getValue();
-        if (value instanceof LootTableType type) {
+        if (value instanceof TaskObjectiveType type) {
             return type;
         }
         if (value instanceof String serializedName) {
-            for (LootTableType type : LootTableType.values()) {
+            for (TaskObjectiveType type : TaskObjectiveType.values()) {
+                if (type.name().equalsIgnoreCase(serializedName)
+                        || type.getSerializedName().equals(serializedName)
+                        || type.getName().equals(serializedName)) {
+                    return type;
+                }
+            }
+        }
+        if (value instanceof Number index) {
+            TaskObjectiveType[] types = TaskObjectiveType.values();
+            int ordinal = index.intValue();
+            if (ordinal >= 0 && ordinal < types.length) {
+                return types[ordinal];
+            }
+        }
+        return TaskObjectiveType.REQUIRED;
+    }
+
+    public LootTableReward.LootTableType getLootTableType(NodeModel nodeModel, String optionId) {
+        Constant constant = nodeModel.getInputConstantsById().get(NodeOption.PORT_ID_PREFIX + optionId);
+        if (constant == null) {
+            return LootTableReward.LootTableType.DATA_PACK;
+        }
+        Object value = constant.getValue();
+        if (value instanceof LootTableReward.LootTableType type) {
+            return type;
+        }
+        if (value instanceof String serializedName) {
+            for (LootTableReward.LootTableType type : LootTableReward.LootTableType.values()) {
                 if (type.name().equalsIgnoreCase(serializedName)
                         || type.getSerializedName().equals(serializedName)) {
                     return type;
@@ -179,18 +208,22 @@ public class QuestCompileContext {
             }
         }
         if (value instanceof Number index) {
-            LootTableType[] types = LootTableType.values();
+            LootTableReward.LootTableType[] types = LootTableReward.LootTableType.values();
             int ordinal = index.intValue();
             if (ordinal >= 0 && ordinal < types.length) {
                 return types[ordinal];
             }
         }
-        return LootTableType.DATA_PACK;
+        return LootTableReward.LootTableType.DATA_PACK;
     }
 
-    // 读取流程小任务节点的 ID；目标/奖励节点的 stepId 由所在小任务子图注入。
+    // 读取流程小任务节点的 ID；旧项目可继续使用已保存的 step_id，新项目直接用节点 UUID。
     public String resolveStepId(NodeModel nodeModel) {
-        return getString(nodeModel, QuestLinkedNode.STEP_ID_OPTION);
+        String legacyStepId = getString(nodeModel, QuestLinkedNode.STEP_ID_OPTION);
+        if (legacyStepId != null && !legacyStepId.isBlank()) {
+            return legacyStepId;
+        }
+        return nodeModel == null || nodeModel.getUid() == null ? "" : nodeModel.getUid().toString();
     }
 
     public ItemStack getItemStack(NodeModel nodeModel, String optionId) {
@@ -225,6 +258,14 @@ public class QuestCompileContext {
             return icon.copy();
         }
         return new DisplayIcon();
+    }
+
+    public LootTableReward getLootTableReward(NodeModel nodeModel, String optionId) {
+        Constant constant = nodeModel.getInputConstantsById().get(NodeOption.PORT_ID_PREFIX + optionId);
+        if (constant != null && constant.getValue() instanceof LootTableReward reward) {
+            return reward.copyLootOptions();
+        }
+        return null;
     }
 
     public List<LootTableConfig> getLootTableConfigs(NodeModel nodeModel, String optionId) {

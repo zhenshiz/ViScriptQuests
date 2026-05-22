@@ -121,7 +121,7 @@ public class TrackedQuestHud extends UIElement {
             return;
         }
         for (TaskObjectiveProgress objective : snapshot.task().objectives) {
-            objectivesColumn.addChild(createObjectiveRow(objective.displayIcon, objective.progressHint()));
+            objectivesColumn.addChild(createObjectiveRow(objective.displayIcon, objective.progressHintWithType()));
         }
     }
 
@@ -198,6 +198,7 @@ public class TrackedQuestHud extends UIElement {
         StringBuilder key = new StringBuilder();
         for (TaskObjectiveProgress objective : snapshot.task().objectives) {
             key.append(objective.displayHint().getString())
+                    .append('|').append(objective.objectiveType)
                     .append('|').append(objective.currentAmount)
                     .append('/').append(objective.requiredAmount)
                     .append('|').append(objective.completed)

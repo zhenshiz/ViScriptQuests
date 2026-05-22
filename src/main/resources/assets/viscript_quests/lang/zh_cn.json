@@ -182,6 +182,7 @@
   "viscript_quests.blueprint.port.y": "Y 坐标",
   "viscript_quests.blueprint.port.z": "Z 坐标",
   "viscript_quests.blueprint.port.arrival_radius": "到达半径",
+  "viscript_quests.blueprint.port.objective_type": "目标类型",
   "viscript_quests.blueprint.port.task_hint": "目标提示文本",
   "viscript_quests.blueprint.port.marker_label": "导航标记名称",
   "viscript_quests.blueprint.port.marker_icon": "导航标记图标",
@@ -195,9 +196,12 @@
   "viscript_quests.blueprint.port.trigger_id": "标识 ID",
   "viscript_quests.blueprint.port.experience": "经验",
   "viscript_quests.blueprint.port.command": "指令",
+  "viscript_quests.blueprint.port.loot_table_config": "战利品配置",
   "viscript_quests.blueprint.port.loot_table_type": "战利品类型",
   "viscript_quests.blueprint.port.data_pack_path": "数据包路径",
   "viscript_quests.blueprint.port.custom_loot_table": "自定义战利品表",
+  "viscript_quests.blueprint.port.reward_icon": "奖励图标",
+  "viscript_quests.blueprint.port.reward_tooltip": "奖励悬浮文本",
   "viscript_quests.blueprint.port.currency": "货币",
 
   "viscript_quests.compare_op.eq": "== (等于)",
@@ -289,6 +293,9 @@
 
   "viscript_quests.quest.submit_mode.auto": "自动提交",
   "viscript_quests.quest.submit_mode.manual": "手动提交",
+  "viscript_quests.task_objective_type.required": "必做",
+  "viscript_quests.task_objective_type.optional": "可选",
+  "viscript_quests.task_objective_type.failure": "失败条件",
 
   "viscript_quests.join_mode.any": "任选其一",
   "viscript_quests.join_mode.all": "全部完成",

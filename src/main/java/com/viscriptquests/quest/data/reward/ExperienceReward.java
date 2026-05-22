@@ -22,11 +22,11 @@ public class ExperienceReward extends IReward {
 
     @Override
     public Component getRewardHint() {
-        return Component.translatable("viscript_quests.reward_hint.experience_reward", Math.max(0, experience));
+        return rewardHintOrDefault(Component.translatable("viscript_quests.reward_hint.experience_reward", Math.max(0, experience)));
     }
 
     @Override
     public DisplayIcon getRewardIcon() {
-        return DisplayIcon.item(Items.EXPERIENCE_BOTTLE.getDefaultInstance());
+        return rewardIconOrDefault(DisplayIcon.item(Items.EXPERIENCE_BOTTLE.getDefaultInstance()));
     }
 }

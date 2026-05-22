@@ -22,7 +22,7 @@ public class ItemTaskNode extends QuestBlueprintNode {
         boolOption(context, "strict_components", false);
         boolOption(context, "consume_item", true);
         enumOption(context, "submit_mode", QuestBlueprintTypes.SUBMIT_MODE, QuestSubmitMode.AUTO);
-        taskHintOption(context);
+        taskCommonOptions(context);
     }
 
 }

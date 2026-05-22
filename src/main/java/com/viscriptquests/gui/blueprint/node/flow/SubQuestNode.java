@@ -7,8 +7,6 @@ import com.viscriptquests.gui.blueprint.QuestBlueprintGraph;
 import com.viscriptquests.gui.blueprint.node.QuestLinkedNode;
 import net.minecraft.network.chat.Component;
 
-import java.util.UUID;
-
 // 小任务节点，作为目标和奖励的分组容器
 @NodeAttribute(name = "sub_quest", group = QuestLinkedNode.FLOW_GROUP, graphTypes = QuestBlueprintGraph.class)
 public class SubQuestNode extends QuestLinkedNode {
@@ -19,7 +17,6 @@ public class SubQuestNode extends QuestLinkedNode {
 
     @Override
     public void onDefineOptions(IOptionDefinitionContext context) {
-        stepIdOption(context, UUID.randomUUID().toString());
         stringOption(context, "title", "");
         stringOption(context, "subtitle", "");
         stringArrayOption(context, "description");

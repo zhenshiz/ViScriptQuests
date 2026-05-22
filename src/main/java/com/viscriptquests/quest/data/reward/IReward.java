@@ -33,6 +33,12 @@ public abstract class IReward implements ILDLRegister<IReward, Supplier<IReward>
     // ViScriptTeam 联动：开启后队伍任务奖励只发给队长；未安装 VST 或玩家无队伍时仍发给当前玩家。
     @Persisted
     public boolean teamLeaderOnly = false;
+    // 任务书中的奖励展示图标；未配置时由具体奖励类型提供默认图标。
+    @Persisted
+    public DisplayIcon rewardIcon = new DisplayIcon();
+    // 任务书中鼠标悬浮到奖励图标时显示的文本；为空时使用奖励类型的默认说明。
+    @Persisted
+    public String rewardTooltip = "";
 
     // 奖励类型的显示名称
     public Component getDisplayName() {
@@ -44,11 +50,36 @@ public abstract class IReward implements ILDLRegister<IReward, Supplier<IReward>
 
     // 奖励的 UI 显示文本（用于任务书展示）
     public Component getRewardHint() {
-        return getDisplayName();
+        return rewardHintOrDefault(getDisplayName());
     }
 
     // 奖励的 UI 显示图标（用于任务书渲染）
     public DisplayIcon getRewardIcon() {
-        return new DisplayIcon();
+        return rewardIconOrDefault(new DisplayIcon());
+    }
+
+    protected Component rewardHintOrDefault(Component defaultHint) {
+        String tooltip = rewardTooltip == null ? "" : rewardTooltip.trim();
+        if (!tooltip.isEmpty()) {
+            return Component.literal(tooltip);
+        }
+        return defaultHint == null ? Component.empty() : defaultHint;
+    }
+
+    protected DisplayIcon rewardIconOrDefault(DisplayIcon defaultIcon) {
+        if (hasCustomRewardIcon()) {
+            return rewardIcon.copy();
+        }
+        return defaultIcon == null ? new DisplayIcon() : defaultIcon;
+    }
+
+    private boolean hasCustomRewardIcon() {
+        if (rewardIcon == null) {
+            return false;
+        }
+        if (rewardIcon.isTexture()) {
+            return rewardIcon.getTexture() != null && !rewardIcon.getTexture().isBlank();
+        }
+        return rewardIcon.getItemStack() != null && !rewardIcon.getItemStack().isEmpty();
     }
 }

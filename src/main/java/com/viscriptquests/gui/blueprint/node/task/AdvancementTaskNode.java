@@ -17,6 +17,6 @@ public class AdvancementTaskNode extends QuestBlueprintNode {
     @Override
     public void onDefineOptions(IOptionDefinitionContext context) {
         advancementOption(context, "advancement_id", "minecraft:story/root");
-        taskHintOption(context);
+        taskCommonOptions(context);
     }
 }

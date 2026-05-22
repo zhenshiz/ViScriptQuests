@@ -21,7 +21,7 @@ public class LocationTaskNode extends QuestBlueprintNode {
         floatOption(context, "y", 64.0f);
         floatOption(context, "z", 0.0f);
         floatOption(context, "arrival_radius", 3.0f);
-        taskHintOption(context);
+        taskCommonOptions(context);
         stringOption(context, "marker_label", "");
         displayIconOption(context, "marker_icon");
         colorOption(context, "marker_color", 0xFFD8C7FF);

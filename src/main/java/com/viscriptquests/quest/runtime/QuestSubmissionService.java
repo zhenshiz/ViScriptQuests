@@ -96,12 +96,21 @@ public class QuestSubmissionService {
                 continue;
             }
             ITask task = tasks.get(i);
-            boolean submitted = task.allowsAutoSubmit()
+            boolean submitted = objective.isFailureCondition()
                     ? task.autoCompleteObjective(player, objective)
-                    : !automatic && task.submitObjective(player, objective);
+                    : (task.allowsAutoSubmit()
+                    ? task.autoCompleteObjective(player, objective)
+                    : !automatic && task.submitObjective(player, objective));
             if (submitted) {
                 changed = true;
+                if (objective.isFailureCondition() && objective.completed) {
+                    return failQuestFromObjective(player, savedData, playerData, questState, questFile,
+                            progress.get(), stepId);
+                }
             }
+        }
+        if (progress.get().hasTriggeredFailureObjective()) {
+            return failQuestFromObjective(player, savedData, playerData, questState, questFile, progress.get(), stepId);
         }
         if (!changed && !progress.get().areAllObjectivesCompleted()) {
             return false;
@@ -138,6 +147,9 @@ public class QuestSubmissionService {
             return false;
         }
         TaskObjectiveProgress objective = progress.get().objectives.get(objectiveIndex);
+        if (objective.isFailureCondition()) {
+            return false;
+        }
         if (!tasks.get(objectiveIndex).submitObjective(player, objective)) {
             return false;
         }
@@ -185,6 +197,7 @@ public class QuestSubmissionService {
      * <p>击杀、对话、打开方块等事件驱动目标通常不能从玩家当前状态反推进度。
      * 联动方在 recorder 中只修改当前目标的 {@code currentAmount / requiredAmount / completed}；
      * 该方法会负责保存数据、完成小任务、发放奖励、推进流程、刷新追踪 HUD 和同步队伍状态。
+     * 如果被修改的目标是失败条件并被标记完成，则会结束当前任务为失败。
      */
     public static <T extends ITask> boolean recordTaskProgress(ServerPlayer player, Class<T> taskType,
                                                                TaskProgressRecorder<T> recorder) {
@@ -321,8 +334,13 @@ public class QuestSubmissionService {
             if (!taskType.isInstance(task)) {
                 continue;
             }
-            if (recorder.record(player, taskType.cast(task), progress.objectives.get(i))) {
+            TaskObjectiveProgress objective = progress.objectives.get(i);
+            if (recorder.record(player, taskType.cast(task), objective)) {
                 changed = true;
+                if (objective.isFailureCondition() && objective.completed) {
+                    return failQuestFromObjective(player, savedData, playerData, questState, questFile,
+                            progress, progress.stepId);
+                }
             }
         }
         if (!changed) {
@@ -342,6 +360,9 @@ public class QuestSubmissionService {
     private static boolean completeStepIfReady(ServerPlayer player, QuestSavedData savedData, QuestPlayerData playerData,
                                                PlayerQuestState questState, QuestFile questFile,
                                                TaskProgress progress, String stepId) {
+        if (progress.hasTriggeredFailureObjective()) {
+            return failQuestFromObjective(player, savedData, playerData, questState, questFile, progress, stepId);
+        }
         if (!progress.areAllObjectivesCompleted()) {
             savedData.setDirty();
             QuestTrackingService.refresh(player);
@@ -374,6 +395,7 @@ public class QuestSubmissionService {
             TaskObjectiveProgress fresh = refreshed.objectives.get(i);
             current.hint = fresh.displayHint();
             current.displayIcon = fresh.displayIcon;
+            current.objectiveType = fresh.objectiveType;
             current.requiredAmount = fresh.requiredAmount;
             current.manualSubmitRequired = fresh.manualSubmitRequired;
             current.guideMarker = fresh.guideMarker;
@@ -390,6 +412,21 @@ public class QuestSubmissionService {
             progress.objectives.removeLast();
         }
         progress.manualSubmitRequired = progress.objectives.stream().anyMatch(objective -> objective.manualSubmitRequired);
+        return true;
+    }
+
+    private static boolean failQuestFromObjective(ServerPlayer player, QuestSavedData savedData,
+                                                  QuestPlayerData playerData, PlayerQuestState questState,
+                                                  QuestFile questFile, TaskProgress progress, String stepId) {
+        progress.status = TaskStatus.FAILED;
+        QuestFlowExecutor.failQuest(player, questState, questFile, stepId);
+        savedData.setDirty();
+        QuestTrackingService.refresh(player);
+        QuestTeamProgressService.syncQuestState(player, questState);
+        if (playerData.trackedQuestId.equals(questState.questId)) {
+            playerData.trackedQuestId = "";
+            playerData.trackedStepId = "";
+        }
         return true;
     }
 

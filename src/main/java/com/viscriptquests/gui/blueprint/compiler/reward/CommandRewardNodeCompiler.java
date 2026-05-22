@@ -20,7 +20,7 @@ public class CommandRewardNodeCompiler implements IQuestRewardNodeCompiler {
         CommandReward reward = new CommandReward();
         reward.stepId = stepId;
         reward.command = context.getString(node, "command").trim();
-        reward.teamLeaderOnly = context.getBool(node, "team_leader_only");
+        IQuestRewardNodeCompiler.applyCommonOptions(context, node, reward);
         return reward;
     }
 }
