@@ -17,6 +17,8 @@ public class QuestFlowEdge implements IPersistedSerializable {
     @Persisted
     public String toNodeId = "";
     @Persisted
+    public QuestStepResult stepResult = QuestStepResult.ANY;
+    @Persisted
     public String conditionVariable = "";
     @Persisted
     public QuestBlueprintCompiler.CompareOp compareOp = QuestBlueprintCompiler.CompareOp.EQ;
@@ -32,6 +34,10 @@ public class QuestFlowEdge implements IPersistedSerializable {
     public final List<ScoreboardMutation> scoreboardMutations = new ArrayList<>();
     @Persisted
     public final List<QuestDebugPrint> debugPrints = new ArrayList<>();
+
+    public boolean matchesStepResult(QuestStepResult result) {
+        return stepResult == null || stepResult == QuestStepResult.ANY || stepResult == result;
+    }
 
     public boolean evaluate(Map<String, QuestVariableValue> questVariables, HolderLookup.Provider provider) {
         return evaluate(questVariables, provider, null);

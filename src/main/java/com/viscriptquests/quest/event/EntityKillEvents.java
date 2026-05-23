@@ -14,6 +14,7 @@ public class EntityKillEvents {
         if (event.getEntity().level().isClientSide()) {
             return;
         }
+        QuestSubmissionService.recordEntityDeath(event.getEntity());
         if (event.getSource().getEntity() instanceof ServerPlayer player) {
             QuestSubmissionService.recordEntityKill(player, event.getEntity());
         }

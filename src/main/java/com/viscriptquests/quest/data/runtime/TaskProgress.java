@@ -10,6 +10,7 @@ import net.minecraft.network.chat.Component;
 
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Objects;
 
 // 任务目标的运行时进度追踪
 public class TaskProgress implements IPersistedSerializable {
@@ -92,7 +93,8 @@ public class TaskProgress implements IPersistedSerializable {
         if (tasks.isEmpty()) {
             return;
         }
-        TaskProgress refreshed = fromTasks(stepId, tasks, questFile.findStep(stepId).orElse(null), player);
+        net.minecraft.server.level.ServerPlayer refreshPlayer = status == TaskStatus.ACTIVE ? player : null;
+        TaskProgress refreshed = fromTasks(stepId, tasks, questFile.findStep(stepId).orElse(null), refreshPlayer);
         taskHint = refreshed.taskHint;
         manualSubmitRequired = refreshed.manualSubmitRequired;
         displayIcon = refreshed.displayIcon;
@@ -104,16 +106,26 @@ public class TaskProgress implements IPersistedSerializable {
                 continue;
             }
             TaskObjectiveProgress current = objectives.get(i);
+            boolean sameObjective = Objects.equals(current.objectiveId, refreshedObjective.objectiveId);
+            if (!sameObjective) {
+                current.currentAmount = 0;
+                current.completed = false;
+                current.startedGameTime = -1L;
+            }
+            current.objectiveId = refreshedObjective.objectiveId;
             current.hint = refreshedObjective.displayHint();
             current.displayIcon = refreshedObjective.displayIcon;
             current.objectiveType = refreshedObjective.objectiveType;
             current.requiredAmount = refreshedObjective.requiredAmount;
             current.manualSubmitRequired = refreshedObjective.manualSubmitRequired;
             current.guideMarker = refreshedObjective.guideMarker;
+            current.progressTextOverride = refreshedObjective.progressTextOverride == null
+                    ? ""
+                    : refreshedObjective.progressTextOverride;
             boolean refreshFromPlayerState = i < tasks.size() && tasks.get(i).refreshesProgressFromPlayerState();
-            if (!current.completed && !current.manualSubmitRequired && refreshFromPlayerState) {
-                current.currentAmount = refreshedObjective.currentAmount;
-                current.completed = refreshedObjective.completed;
+            if (!current.completed && !current.manualSubmitRequired && refreshFromPlayerState && refreshPlayer != null) {
+                current.progressTextOverride = "";
+                tasks.get(i).refreshObjectiveProgress(refreshPlayer, current);
             } else if (!refreshFromPlayerState) {
                 current.currentAmount = Math.min(current.currentAmount, current.requiredAmount);
                 current.completed = current.completed || current.currentAmount >= current.requiredAmount;

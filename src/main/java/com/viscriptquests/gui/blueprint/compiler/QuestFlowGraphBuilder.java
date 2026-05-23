@@ -23,7 +23,7 @@ public final class QuestFlowGraphBuilder {
         Queue<FlowEntry> queue = new ArrayDeque<>();
         Set<String> visitedFlows = new LinkedHashSet<>();
         flowNodes.put("", QuestBlueprintFlowTypes.createStart());
-        queue.add(new FlowEntry(startNode, "", new ArrayList<>(), new ArrayList<>(), new ArrayList<>()));
+        queue.add(new FlowEntry(startNode, "", QuestStepResult.ANY, new ArrayList<>(), new ArrayList<>(), new ArrayList<>()));
 
         int maxSteps = 1000;
         while (!queue.isEmpty()) {
@@ -34,6 +34,7 @@ public final class QuestFlowGraphBuilder {
             FlowEntry entry = queue.poll();
             CustomNodeModelImpl currentNode = entry.node;
             String fromNodeId = entry.fromNodeId;
+            QuestStepResult stepResult = entry.stepResult;
             List<VariableMutation> pendingMutations = entry.mutations;
             List<ScoreboardMutation> pendingScoreboardMutations = entry.scoreboardMutations;
             List<QuestDebugPrint> pendingDebugPrints = entry.debugPrints;
@@ -42,34 +43,36 @@ public final class QuestFlowGraphBuilder {
 
             if (nodeInstance instanceof QuestStartNode) {
                 followOutputFlow(currentNode, "next", fromNodeId, pendingMutations, pendingScoreboardMutations,
-                        pendingDebugPrints, queue);
+                        pendingDebugPrints, stepResult, queue);
             } else if (nodeInstance instanceof SubQuestNode) {
                 String stepId = context.resolveStepId(currentNode);
                 if (!stepId.isEmpty()) {
                     flowNodes.putIfAbsent(stepId, QuestBlueprintFlowTypes.createSubQuest(stepId));
                     addFlowEdge(flowEdges, fromNodeId, stepId, pendingMutations, pendingScoreboardMutations,
-                            pendingDebugPrints);
+                            pendingDebugPrints, stepResult);
                     if (visitedStepIds.add(stepId)) {
                         ordered.add(stepId);
                     }
-                    followOutputFlow(currentNode, "next", stepId, new ArrayList<>(), new ArrayList<>(),
-                            new ArrayList<>(), queue);
+                    followOutputFlow(currentNode, "success", stepId, new ArrayList<>(), new ArrayList<>(),
+                            new ArrayList<>(), QuestStepResult.SUCCESS, queue);
+                    followOutputFlow(currentNode, "failure", stepId, new ArrayList<>(), new ArrayList<>(),
+                            new ArrayList<>(), QuestStepResult.FAILURE, queue);
                 }
             } else if (nodeInstance instanceof QuestBranchNode) {
                 String branchNodeId = "branch_" + currentNode.getUid();
                 flowNodes.putIfAbsent(branchNodeId, QuestBlueprintFlowTypes.createBranch(branchNodeId));
                 addFlowEdge(flowEdges, fromNodeId, branchNodeId, pendingMutations, pendingScoreboardMutations,
-                        pendingDebugPrints);
-                if (!visitedFlows.add(branchNodeId + "_" + fromNodeId)) continue;
+                        pendingDebugPrints, stepResult);
+                if (!visitedFlows.add(branchNodeId + "_" + fromNodeId + "_" + stepResult)) continue;
                 CompareCondition condition = traceCondition(currentNode, context);
                 validateBranch(currentNode, branchNodeId, condition);
                 followBranchOutput(currentNode, "true", branchNodeId, new ArrayList<>(), new ArrayList<>(),
                         new ArrayList<>(),
-                        context,
+                        QuestStepResult.ANY, context,
                         condition, false, flowNodes, flowEdges, queue);
                 followBranchOutput(currentNode, "false", branchNodeId, new ArrayList<>(), new ArrayList<>(),
                         new ArrayList<>(),
-                        context,
+                        QuestStepResult.ANY, context,
                         condition, true, flowNodes, flowEdges, queue);
             } else if (nodeInstance instanceof QuestEndNode) {
                 if (!fromNodeId.isEmpty()) {
@@ -77,7 +80,7 @@ public final class QuestFlowGraphBuilder {
                     QuestFlowNode endNode = QuestBlueprintFlowTypes.createEnd(endNodeId, context.getBool(currentNode, "success"));
                     flowNodes.putIfAbsent(endNodeId, endNode);
                     addFlowEdge(flowEdges, fromNodeId, endNodeId, pendingMutations, pendingScoreboardMutations,
-                            pendingDebugPrints);
+                            pendingDebugPrints, stepResult);
                 }
             } else if (nodeInstance instanceof QuestJoinNode) {
                 String joinId = "join_" + currentNode.getUid();
@@ -86,10 +89,10 @@ public final class QuestFlowGraphBuilder {
                 flowNodes.putIfAbsent(joinId, QuestBlueprintFlowTypes.createJoin(joinId, joinMode, requiredCount));
                 if (!fromNodeId.isEmpty()) {
                     addFlowEdge(flowEdges, fromNodeId, joinId, pendingMutations, pendingScoreboardMutations,
-                            pendingDebugPrints);
+                            pendingDebugPrints, stepResult);
                 }
                 followOutputFlow(currentNode, "next", joinId,
-                        new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), queue);
+                        new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), QuestStepResult.ANY, queue);
             } else {
                 QuestPassthroughResult passthrough = compilePassthroughNode(context, currentNode);
                 List<VariableMutation> newMutations = new ArrayList<>(pendingMutations);
@@ -99,7 +102,7 @@ public final class QuestFlowGraphBuilder {
                 newScoreboardMutations.addAll(passthrough.scoreboardMutations);
                 newDebugPrints.addAll(passthrough.debugPrints);
                 followOutputFlow(currentNode, "next", fromNodeId, newMutations, newScoreboardMutations,
-                        newDebugPrints, queue);
+                        newDebugPrints, stepResult, queue);
             }
         }
 
@@ -115,15 +118,23 @@ public final class QuestFlowGraphBuilder {
         return result;
     }
 
-    private static boolean addFlowEdge(List<QuestFlowEdge> flowEdges, String fromNodeId, String toNodeId,
-                                       List<VariableMutation> mutations, List<ScoreboardMutation> scoreboardMutations,
-                                       List<QuestDebugPrint> debugPrints) {
+    public static boolean addFlowEdge(List<QuestFlowEdge> flowEdges, String fromNodeId, String toNodeId,
+                                      List<VariableMutation> mutations, List<ScoreboardMutation> scoreboardMutations,
+                                      List<QuestDebugPrint> debugPrints) {
+        return addFlowEdge(flowEdges, fromNodeId, toNodeId, mutations, scoreboardMutations, debugPrints,
+                QuestStepResult.ANY);
+    }
+
+    public static boolean addFlowEdge(List<QuestFlowEdge> flowEdges, String fromNodeId, String toNodeId,
+                                      List<VariableMutation> mutations, List<ScoreboardMutation> scoreboardMutations,
+                                      List<QuestDebugPrint> debugPrints, QuestStepResult stepResult) {
         if (fromNodeId.equals(toNodeId)) {
             return false;
         }
         QuestFlowEdge edge = new QuestFlowEdge();
         edge.fromNodeId = fromNodeId;
         edge.toNodeId = toNodeId;
+        edge.stepResult = stepResult == null ? QuestStepResult.ANY : stepResult;
         edge.variableMutations.addAll(mutations);
         edge.scoreboardMutations.addAll(scoreboardMutations);
         edge.debugPrints.addAll(debugPrints);
@@ -134,16 +145,25 @@ public final class QuestFlowGraphBuilder {
         return true;
     }
 
-    private static boolean addConditionalFlowEdge(List<QuestFlowEdge> flowEdges, String fromNodeId, String toNodeId,
-                                                  List<VariableMutation> mutations, List<ScoreboardMutation> scoreboardMutations,
-                                                  List<QuestDebugPrint> debugPrints,
-                                                  CompareCondition condition, boolean negate) {
+    public static boolean addConditionalFlowEdge(List<QuestFlowEdge> flowEdges, String fromNodeId, String toNodeId,
+                                                 List<VariableMutation> mutations, List<ScoreboardMutation> scoreboardMutations,
+                                                 List<QuestDebugPrint> debugPrints,
+                                                 CompareCondition condition, boolean negate) {
+        return addConditionalFlowEdge(flowEdges, fromNodeId, toNodeId, mutations, scoreboardMutations, debugPrints,
+                condition, negate, QuestStepResult.ANY);
+    }
+
+    public static boolean addConditionalFlowEdge(List<QuestFlowEdge> flowEdges, String fromNodeId, String toNodeId,
+                                                 List<VariableMutation> mutations, List<ScoreboardMutation> scoreboardMutations,
+                                                 List<QuestDebugPrint> debugPrints,
+                                                 CompareCondition condition, boolean negate, QuestStepResult stepResult) {
         if (fromNodeId.equals(toNodeId)) {
             return false;
         }
         QuestFlowEdge edge = new QuestFlowEdge();
         edge.fromNodeId = fromNodeId;
         edge.toNodeId = toNodeId;
+        edge.stepResult = stepResult == null ? QuestStepResult.ANY : stepResult;
         edge.variableMutations.addAll(mutations);
         edge.scoreboardMutations.addAll(scoreboardMutations);
         edge.debugPrints.addAll(debugPrints);
@@ -159,9 +179,10 @@ public final class QuestFlowGraphBuilder {
         return true;
     }
 
-    private static boolean sameFlowEdge(QuestFlowEdge a, QuestFlowEdge b) {
+    public static boolean sameFlowEdge(QuestFlowEdge a, QuestFlowEdge b) {
         return a.fromNodeId.equals(b.fromNodeId)
                 && a.toNodeId.equals(b.toNodeId)
+                && a.stepResult == b.stepResult
                 && Objects.equals(a.conditionVariable, b.conditionVariable)
                 && a.compareOp == b.compareOp
                 && Float.compare(a.compareValue, b.compareValue) == 0
@@ -172,15 +193,24 @@ public final class QuestFlowGraphBuilder {
                 && Objects.equals(a.debugPrints, b.debugPrints);
     }
 
-    private static void followOutputFlow(CustomNodeModelImpl node, String portId, String fromStepId,
-                                         List<VariableMutation> mutations, List<ScoreboardMutation> scoreboardMutations,
-                                         List<QuestDebugPrint> debugPrints,
-                                         Queue<FlowEntry> queue) {
+    public static void followOutputFlow(CustomNodeModelImpl node, String portId, String fromStepId,
+                                        List<VariableMutation> mutations, List<ScoreboardMutation> scoreboardMutations,
+                                        List<QuestDebugPrint> debugPrints,
+                                        Queue<FlowEntry> queue) {
+        followOutputFlow(node, portId, fromStepId, mutations, scoreboardMutations, debugPrints,
+                QuestStepResult.ANY, queue);
+    }
+
+    public static void followOutputFlow(CustomNodeModelImpl node, String portId, String fromStepId,
+                                        List<VariableMutation> mutations, List<ScoreboardMutation> scoreboardMutations,
+                                        List<QuestDebugPrint> debugPrints, QuestStepResult stepResult,
+                                        Queue<FlowEntry> queue) {
         PortModel port = node.getOutputsById().get(portId);
         if (port == null) return;
         for (PortModel connected : port.getConnectedPorts()) {
             if (connected.getNodeModel() instanceof CustomNodeModelImpl targetNode) {
-                queue.add(new FlowEntry(targetNode, fromStepId, new ArrayList<>(mutations),
+                queue.add(new FlowEntry(targetNode, fromStepId,
+                        stepResult == null ? QuestStepResult.ANY : stepResult, new ArrayList<>(mutations),
                         new ArrayList<>(scoreboardMutations),
                         new ArrayList<>(debugPrints)));
             }
@@ -190,6 +220,7 @@ public final class QuestFlowGraphBuilder {
     private static void followBranchOutput(CustomNodeModelImpl branchNode, String portId, String fromNodeId,
                                            List<VariableMutation> mutations, List<ScoreboardMutation> scoreboardMutations,
                                            List<QuestDebugPrint> debugPrints,
+                                           QuestStepResult stepResult,
                                            QuestCompileContext context,
                                            CompareCondition condition, boolean negate,
                                            Map<String, QuestFlowNode> flowNodes, List<QuestFlowEdge> flowEdges,
@@ -201,7 +232,8 @@ public final class QuestFlowGraphBuilder {
                 continue;
             }
             Queue<FlowEntry> traceQueue = new ArrayDeque<>();
-            traceQueue.add(new FlowEntry(targetNode, fromNodeId, new ArrayList<>(mutations),
+            traceQueue.add(new FlowEntry(targetNode, fromNodeId, stepResult,
+                    new ArrayList<>(mutations),
                     new ArrayList<>(scoreboardMutations),
                     new ArrayList<>(debugPrints)));
             traceBranchFlow(traceQueue, context, condition, negate, flowNodes, flowEdges, queue);
@@ -221,6 +253,7 @@ public final class QuestFlowGraphBuilder {
             FlowEntry entry = traceQueue.poll();
             CustomNodeModelImpl currentNode = entry.node;
             String fromNodeId = entry.fromNodeId;
+            QuestStepResult stepResult = entry.stepResult;
             List<VariableMutation> mutations = entry.mutations;
             List<ScoreboardMutation> scoreboardMutations = entry.scoreboardMutations;
             List<QuestDebugPrint> debugPrints = entry.debugPrints;
@@ -232,9 +265,11 @@ public final class QuestFlowGraphBuilder {
                 if (stepId.isEmpty()) continue;
                 flowNodes.putIfAbsent(stepId, QuestBlueprintFlowTypes.createSubQuest(stepId));
                 addConditionalFlowEdge(flowEdges, fromNodeId, stepId, mutations, scoreboardMutations,
-                        debugPrints, condition, negate);
-                followOutputFlow(currentNode, "next", stepId, new ArrayList<>(), new ArrayList<>(),
-                        new ArrayList<>(), mainQueue);
+                        debugPrints, condition, negate, stepResult);
+                followOutputFlow(currentNode, "success", stepId, new ArrayList<>(), new ArrayList<>(),
+                        new ArrayList<>(), QuestStepResult.SUCCESS, mainQueue);
+                followOutputFlow(currentNode, "failure", stepId, new ArrayList<>(), new ArrayList<>(),
+                        new ArrayList<>(), QuestStepResult.FAILURE, mainQueue);
                 continue;
             }
 
@@ -244,9 +279,9 @@ public final class QuestFlowGraphBuilder {
                 int requiredCount = mode == QuestJoinMode.COUNT ? context.getPortInt(currentNode, "required_count") : 0;
                 flowNodes.putIfAbsent(joinId, QuestBlueprintFlowTypes.createJoin(joinId, mode, requiredCount));
                 addConditionalFlowEdge(flowEdges, fromNodeId, joinId, mutations, scoreboardMutations,
-                        debugPrints, condition, negate);
+                        debugPrints, condition, negate, stepResult);
                 followOutputFlow(currentNode, "next", joinId, new ArrayList<>(), new ArrayList<>(),
-                        new ArrayList<>(), mainQueue);
+                        new ArrayList<>(), QuestStepResult.ANY, mainQueue);
                 continue;
             }
 
@@ -254,10 +289,11 @@ public final class QuestFlowGraphBuilder {
                 String branchNodeId = "branch_" + currentNode.getUid();
                 flowNodes.putIfAbsent(branchNodeId, QuestBlueprintFlowTypes.createBranch(branchNodeId));
                 addConditionalFlowEdge(flowEdges, fromNodeId, branchNodeId, mutations, scoreboardMutations,
-                        debugPrints, condition, negate);
+                        debugPrints, condition, negate, stepResult);
                 CompareCondition nestedCondition = traceCondition(currentNode, context);
                 validateBranch(currentNode, branchNodeId, nestedCondition);
-                mainQueue.add(new FlowEntry(currentNode, branchNodeId, new ArrayList<>(), new ArrayList<>(),
+                mainQueue.add(new FlowEntry(currentNode, branchNodeId, QuestStepResult.ANY,
+                        new ArrayList<>(), new ArrayList<>(),
                         new ArrayList<>()));
                 continue;
             }
@@ -266,7 +302,7 @@ public final class QuestFlowGraphBuilder {
                 String endNodeId = "end_" + currentNode.getUid();
                 flowNodes.putIfAbsent(endNodeId, QuestBlueprintFlowTypes.createEnd(endNodeId, context.getBool(currentNode, "success")));
                 addConditionalFlowEdge(flowEdges, fromNodeId, endNodeId, mutations, scoreboardMutations,
-                        debugPrints, condition, negate);
+                        debugPrints, condition, negate, stepResult);
                 continue;
             }
 
@@ -278,11 +314,11 @@ public final class QuestFlowGraphBuilder {
             nextScoreboardMutations.addAll(passthrough.scoreboardMutations);
             nextDebugPrints.addAll(passthrough.debugPrints);
             followOutputFlow(currentNode, "next", fromNodeId, nextMutations, nextScoreboardMutations,
-                    nextDebugPrints, traceQueue);
+                    nextDebugPrints, stepResult, traceQueue);
         }
     }
 
-    private static CompareCondition traceCondition(CustomNodeModelImpl branchNode, QuestCompileContext context) {
+    public static CompareCondition traceCondition(CustomNodeModelImpl branchNode, QuestCompileContext context) {
         PortModel conditionPort = branchNode.getInputsById().get("condition");
         if (conditionPort == null) return CompareCondition.empty();
 
@@ -306,12 +342,12 @@ public final class QuestFlowGraphBuilder {
         return CompareCondition.empty();
     }
 
-    private static void validateBranch(CustomNodeModelImpl branchNode, String branchNodeId, CompareCondition condition) {
+    public static void validateBranch(CustomNodeModelImpl branchNode, String branchNodeId, CompareCondition condition) {
         if (condition.isEmpty()) {
             throw QuestBlueprintValidationException.create(
                     "viscript_quests.editor.quest.export.validation.branch_missing_condition", branchNodeId);
         }
-        if (!hasOutputConnection(branchNode, "true") || !hasOutputConnection(branchNode, "false")) {
+        if (!hasOutputConnection(branchNode, "true") && !hasOutputConnection(branchNode, "false")) {
             throw QuestBlueprintValidationException.create(
                     "viscript_quests.editor.quest.export.validation.branch_missing_output", branchNodeId);
         }
@@ -333,7 +369,7 @@ public final class QuestFlowGraphBuilder {
         };
     }
 
-    private static CompareOp negateOp(CompareOp op) {
+    public static CompareOp negateOp(CompareOp op) {
         return switch (op) {
             case EQ -> CompareOp.NE;
             case NE -> CompareOp.EQ;
@@ -347,18 +383,18 @@ public final class QuestFlowGraphBuilder {
     public record Result(List<String> orderedStepIds, List<QuestFlowNode> flowNodes, List<QuestFlowEdge> flowEdges) {
     }
 
-    private record CompareCondition(List<QuestValueToken> leftExpression, CompareOp compareOp,
-                                    List<QuestValueToken> rightExpression) {
-        private static CompareCondition empty() {
+    public record CompareCondition(List<QuestValueToken> leftExpression, CompareOp compareOp,
+                                   List<QuestValueToken> rightExpression) {
+        public static CompareCondition empty() {
             return new CompareCondition(List.of(), CompareOp.EQ, List.of());
         }
 
-        private boolean isEmpty() {
+        public boolean isEmpty() {
             return leftExpression.isEmpty() && rightExpression.isEmpty();
         }
     }
 
-    private record FlowEntry(CustomNodeModelImpl node, String fromNodeId, List<VariableMutation> mutations,
-                             List<ScoreboardMutation> scoreboardMutations, List<QuestDebugPrint> debugPrints) {
+    public record FlowEntry(CustomNodeModelImpl node, String fromNodeId, QuestStepResult stepResult, List<VariableMutation> mutations,
+                            List<ScoreboardMutation> scoreboardMutations, List<QuestDebugPrint> debugPrints) {
     }
 }

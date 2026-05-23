@@ -112,7 +112,7 @@ public class QuestProject implements IProject {
         graphEditorView.setIcon(Icons.NODE);
         graphEditorView.setDynamicName(() -> Component.translatable("viscript_quests.editor.view.quest_blueprint"));
 
-        editor.centerWindow.getLeftTop().addView(graphEditorView);
+        editor.placeView(graphEditorView, () -> editor.rootWindow.getLeftTop());
 
         QuestBlueprintNodeLibrary.rebuild(graphEditorView.graphView.itemLibrary, graph.graphModel);
 
@@ -153,12 +153,7 @@ public class QuestProject implements IProject {
                                 "viscript_quests.editor.upload_project",
                                 "",
                                 result -> !result.isBlank(),
-                                result -> {
-                                    CompoundTag data = new CompoundTag();
-                                    data.putString("fileName", result);
-                                    data.put("graph", graphTag.copy());
-                                    RPCPacketDistributor.rpcToServer(C2SPayload.UPLOAD_PROJECT_FILE, data);
-                                }
+                                this::uploadProjectToServer
                         ).show(editor);
                     });
                     // 编译并上传运行时文件到服务端（.quest）
@@ -171,10 +166,25 @@ public class QuestProject implements IProject {
                                 result -> {
                                     try {
                                         QuestFile questFile = QuestBlueprintCompiler.compile(graphTag);
-                                        CompoundTag data = new CompoundTag();
-                                        data.putString("fileName", result);
-                                        data.put("quest", questFile.serializeNBT(Platform.getFrozenRegistry()));
-                                        RPCPacketDistributor.rpcToServer(C2SPayload.UPLOAD_QUEST_FILE, data);
+                                        uploadQuestToServer(result, questFile);
+                                    } catch (Exception exception) {
+                                        showExportFailure(editor, exception);
+                                    }
+                                }
+                        ).show(editor);
+                    });
+                    // 先验证运行时任务文件，再同时上传项目文件和运行时任务文件。
+                    m.leaf("viscript_quests.editor.quest.upload_project_and_quest", () -> {
+                        refreshGraphSnapshot();
+                        Dialog.stringEditorDialog(
+                                "viscript_quests.editor.upload_project_and_quest",
+                                "",
+                                result -> !result.isBlank(),
+                                result -> {
+                                    try {
+                                        QuestFile questFile = QuestBlueprintCompiler.compile(graphTag);
+                                        uploadProjectToServer(result);
+                                        uploadQuestToServer(result, questFile);
                                     } catch (Exception exception) {
                                         showExportFailure(editor, exception);
                                     }
@@ -209,6 +219,20 @@ public class QuestProject implements IProject {
     private CompoundTag currentGraphTag() {
         refreshGraphSnapshot();
         return graphTag.copy();
+    }
+
+    private void uploadProjectToServer(String fileName) {
+        CompoundTag data = new CompoundTag();
+        data.putString("fileName", fileName);
+        data.put("graph", graphTag.copy());
+        RPCPacketDistributor.rpcToServer(C2SPayload.UPLOAD_PROJECT_FILE, data);
+    }
+
+    private void uploadQuestToServer(String fileName, QuestFile questFile) {
+        CompoundTag data = new CompoundTag();
+        data.putString("fileName", fileName);
+        data.put("quest", questFile.serializeNBT(Platform.getFrozenRegistry()));
+        RPCPacketDistributor.rpcToServer(C2SPayload.UPLOAD_QUEST_FILE, data);
     }
 
     private static void showExportFailure(Editor editor, Exception exception) {

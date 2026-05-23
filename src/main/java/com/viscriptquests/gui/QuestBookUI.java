@@ -735,17 +735,14 @@ public class QuestBookUI extends UIElement {
             layout.gapAll(4);
         });
 
-        UIElement icon = createDisplayIcon(objective.displayIcon, objective.displayHint());
+        UIElement icon = createDisplayIcon(objective.displayIcon, objectiveTooltip(objective));
         icon.layout(layout -> {
             layout.width(OBJECTIVE_ICON_SIZE);
             layout.height(OBJECTIVE_ICON_SIZE);
         });
         row.addChild(icon);
 
-        int textColor = objective.isFailureCondition()
-                ? 0xFFFF8A8A
-                : objective.completed ? 0xFF9DE8A8 : TEXT_MAIN;
-        Label taskLabel = objectiveLabel(objective.progressHintWithType(), textColor);
+        Label taskLabel = objectiveLabel(objective.progressHint(), objective.displayTextColor());
         taskLabel.layout(layout -> {
             layout.width(0);
             layout.flex(1);
@@ -756,6 +753,23 @@ public class QuestBookUI extends UIElement {
             row.addChild(createObjectiveSubmitButton(quest, taskProgress, objectiveIndex));
         }
         return row;
+    }
+
+    private Component objectiveTooltip(TaskObjectiveProgress objective) {
+        if (objective == null) {
+            return Component.empty();
+        }
+        Component hint = objective.displayHint();
+        if (objective.isRequired()) {
+            return hint;
+        }
+        Component typeLabel = objective.objectiveTypeLabel();
+        if (!hasTooltipText(hint)) {
+            return typeLabel;
+        }
+        return typeLabel.copy()
+                .append(" ")
+                .append(hint);
     }
 
     private void addRewardsForTask(PlayerQuestState quest, String stepId) {

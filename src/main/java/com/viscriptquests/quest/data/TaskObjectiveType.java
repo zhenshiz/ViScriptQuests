@@ -10,13 +10,14 @@ import org.jetbrains.annotations.NotNull;
 @AllArgsConstructor
 public enum TaskObjectiveType implements StringRepresentable {
     // 必做目标会阻塞小任务完成，是普通目标的默认类型。
-    REQUIRED("viscript_quests.task_objective_type.required"),
+    REQUIRED("viscript_quests.task_objective_type.required", 0xFFFFFFFF),
     // 可选目标可以记录进度，但不会在存在必做目标时阻塞小任务完成。
-    OPTIONAL("viscript_quests.task_objective_type.optional"),
+    OPTIONAL("viscript_quests.task_objective_type.optional", 0xFFB8B8B8),
     // 失败条件一旦被触发，就会让当前任务按失败结果结束。
-    FAILURE("viscript_quests.task_objective_type.failure");
+    FAILURE("viscript_quests.task_objective_type.failure", 0xFFFF8A8A);
 
     private final String name;
+    private final int displayTextColor;
 
     public boolean isRequired() {
         return this == REQUIRED;

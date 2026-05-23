@@ -27,6 +27,7 @@ public final class QuestBlueprintValidator {
         validateReachableFlow(nodes, reachable);
         validateEdges(questFile, nodes, reachable);
         validateSubQuestTargets(questFile, nodes, reachable);
+        validateSubQuestResultOutputs(questFile, nodes, reachable);
         validateBranchNodes(questFile, nodes, reachable);
         validateJoinNodes(questFile, nodes, reachable);
         validateAllReachableNodesCanFinish(nodes, questFile.flowEdges, reachable);
@@ -122,6 +123,22 @@ public final class QuestBlueprintValidator {
         }
     }
 
+    private static void validateSubQuestResultOutputs(QuestFile questFile, Map<String, QuestFlowNode> nodes,
+                                                      Set<String> reachable) {
+        for (QuestFlowNode node : nodes.values()) {
+            if (!reachable.contains(node.nodeId) || !QuestBlueprintFlowTypes.isSubQuest(node)) {
+                continue;
+            }
+            boolean hasResultOutput = outgoing(node.nodeId, questFile.flowEdges).stream()
+                    .anyMatch(edge -> edge.stepResult != null && edge.stepResult.isSpecificResult());
+            if (!hasResultOutput) {
+                throw QuestBlueprintValidationException.create(
+                        "viscript_quests.editor.quest.export.validation.sub_quest_missing_result_output",
+                        displayNode(node.stepId));
+            }
+        }
+    }
+
     private static void validateEdges(QuestFile questFile, Map<String, QuestFlowNode> nodes, Set<String> reachable) {
         for (QuestFlowEdge edge : questFile.flowEdges) {
             if (edge == null) {
@@ -153,12 +170,12 @@ public final class QuestBlueprintValidator {
                 continue;
             }
             List<QuestFlowEdge> outgoing = outgoing(node.nodeId, questFile.flowEdges);
-            if (outgoing.size() < 2) {
+            if (outgoing.isEmpty()) {
                 throw QuestBlueprintValidationException.create(
                         "viscript_quests.editor.quest.export.validation.branch_missing_output", displayNode(node.nodeId));
             }
             boolean hasCondition = outgoing.stream()
-                    .anyMatch(edge -> edge.conditionVariable != null && !edge.conditionVariable.isBlank());
+                    .anyMatch(QuestBlueprintValidator::hasCondition);
             if (!hasCondition) {
                 throw QuestBlueprintValidationException.create(
                         "viscript_quests.editor.quest.export.validation.branch_missing_condition", displayNode(node.nodeId));
@@ -275,6 +292,12 @@ public final class QuestBlueprintValidator {
             }
         }
         return result;
+    }
+
+    private static boolean hasCondition(QuestFlowEdge edge) {
+        return edge != null && ((edge.conditionVariable != null && !edge.conditionVariable.isBlank())
+                || !edge.conditionLeftExpression.isEmpty()
+                || !edge.conditionRightExpression.isEmpty());
     }
 
     private static String displayNode(String nodeId) {

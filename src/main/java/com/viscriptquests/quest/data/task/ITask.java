@@ -33,6 +33,9 @@ public abstract class ITask implements ILDLRegister<ITask, Supplier<ITask>>, IPe
     // 所有任务类型共有的基础字段
     @Persisted
     public String stepId = "";
+    // 目标节点的稳定 ID，用于目标完成后触发子图里的动态动作流。
+    @Persisted
+    public String objectiveId = "";
     // 自定义目标提示文本；为空时使用具体目标自己的默认提示。
     @Persisted
     public String taskHint = "";

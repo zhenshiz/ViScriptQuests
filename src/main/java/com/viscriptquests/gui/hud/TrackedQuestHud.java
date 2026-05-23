@@ -117,15 +117,15 @@ public class TrackedQuestHud extends UIElement {
         taskTitle.setText(Component.literal(snapshot.task().title));
         objectivesColumn.clearAllChildren();
         if (snapshot.task().objectives.isEmpty()) {
-            objectivesColumn.addChild(createObjectiveRow(snapshot.task().displayIcon, snapshot.task().displayTaskHint()));
+            objectivesColumn.addChild(createObjectiveRow(snapshot.task().displayIcon, snapshot.task().displayTaskHint(), TEXT_MAIN));
             return;
         }
         for (TaskObjectiveProgress objective : snapshot.task().objectives) {
-            objectivesColumn.addChild(createObjectiveRow(objective.displayIcon, objective.progressHintWithType()));
+            objectivesColumn.addChild(createObjectiveRow(objective.displayIcon, objective.progressHint(), objective.displayTextColor()));
         }
     }
 
-    private static UIElement createObjectiveRow(DisplayIcon icon, Component hint) {
+    private static UIElement createObjectiveRow(DisplayIcon icon, Component hint, int textColor) {
         UIElement row = new UIElement();
         row.layout(layout -> {
             layout.widthPercent(100);
@@ -135,7 +135,7 @@ public class TrackedQuestHud extends UIElement {
             layout.gapAll(2);
         });
 
-        Label text = label(FONT_BODY, TEXT_MAIN, true);
+        Label text = label(FONT_BODY, textColor, true);
         text.setText(hint == null ? Component.empty() : hint);
         text.layout(layout -> {
             layout.width(0);
@@ -201,6 +201,7 @@ public class TrackedQuestHud extends UIElement {
                     .append('|').append(objective.objectiveType)
                     .append('|').append(objective.currentAmount)
                     .append('/').append(objective.requiredAmount)
+                    .append('|').append(objective.progressTextOverride)
                     .append('|').append(objective.completed)
                     .append('|').append(iconKey(objective.displayIcon))
                     .append(';');

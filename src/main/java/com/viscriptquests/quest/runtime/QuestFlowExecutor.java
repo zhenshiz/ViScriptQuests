@@ -91,15 +91,34 @@ public class QuestFlowExecutor {
     public static void completeStepNode(ServerPlayer player, PlayerQuestState state, QuestFile questFile, String stepId) {
         state.activeFlowNodes.remove(stepId);
         state.completedFlowNodes.add(stepId);
-        applyOutgoingEdges(player, state, questFile, stepId);
+        applyOutgoingEdges(player, state, questFile, stepId, QuestStepResult.SUCCESS);
         advance(player, state, questFile);
     }
 
     /**
-     * 由失败条件目标触发任务失败。
+     * 标记一个小任务流程节点失败，并从该节点的失败出口继续推进。
      *
-     * <p>当前子图还没有独立的失败分支语义，所以失败条件先结束整个任务，
-     * 后续如果给子图添加成功/失败出口，可以把这里替换成“进入失败出口”的推进逻辑。
+     * <p>失败条件现在只代表“小任务失败”。如果蓝图作者连接了失败出口，
+     * 流程会沿失败出口继续执行；如果没有失败出口，才把整个任务结算为失败。
+     * 这样限时、实体死亡等失败条件既能做真正失败，也能做补救分支或不同奖励。
+     */
+    public static void failStepNode(ServerPlayer player, PlayerQuestState state, QuestFile questFile, String failedStepId) {
+        state.findStepProgress(failedStepId)
+                .ifPresent(progress -> progress.status = TaskStatus.FAILED);
+        state.activeFlowNodes.remove(failedStepId);
+        state.completedFlowNodes.add(failedStepId);
+        if (!applyOutgoingEdges(player, state, questFile, failedStepId, QuestStepResult.FAILURE)) {
+            finish(player, state, questFile, false);
+            return;
+        }
+        advance(player, state, questFile);
+    }
+
+    /**
+     * 直接把整条任务结算为失败。
+     *
+     * <p>保留该入口给命令、兼容旧逻辑或异常兜底使用。普通失败条件应优先调用
+     * {@link #failStepNode(ServerPlayer, PlayerQuestState, QuestFile, String)}，让蓝图失败出口有机会接管流程。
      */
     public static void failQuest(ServerPlayer player, PlayerQuestState state, QuestFile questFile, String failedStepId) {
         state.findStepProgress(failedStepId)
@@ -149,9 +168,12 @@ public class QuestFlowExecutor {
         }
         state.activeFlowNodes.add(stepId);
         state.findStepProgress(stepId).ifPresent(progress -> {
-            if (progress.status == TaskStatus.COMPLETED || progress.status == TaskStatus.SKIPPED) {
+            if (progress.status == TaskStatus.COMPLETED
+                    || progress.status == TaskStatus.FAILED
+                    || progress.status == TaskStatus.SKIPPED) {
                 // 回环重新进入同一个小任务时，重置目标进度并允许再次等待玩家完成。
                 state.rewardedSteps.remove(stepId);
+                state.triggeredObjectiveActions.removeIf(actionKey -> actionKey.startsWith(stepId + ":"));
                 TaskProgress refreshed = TaskProgress.fromTasks(stepId, questFile.findTasksForStep(stepId),
                         questFile.findStep(stepId).orElse(null), player);
                 progress.title = refreshed.title;
@@ -164,10 +186,13 @@ public class QuestFlowExecutor {
                 progress.objectives.clear();
                 progress.objectives.addAll(refreshed.objectives);
             }
-            if (progress.status == TaskStatus.LOCKED
+            boolean activating = progress.status == TaskStatus.LOCKED
                     || progress.status == TaskStatus.COMPLETED
-                    || progress.status == TaskStatus.SKIPPED) {
+                    || progress.status == TaskStatus.FAILED
+                    || progress.status == TaskStatus.SKIPPED;
+            if (activating) {
                 progress.status = TaskStatus.ACTIVE;
+                progress.refreshObjectives(questFile, player);
             }
         });
     }
@@ -225,8 +250,14 @@ public class QuestFlowExecutor {
      * @param questFile 运行时任务文件，提供出边和目标节点定义
      * @param fromNodeId 起始流程节点标识
      */
-    private static void applyOutgoingEdges(ServerPlayer player, PlayerQuestState state, QuestFile questFile, String fromNodeId) {
-        for (QuestFlowEdge edge : questFile.findFlowEdgesFrom(fromNodeId)) {
+    private static boolean applyOutgoingEdges(ServerPlayer player, PlayerQuestState state, QuestFile questFile, String fromNodeId) {
+        return applyOutgoingEdges(player, state, questFile, fromNodeId, QuestStepResult.ANY);
+    }
+
+    private static boolean applyOutgoingEdges(ServerPlayer player, PlayerQuestState state, QuestFile questFile,
+                                              String fromNodeId, QuestStepResult stepResult) {
+        boolean applied = false;
+        for (QuestFlowEdge edge : questFile.findFlowEdgesFrom(fromNodeId, stepResult)) {
             if (!edge.evaluate(state.questVariables, player.registryAccess(), player)) {
                 continue;
             }
@@ -255,7 +286,9 @@ public class QuestFlowExecutor {
                 joinProgress.arrivedFromNodeIds.add(fromNodeId);
             }
             state.activeFlowNodes.add(edge.toNodeId);
+            applied = true;
         }
+        return applied;
     }
 
     /**
@@ -372,7 +405,7 @@ public class QuestFlowExecutor {
         QuestTrackingService.refresh(player);
     }
 
-    private static void printDebugMessages(ServerPlayer player, PlayerQuestState state, QuestFlowEdge edge) {
+    static void printDebugMessages(ServerPlayer player, PlayerQuestState state, QuestFlowEdge edge) {
         for (QuestDebugPrint debugPrint : edge.debugPrints) {
             if (debugPrint.message == null || debugPrint.message.isEmpty()) {
                 continue;

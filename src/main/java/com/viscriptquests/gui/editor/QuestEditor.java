@@ -1,7 +1,8 @@
 package com.viscriptquests.gui.editor;
 
 import com.lowdragmc.lowdraglib2.editor.ui.Editor;
-import com.lowdragmc.lowdraglib2.editor.ui.SplittableWindow;
+import com.lowdragmc.lowdraglib2.editor.ui.EditorLayout;
+import com.lowdragmc.lowdraglib2.editor.ui.ViewContainer;
 import com.viscriptquests.ViScriptQuests;
 import net.minecraft.resources.ResourceLocation;
 
@@ -11,16 +12,7 @@ public class QuestEditor extends Editor {
     public static final ResourceLocation EDITOR_ID = ViScriptQuests.id("quest_editor");
 
     public QuestEditor() {
-        removeEmptyPanel(leftWindow);
-        removeEmptyPanel(bottomWindow);
-
-        var centerViewContainer = centerWindow.getViewContainer();
-        if (centerViewContainer != null) {
-            rootWindow.setViewContainer(centerViewContainer);
-        }
-
-        centerWindow.setDisplay(false);
-        rightWindow.setDisplay(false);
+        rootWindow.setViewContainer(new ViewContainer());
     }
 
     @Override
@@ -34,12 +26,8 @@ public class QuestEditor extends Editor {
         return new QuestEditor();
     }
 
-    // 移除非根面板：先隐藏再从父窗口中分离，让剩余面板接管原本的分屏空间。
-    private void removeEmptyPanel(SplittableWindow window) {
-        window.setDisplay(false);
-        var parent = window.getParentWindow();
-        if (parent != null) {
-            parent.removeSplitWindow(window);
-        }
+    @Override
+    public void applyLayout(EditorLayout layout) {
+        // 任务编辑器固定为单窗口蓝图编辑器，不恢复 LDLib2 默认的资源/历史/检查器多面板布局。
     }
 }

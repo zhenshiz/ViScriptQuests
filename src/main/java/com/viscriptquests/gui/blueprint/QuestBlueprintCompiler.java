@@ -10,17 +10,22 @@ import com.viscriptquests.gui.blueprint.compiler.IQuestRewardNodeCompiler;
 import com.viscriptquests.gui.blueprint.compiler.IQuestTaskNodeCompiler;
 import com.viscriptquests.gui.blueprint.compiler.QuestCompileContext;
 import com.viscriptquests.gui.blueprint.compiler.QuestFlowGraphBuilder;
+import com.viscriptquests.gui.blueprint.compiler.QuestObjectiveActionCompiler;
 import com.viscriptquests.gui.blueprint.compiler.QuestBlueprintValidationException;
 import com.viscriptquests.gui.blueprint.compiler.QuestBlueprintValidator;
 import com.viscriptquests.gui.blueprint.model.QuestSubQuestNodeModel;
 import com.viscriptquests.gui.blueprint.node.flow.QuestStartNode;
+import com.viscriptquests.gui.blueprint.node.flow.SubQuestStartNode;
 import com.viscriptquests.gui.blueprint.node.flow.SubQuestNode;
+import com.viscriptquests.gui.blueprint.node.reward.RewardPlaceholderNode;
 import com.viscriptquests.quest.data.*;
 import com.viscriptquests.quest.data.reward.IReward;
+import com.viscriptquests.quest.data.runtime.RewardDisplay;
 import com.viscriptquests.quest.data.task.ITask;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.util.StringRepresentable;
 import org.jetbrains.annotations.NotNull;
 
@@ -43,6 +48,8 @@ public final class QuestBlueprintCompiler {
         Map<String, SubQuestInfo> subQuests = new LinkedHashMap<>();
         Map<String, List<CustomNodeModelImpl>> taskNodes = new LinkedHashMap<>();
         Map<String, List<CustomNodeModelImpl>> rewardNodes = new LinkedHashMap<>();
+        Map<String, List<RewardDisplay>> rewardPlaceholders = new LinkedHashMap<>();
+        Map<String, List<ObjectiveAction>> objectiveActions = new LinkedHashMap<>();
 
         for (var nodeModel : graph.graphModel.getNodeModels()) {
             if (!(nodeModel instanceof CustomNodeModelImpl custom)) continue;
@@ -66,7 +73,8 @@ public final class QuestBlueprintCompiler {
                             context.getString(custom, "subtitle"),
                             context.getStringArray(custom, "description")
                     ));
-                    collectSubQuestContent(context, custom, stepId, taskNodes, rewardNodes);
+                    collectSubQuestContent(context, custom, stepId, taskNodes, rewardNodes, rewardPlaceholders,
+                            objectiveActions);
                 }
                 continue;
             }
@@ -125,6 +133,12 @@ public final class QuestBlueprintCompiler {
                 }
             }
         }
+        for (var displays : rewardPlaceholders.values()) {
+            questFile.rewardPlaceholders.addAll(displays);
+        }
+        for (var actions : objectiveActions.values()) {
+            questFile.objectiveActions.addAll(actions);
+        }
 
         Set<String> processedVars = new LinkedHashSet<>();
         collectVariableDefaults(graph.graphModel, questFile, processedVars, new HashSet<>());
@@ -137,7 +151,9 @@ public final class QuestBlueprintCompiler {
                                                CustomNodeModelImpl subQuestNode,
                                                String stepId,
                                                Map<String, List<CustomNodeModelImpl>> taskNodes,
-                                               Map<String, List<CustomNodeModelImpl>> rewardNodes) {
+                                               Map<String, List<CustomNodeModelImpl>> rewardNodes,
+                                               Map<String, List<RewardDisplay>> rewardPlaceholders,
+                                               Map<String, List<ObjectiveAction>> objectiveActions) {
         GraphModel subgraph = null;
         if (subQuestNode instanceof QuestSubQuestNodeModel subQuestModel) {
             subgraph = subQuestModel.getSubgraphModel();
@@ -145,29 +161,148 @@ public final class QuestBlueprintCompiler {
         if (subgraph == null) {
             return;
         }
-        collectTaskAndRewardNodesInGraph(context, subgraph, stepId, taskNodes, rewardNodes);
+        CustomNodeModelImpl start = findSubQuestStart(subgraph);
+        if (start != null) {
+            collectSubQuestFlowContent(context, start, stepId, taskNodes, rewardNodes, rewardPlaceholders,
+                    objectiveActions);
+            return;
+        }
+        collectTaskAndRewardNodesInGraph(context, subgraph, stepId, taskNodes, rewardNodes, rewardPlaceholders,
+                objectiveActions);
     }
 
     private static void collectTaskAndRewardNodesInGraph(QuestCompileContext context,
                                                          GraphModel graphModel,
                                                          String stepId,
                                                          Map<String, List<CustomNodeModelImpl>> taskNodes,
-                                                         Map<String, List<CustomNodeModelImpl>> rewardNodes) {
+                                                         Map<String, List<CustomNodeModelImpl>> rewardNodes,
+                                                         Map<String, List<RewardDisplay>> rewardPlaceholders,
+                                                         Map<String, List<ObjectiveAction>> objectiveActions) {
         for (var nodeModel : graphModel.getNodeModels()) {
             if (nodeModel instanceof CustomNodeModelImpl custom) {
                 if (context.findTaskCompiler(custom) != null) {
                     taskNodes.computeIfAbsent(stepId, ignored -> new ArrayList<>()).add(custom);
+                    String objectiveId = objectiveIdOf(custom);
+                    objectiveActions.computeIfAbsent(stepId, ignored -> new ArrayList<>())
+                            .addAll(QuestObjectiveActionCompiler.compile(context, custom, stepId, objectiveId));
                     continue;
                 }
                 if (context.findRewardCompiler(custom) != null) {
                     rewardNodes.computeIfAbsent(stepId, ignored -> new ArrayList<>()).add(custom);
+                    continue;
+                }
+                RewardDisplay placeholder = compileRewardPlaceholder(context, custom, stepId);
+                if (placeholder != null) {
+                    rewardPlaceholders.computeIfAbsent(stepId, ignored -> new ArrayList<>()).add(placeholder);
                 }
             }
             if (nodeModel instanceof SubgraphNodeModel subgraphNode) {
                 GraphModel nested = subgraphNode.getSubgraphModel();
                 if (nested != null) {
-                    collectTaskAndRewardNodesInGraph(context, nested, stepId, taskNodes, rewardNodes);
+                    collectTaskAndRewardNodesInGraph(context, nested, stepId, taskNodes, rewardNodes,
+                            rewardPlaceholders, objectiveActions);
                 }
+            }
+        }
+    }
+
+    private static CustomNodeModelImpl findSubQuestStart(GraphModel subgraph) {
+        CustomNodeModelImpl start = null;
+        for (var nodeModel : subgraph.getNodeModels()) {
+            if (!(nodeModel instanceof CustomNodeModelImpl custom)
+                    || !(custom.getNode() instanceof SubQuestStartNode)) {
+                continue;
+            }
+            if (start != null) {
+                throw QuestBlueprintValidationException.create(
+                        "viscript_quests.editor.quest.export.validation.duplicate_subquest_start");
+            }
+            start = custom;
+        }
+        return start;
+    }
+
+    private static void collectSubQuestFlowContent(QuestCompileContext context,
+                                                   CustomNodeModelImpl start,
+                                                   String stepId,
+                                                   Map<String, List<CustomNodeModelImpl>> taskNodes,
+                                                   Map<String, List<CustomNodeModelImpl>> rewardNodes,
+                                                   Map<String, List<RewardDisplay>> rewardPlaceholders,
+                                                   Map<String, List<ObjectiveAction>> objectiveActions) {
+        for (CustomNodeModelImpl taskNode : collectReachableCustomNodes(start, "objectives")) {
+            if (context.findTaskCompiler(taskNode) == null) {
+                continue;
+            }
+            taskNodes.computeIfAbsent(stepId, ignored -> new ArrayList<>()).add(taskNode);
+            String objectiveId = objectiveIdOf(taskNode);
+            objectiveActions.computeIfAbsent(stepId, ignored -> new ArrayList<>())
+                    .addAll(QuestObjectiveActionCompiler.compile(context, taskNode, stepId, objectiveId));
+        }
+        for (CustomNodeModelImpl rewardNode : collectReachableCustomNodes(start, "rewards")) {
+            if (context.findRewardCompiler(rewardNode) != null) {
+                rewardNodes.computeIfAbsent(stepId, ignored -> new ArrayList<>()).add(rewardNode);
+                continue;
+            }
+            RewardDisplay placeholder = compileRewardPlaceholder(context, rewardNode, stepId);
+            if (placeholder != null) {
+                rewardPlaceholders.computeIfAbsent(stepId, ignored -> new ArrayList<>()).add(placeholder);
+            }
+        }
+    }
+
+    private static RewardDisplay compileRewardPlaceholder(QuestCompileContext context,
+                                                          CustomNodeModelImpl node,
+                                                          String stepId) {
+        if (!(node.getNode() instanceof RewardPlaceholderNode)) {
+            return null;
+        }
+        RewardDisplay display = new RewardDisplay();
+        display.stepId = stepId == null ? "" : stepId;
+        String tooltip = context.getString(node, "reward_tooltip").trim();
+        display.displayText = tooltip.isEmpty() ? Component.empty() : Component.literal(tooltip);
+        DisplayIcon icon = context.getDisplayIcon(node, "reward_icon");
+        display.icon = hasDisplayIcon(icon) ? icon : RewardPlaceholderNode.defaultIcon();
+        return display;
+    }
+
+    private static boolean hasDisplayIcon(DisplayIcon icon) {
+        if (icon == null) {
+            return false;
+        }
+        if (icon.isTexture()) {
+            return icon.getTexture() != null && !icon.getTexture().isBlank();
+        }
+        return icon.getItemStack() != null && !icon.getItemStack().isEmpty();
+    }
+
+    private static List<CustomNodeModelImpl> collectReachableCustomNodes(CustomNodeModelImpl start, String portId) {
+        List<CustomNodeModelImpl> result = new ArrayList<>();
+        ArrayDeque<CustomNodeModelImpl> queue = new ArrayDeque<>();
+        enqueueOutput(start, portId, queue);
+        Set<UUID> visited = new LinkedHashSet<>();
+        while (!queue.isEmpty()) {
+            CustomNodeModelImpl node = queue.removeFirst();
+            if (node == null || !visited.add(node.getUid())) {
+                continue;
+            }
+            result.add(node);
+            enqueueOutput(node, "next", queue);
+            if (node.getNode() instanceof com.viscriptquests.gui.blueprint.node.flow.QuestBranchNode) {
+                enqueueOutput(node, "true", queue);
+                enqueueOutput(node, "false", queue);
+            }
+        }
+        return result;
+    }
+
+    private static void enqueueOutput(CustomNodeModelImpl node, String portId, ArrayDeque<CustomNodeModelImpl> queue) {
+        PortModel port = node.getOutputsById().get(portId);
+        if (port == null) {
+            return;
+        }
+        for (PortModel connectedPort : port.getConnectedPorts()) {
+            if (connectedPort.getNodeModel() instanceof CustomNodeModelImpl custom) {
+                queue.add(custom);
             }
         }
     }
@@ -214,6 +349,7 @@ public final class QuestBlueprintCompiler {
             if (task == null) {
                 continue;
             }
+            task.objectiveId = objectiveIdOf(taskModel);
             IQuestTaskNodeCompiler.applyCommonOptions(context, taskModel, task);
             questFile.tasks.add(task);
             addedTask = true;
@@ -230,6 +366,10 @@ public final class QuestBlueprintCompiler {
         step.subtitle = subInfo.subtitle;
         step.description = subInfo.description.clone();
         questFile.steps.add(step);
+    }
+
+    private static String objectiveIdOf(CustomNodeModelImpl taskModel) {
+        return taskModel == null || taskModel.getUid() == null ? "" : taskModel.getUid().toString();
     }
 
     // 构建变量端口连线反向映射：输入端口 UUID -> 变量名。

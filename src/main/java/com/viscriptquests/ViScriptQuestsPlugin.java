@@ -49,15 +49,20 @@ public class ViScriptQuestsPlugin implements ILDLibPlugin {
         register(LootTableConfig.class, LootTableConfig::new);
         register(LootTableReward.class, LootTableReward::new);
 
+        // 流程动作依赖的嵌套类型要先注册。
+        register(QuestValueToken.class, QuestValueToken::new);
+        register(QuestVariableValue.class, QuestVariableValue::new);
+        register(DebugValuePrint.class, DebugValuePrint::new);
+        register(VariableMutation.class, VariableMutation::new);
+        register(ScoreboardMutation.class, ScoreboardMutation::new);
+        register(QuestDebugPrint.class, QuestDebugPrint::new);
+        register(QuestFlowEdge.class, QuestFlowEdge::new);
+
         // 运行时数据类型
         register(TaskObjectiveProgress.class, TaskObjectiveProgress::new);
         register(TaskProgress.class, TaskProgress::new);
         register(QuestStep.class, QuestStep::new);
-        register(VariableMutation.class, VariableMutation::new);
-        register(ScoreboardMutation.class, ScoreboardMutation::new);
-        register(QuestValueToken.class, QuestValueToken::new);
-        register(QuestVariableValue.class, QuestVariableValue::new);
-        register(DebugValuePrint.class, DebugValuePrint::new);
+        register(ObjectiveAction.class, ObjectiveAction::new);
         register(QuestCategoryData.class, QuestCategoryData::new);
         register(QuestCategoryListData.class, QuestCategoryListData::new);
         register(QuestCategoryConfigData.class, QuestCategoryConfigData::new);
@@ -65,8 +70,6 @@ public class ViScriptQuestsPlugin implements ILDLibPlugin {
         register(QuestPlayerData.class, QuestPlayerData::new);
         register(PlayerQuestState.class, PlayerQuestState::new);
         register(QuestFlowNode.class, QuestFlowNode::new);
-        register(QuestDebugPrint.class, QuestDebugPrint::new);
-        register(QuestFlowEdge.class, QuestFlowEdge::new);
         register(JoinProgress.class, JoinProgress::new);
         register(RewardDisplay.class, RewardDisplay::new);
         register(QuestRegistryId.class, QuestRegistryId::new);

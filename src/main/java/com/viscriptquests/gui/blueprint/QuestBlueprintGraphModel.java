@@ -15,6 +15,8 @@ import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.PortModel;
 import com.viscriptquests.gui.blueprint.model.QuestSubQuestNodeModel;
 import com.viscriptquests.gui.blueprint.model.QuestMathOperationNodeModel;
 import com.viscriptquests.gui.blueprint.node.QuestBlueprintNode;
+import com.viscriptquests.gui.blueprint.node.flow.QuestBranchNode;
+import com.viscriptquests.gui.blueprint.node.flow.SubQuestStartNode;
 import com.viscriptquests.gui.blueprint.node.flow.SubQuestNode;
 import com.viscriptquests.gui.blueprint.node.math.MathOperationNode;
 import net.minecraft.core.HolderLookup;
@@ -172,8 +174,12 @@ public class QuestBlueprintGraphModel extends CustomGraphModelImpl {
     }
 
     private boolean isNodeAvailableInCurrentGraph(Class<? extends Node> nodeClass) {
-        boolean contentNode = isSubQuestContentNode(nodeClass);
-        return isSubQuestContentGraph() ? contentNode : !contentNode;
+        if (isSubQuestContentGraph()) {
+            return isSubQuestContentNode(nodeClass);
+        }
+        return nodeClass != SubQuestStartNode.class
+                && !isNodeInGroup(nodeClass, QuestBlueprintNode.TASK_GROUP)
+                && !isNodeInGroup(nodeClass, QuestBlueprintNode.REWARD_GROUP);
     }
 
     private boolean isSubQuestContentGraph() {
@@ -181,7 +187,15 @@ public class QuestBlueprintGraphModel extends CustomGraphModelImpl {
     }
 
     public static boolean isSubQuestContentNode(Class<? extends Node> nodeClass) {
+        if (nodeClass == SubQuestStartNode.class || nodeClass == QuestBranchNode.class) {
+            return true;
+        }
         return isNodeInGroup(nodeClass, QuestBlueprintNode.TASK_GROUP)
+                || isNodeInGroup(nodeClass, QuestBlueprintNode.LOGIC_GROUP)
+                || isNodeInGroup(nodeClass, QuestBlueprintNode.MATH_GROUP)
+                || isNodeInGroup(nodeClass, QuestBlueprintNode.DEBUG_GROUP)
+                || isNodeInGroup(nodeClass, QuestBlueprintNode.SCOREBOARD_GROUP)
+                || isNodeInGroup(nodeClass, QuestBlueprintNode.VARIABLE_GROUP)
                 || isNodeInGroup(nodeClass, QuestBlueprintNode.REWARD_GROUP);
     }
 

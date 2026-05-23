@@ -44,6 +44,9 @@ public class PlayerQuestState implements IPersistedSerializable {
     // 已发放奖励的目标 ID 集合
     @Persisted
     public final Set<String> rewardedSteps = new LinkedHashSet<>();
+    // 已触发过的目标动态动作，避免同一个目标在刷新/队伍同步后重复发放动态奖励。
+    @Persisted
+    public final Set<String> triggeredObjectiveActions = new LinkedHashSet<>();
     // 任务作用域变量，由外部命令/事件设置，用于分支条件判断
     @Persisted
     public final Map<String, QuestVariableValue> questVariables = new LinkedHashMap<>();
@@ -56,7 +59,7 @@ public class PlayerQuestState implements IPersistedSerializable {
     // Join 节点的到达进度。
     @Persisted
     public final List<JoinProgress> flowJoinProgresses = new ArrayList<>();
-    // 奖励显示数据（从 QuestFile.rewards 提取），用于客户端 UI 展示
+    // 奖励显示数据（从真实奖励和展示占位符提取），用于客户端 UI 展示。
     @Persisted
     public final List<RewardDisplay> rewardDisplays = new ArrayList<>();
 
@@ -92,7 +95,7 @@ public class PlayerQuestState implements IPersistedSerializable {
             if (tasks.isEmpty()) {
                 continue;
             }
-            TaskProgress progress = TaskProgress.fromTasks(step.stepId, tasks, step, player);
+            TaskProgress progress = TaskProgress.fromTasks(step.stepId, tasks, step, null);
             progress.status = TaskStatus.LOCKED;
             state.taskProgresses.add(progress);
         }
@@ -101,7 +104,7 @@ public class PlayerQuestState implements IPersistedSerializable {
                 continue;
             }
             QuestStep step = file.findStep(task.stepId).orElse(null);
-            TaskProgress progress = TaskProgress.fromTasks(task.stepId, file.findTasksForStep(task.stepId), step, player);
+            TaskProgress progress = TaskProgress.fromTasks(task.stepId, file.findTasksForStep(task.stepId), step, null);
             progress.status = TaskStatus.LOCKED;
             state.taskProgresses.add(progress);
         }
@@ -159,6 +162,13 @@ public class PlayerQuestState implements IPersistedSerializable {
             display.displayText = hint == null ? Component.empty() : hint.copy();
             DisplayIcon icon = reward.getRewardIcon();
             display.icon = icon == null ? new DisplayIcon() : icon.copy();
+            rewardDisplays.add(display);
+        }
+        for (RewardDisplay placeholder : file.rewardPlaceholders) {
+            RewardDisplay display = new RewardDisplay();
+            display.stepId = placeholder.stepId == null ? "" : placeholder.stepId;
+            display.displayText = placeholder.displayText == null ? Component.empty() : placeholder.displayText.copy();
+            display.icon = placeholder.icon == null ? new DisplayIcon() : placeholder.icon.copy();
             rewardDisplays.add(display);
         }
     }

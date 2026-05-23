@@ -26,8 +26,6 @@ import com.viscriptquests.quest.data.reward.LootTableReward;
 import dev.vfyjxf.taffy.style.FlexDirection;
 import net.minecraft.world.item.ItemStack;
 
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -62,10 +60,6 @@ public final class QuestBlueprintTypes {
     public static final TypeHandle ANY_ENTITY_TYPE_ID = TypeHandleHelpers.customType(QuestRegistryId.class, "viscript_quests:any_entity_type_id", "AnyEntityTypeId");
     // 进度 ID，来自服务端同步的 Advancement 列表
     public static final TypeHandle ADVANCEMENT_ID = TypeHandleHelpers.customType(QuestRegistryId.class, "viscript_quests:advancement_id", "AdvancementId");
-    // 自定义战利品表条目列表，必须保留泛型信息，避免 LDLib2 把它当成裸 List。
-    public static final TypeHandle LOOT_TABLE_CONFIG_LIST = TypeHandleHelpers.customType(lootTableConfigListType(),
-            "viscript_quests:loot_table_config_list", "LootTableConfigList");
-
     static {
         TypeHandleHelpers.setCustomIcon(TypeHandles.ITEM_STACK, Icons.RESOURCE);
         TypeHandleHelpers.setCustomColorAndIcon(STRING_ARRAY, 0xFFE3890B, Icons.STRING.copy().setColor(0xFFE3890B));
@@ -96,34 +90,6 @@ public final class QuestBlueprintTypes {
         registerRegistryIdType(ENTITY_TYPE_ID, "minecraft:pig");
         registerRegistryIdType(ANY_ENTITY_TYPE_ID, "minecraft:pig");
         registerRegistryIdType(ADVANCEMENT_ID, "minecraft:story/root");
-        TypeHandleHelpers.setCustomColorAndIcon(LOOT_TABLE_CONFIG_LIST, 0xFFFFD166, Icons.RESOURCE.copy().setColor(0xFFFFD166));
-        TypeHandleHelpers.setCustomDefaultValue(LOOT_TABLE_CONFIG_LIST, ArrayList::new);
-        TypeHandleHelpers.setCustomConfigurable(LOOT_TABLE_CONFIG_LIST, (valueConfigurable, typeHandle) ->
-                IConfigurable.create(father -> father.addConfigurator(createLootTableConfigListConfigurator(valueConfigurable))));
-    }
-
-    private static Type lootTableConfigListType() {
-        return new ParameterizedType() {
-            @Override
-            public Type[] getActualTypeArguments() {
-                return new Type[]{LootTableConfig.class};
-            }
-
-            @Override
-            public Type getRawType() {
-                return List.class;
-            }
-
-            @Override
-            public Type getOwnerType() {
-                return null;
-            }
-
-            @Override
-            public String getTypeName() {
-                return "java.util.List<com.viscriptquests.quest.data.LootTableConfig>";
-            }
-        };
     }
 
     private static DisplayIcon createDefaultDisplayIcon(Object defaultValue) {
@@ -175,51 +141,6 @@ public final class QuestBlueprintTypes {
         return container;
     }
 
-    private static Configurator createLootTableConfigListConfigurator(com.lowdragmc.lowdraglib2.nodegraphtookit.api.IFieldValueConfigurable valueConfigurable) {
-        List<LootTableConfig> value = valueConfigurable.getValue();
-        if (value == null) {
-            value = new ArrayList<>();
-            valueConfigurable.setValue(value);
-        }
-        List<LootTableConfig> lootConfigs = value;
-        ArrayConfiguratorGroup<LootTableConfig> group = new ArrayConfiguratorGroup<>(
-                "",
-                false,
-                () -> lootConfigs,
-                (getter, setter) -> {
-                    ConfiguratorGroup itemGroup = new ConfiguratorGroup("", false).hideTitle();
-                    itemGroup.setCanCollapse(false);
-                    LootTableConfig config = getter.get();
-                    if (config == null) {
-                        config = new LootTableConfig();
-                        setter.accept(config);
-                    }
-                    LootTableConfig finalConfig = config;
-                    finalConfig.buildConfigurator(itemGroup);
-                    itemGroup.addEventListener(Configurator.CHANGE_EVENT, event -> {
-                        setter.accept(finalConfig);
-                        valueConfigurable.notifyValueChanged();
-                    });
-                    return itemGroup;
-                },
-                true
-        );
-        group.setAddDefault(LootTableConfig::new);
-        group.setOnUpdate(list -> {
-            lootConfigs.clear();
-            lootConfigs.addAll(list);
-            valueConfigurable.setValue(lootConfigs);
-            valueConfigurable.notifyValueChanged();
-        });
-        group.layout(layout -> layout.widthPercent(100));
-        group.configuratorContainer.layout(layout -> {
-            layout.widthPercent(100);
-            layout.paddingAll(2);
-            layout.marginLeft(0);
-        });
-        return group;
-    }
-
     public static LootTableReward defaultLootTableReward() {
         LootTableReward reward = new LootTableReward();
         reward.dataPackPath = "minecraft:chests/simple_dungeon";
@@ -267,32 +188,31 @@ public final class QuestBlueprintTypes {
     }
 
     private static Configurator createLootTableRewardValueConfigurator(LootTableReward reward, Runnable onChanged) {
-        return switch (reward.lootTableType == null ? LootTableReward.LootTableType.DATA_PACK : reward.lootTableType) {
-            case DATA_PACK -> {
-                var pathConfigurator = new StringConfigurator(
-                        "",
-                        () -> reward.dataPackPath,
-                        value -> {
-                            reward.dataPackPath = value == null ? "" : value;
-                            onChanged.run();
-                        },
-                        "minecraft:chests/simple_dungeon",
-                        true
-                ).setResourceLocation(true);
-                pathConfigurator.layout(layout -> layout.widthPercent(100));
-                pathConfigurator.lineContainer.layout(layout -> layout.widthPercent(100));
-                pathConfigurator.inlineContainer.layout(layout -> layout.widthPercent(100));
-                pathConfigurator.textField.layout(layout -> {
-                    layout.width(150);
-                    layout.minWidth(150);
-                });
-                yield pathConfigurator;
-            }
-            case CUSTOM -> {
-                var listConfigurator = createLootTableConfigListConfigurator(reward.customLootTable, onChanged);
-                yield listConfigurator;
-            }
-        };
+        LootTableReward.LootTableType type = reward.lootTableType == null
+                ? LootTableReward.LootTableType.DATA_PACK
+                : reward.lootTableType;
+        if (type == LootTableReward.LootTableType.CUSTOM) {
+            return createLootTableConfigListConfigurator(reward.customLootTable, onChanged);
+        }
+
+        var pathConfigurator = new StringConfigurator(
+                "",
+                () -> reward.dataPackPath,
+                value -> {
+                    reward.dataPackPath = value == null ? "" : value;
+                    onChanged.run();
+                },
+                "minecraft:chests/simple_dungeon",
+                true
+        ).setResourceLocation(true);
+        pathConfigurator.layout(layout -> layout.widthPercent(100));
+        pathConfigurator.lineContainer.layout(layout -> layout.widthPercent(100));
+        pathConfigurator.inlineContainer.layout(layout -> layout.widthPercent(100));
+        pathConfigurator.textField.layout(layout -> {
+            layout.width(150);
+            layout.minWidth(150);
+        });
+        return pathConfigurator;
     }
 
     private static Configurator createLootTableConfigListConfigurator(List<LootTableConfig> lootConfigs, Runnable onChanged) {
@@ -334,52 +254,50 @@ public final class QuestBlueprintTypes {
     }
 
     private static Configurator createDisplayIconValueConfigurator(DisplayIcon icon, Runnable onChanged) {
-        return switch (icon.getType() == null ? IconType.ITEM : icon.getType()) {
-            case ITEM -> {
-                if (icon.getItemStack() == null) {
-                    icon.setItemStack(ItemStack.EMPTY);
-                }
-                var itemConfigurator = new ItemStackAccessor().create(
-                        "",
-                        icon::getItemStack,
-                        stack -> {
-                            icon.setItemStack(stack == null ? ItemStack.EMPTY : stack.copy());
-                            onChanged.run();
-                        },
-                        true,
-                        null,
-                        null
-                );
-                itemConfigurator.layout(layout -> layout.widthPercent(100));
-                itemConfigurator.lineContainer.layout(layout -> layout.widthPercent(100));
-                itemConfigurator.inlineContainer.layout(layout -> layout.widthPercent(100));
-                if (itemConfigurator instanceof ConfiguratorGroup itemGroup) {
-                    itemGroup.configuratorContainer.layout(layout -> {
-                        layout.widthPercent(100);
-                        layout.paddingAll(2);
-                        layout.marginLeft(0);
-                    });
-                }
-                yield itemConfigurator;
+        IconType type = icon.getType() == null ? IconType.ITEM : icon.getType();
+        if (type == IconType.ITEM) {
+            if (icon.getItemStack() == null) {
+                icon.setItemStack(ItemStack.EMPTY);
             }
-            case TEXTURE -> {
-                var textureConfigurator = new StringConfigurator(
-                        "",
-                        icon::getTexture,
-                        value -> {
-                            icon.setTexture(value == null ? "" : value);
-                            onChanged.run();
-                        },
-                        "",
-                        true
-                ).setResourceLocation(true);
-                textureConfigurator.layout(layout -> layout.widthPercent(100));
-                textureConfigurator.lineContainer.layout(layout -> layout.widthPercent(100));
-                textureConfigurator.inlineContainer.layout(layout -> layout.widthPercent(100));
-                textureConfigurator.textField.layout(layout -> layout.widthPercent(100));
-                yield textureConfigurator;
+            var itemConfigurator = new ItemStackAccessor().create(
+                    "",
+                    icon::getItemStack,
+                    stack -> {
+                        icon.setItemStack(stack == null ? ItemStack.EMPTY : stack.copy());
+                        onChanged.run();
+                    },
+                    true,
+                    null,
+                    null
+            );
+            itemConfigurator.layout(layout -> layout.widthPercent(100));
+            itemConfigurator.lineContainer.layout(layout -> layout.widthPercent(100));
+            itemConfigurator.inlineContainer.layout(layout -> layout.widthPercent(100));
+            if (itemConfigurator instanceof ConfiguratorGroup itemGroup) {
+                itemGroup.configuratorContainer.layout(layout -> {
+                    layout.widthPercent(100);
+                    layout.paddingAll(2);
+                    layout.marginLeft(0);
+                });
             }
-        };
+            return itemConfigurator;
+        }
+
+        var textureConfigurator = new StringConfigurator(
+                "",
+                icon::getTexture,
+                value -> {
+                    icon.setTexture(value == null ? "" : value);
+                    onChanged.run();
+                },
+                "",
+                true
+        ).setResourceLocation(true);
+        textureConfigurator.layout(layout -> layout.widthPercent(100));
+        textureConfigurator.lineContainer.layout(layout -> layout.widthPercent(100));
+        textureConfigurator.inlineContainer.layout(layout -> layout.widthPercent(100));
+        textureConfigurator.textField.layout(layout -> layout.widthPercent(100));
+        return textureConfigurator;
     }
 
     private static void registerRegistryIdType(TypeHandle typeHandle, String defaultValue) {

@@ -2,6 +2,7 @@ package com.viscriptquests.quest.runtime;
 
 import com.viscriptquests.quest.data.QuestFile;
 import com.viscriptquests.quest.data.QuestSavedData;
+import com.viscriptquests.quest.data.ObjectiveAction;
 import com.viscriptquests.quest.data.runtime.PlayerQuestState;
 import com.viscriptquests.quest.data.runtime.QuestPlayerData;
 import com.viscriptquests.quest.data.runtime.QuestStatus;
@@ -10,13 +11,16 @@ import com.viscriptquests.quest.data.runtime.TaskProgress;
 import com.viscriptquests.quest.data.runtime.TaskStatus;
 import com.viscriptquests.quest.data.task.AdvancementTask;
 import com.viscriptquests.quest.data.task.BreakBlockTask;
+import com.viscriptquests.quest.data.task.CountdownTask;
 import com.viscriptquests.quest.data.task.CustomTriggerTask;
+import com.viscriptquests.quest.data.task.EntityDeathTask;
 import com.viscriptquests.quest.data.task.ITask;
 import com.viscriptquests.quest.data.task.InteractEntityTask;
 import com.viscriptquests.quest.data.task.KillEntityTask;
 import com.viscriptquests.util.QuestFileHelper;
 import net.minecraft.advancements.AdvancementHolder;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.players.PlayerList;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -24,6 +28,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -103,6 +108,7 @@ public class QuestSubmissionService {
                     : !automatic && task.submitObjective(player, objective));
             if (submitted) {
                 changed = true;
+                triggerObjectiveActions(player, questState, questFile, stepId, objective);
                 if (objective.isFailureCondition() && objective.completed) {
                     return failQuestFromObjective(player, savedData, playerData, questState, questFile,
                             progress.get(), stepId);
@@ -153,6 +159,7 @@ public class QuestSubmissionService {
         if (!tasks.get(objectiveIndex).submitObjective(player, objective)) {
             return false;
         }
+        triggerObjectiveActions(player, questState, questFile, stepId, objective);
         return completeStepIfReady(player, savedData, playerData, questState, questFile, progress.get(), stepId);
     }
 
@@ -247,6 +254,32 @@ public class QuestSubmissionService {
         });
     }
 
+    public static boolean recordEntityDeath(LivingEntity deadEntity) {
+        if (deadEntity == null || deadEntity.level().isClientSide() || deadEntity.getServer() == null) {
+            return false;
+        }
+        PlayerList players = deadEntity.getServer().getPlayerList();
+        boolean changed = false;
+        for (ServerPlayer player : players.getPlayers()) {
+            if (recordTaskProgress(player, EntityDeathTask.class, (recordPlayer, deathTask, objective) -> {
+                if (!deathTask.matches(deadEntity)) {
+                    return false;
+                }
+                if (objective.completed) {
+                    return false;
+                }
+                int required = Math.max(1, deathTask.getRequiredAmount());
+                objective.requiredAmount = required;
+                objective.currentAmount = Math.min(required, Math.max(0, objective.currentAmount) + 1);
+                objective.completed = objective.currentAmount >= required;
+                return true;
+            })) {
+                changed = true;
+            }
+        }
+        return changed;
+    }
+
     public static boolean recordBlockBreak(ServerPlayer player, BlockState blockState) {
         if (player == null || blockState == null || player.level().isClientSide()) {
             return false;
@@ -317,6 +350,11 @@ public class QuestSubmissionService {
         });
     }
 
+    public static boolean tickCountdownTasks(ServerPlayer player) {
+        return recordTaskProgress(player, CountdownTask.class,
+                (recordPlayer, countdownTask, objective) -> countdownTask.autoCompleteObjective(recordPlayer, objective));
+    }
+
     private static <T extends ITask> boolean recordTaskProgressForStep(ServerPlayer player, QuestSavedData savedData,
                                                                        QuestPlayerData playerData,
                                                                        PlayerQuestState questState,
@@ -335,8 +373,12 @@ public class QuestSubmissionService {
                 continue;
             }
             TaskObjectiveProgress objective = progress.objectives.get(i);
+            boolean wasCompleted = objective.completed;
             if (recorder.record(player, taskType.cast(task), objective)) {
                 changed = true;
+                if (!wasCompleted && objective.completed) {
+                    triggerObjectiveActions(player, questState, questFile, progress.stepId, objective);
+                }
                 if (objective.isFailureCondition() && objective.completed) {
                     return failQuestFromObjective(player, savedData, playerData, questState, questFile,
                             progress, progress.stepId);
@@ -393,16 +435,24 @@ public class QuestSubmissionService {
             }
             TaskObjectiveProgress current = progress.objectives.get(i);
             TaskObjectiveProgress fresh = refreshed.objectives.get(i);
+            boolean sameObjective = Objects.equals(current.objectiveId, fresh.objectiveId);
+            if (!sameObjective) {
+                current.currentAmount = 0;
+                current.completed = false;
+                current.startedGameTime = -1L;
+            }
+            current.objectiveId = fresh.objectiveId;
             current.hint = fresh.displayHint();
             current.displayIcon = fresh.displayIcon;
             current.objectiveType = fresh.objectiveType;
             current.requiredAmount = fresh.requiredAmount;
             current.manualSubmitRequired = fresh.manualSubmitRequired;
             current.guideMarker = fresh.guideMarker;
+            current.progressTextOverride = fresh.progressTextOverride == null ? "" : fresh.progressTextOverride;
             boolean refreshFromPlayerState = i < tasks.size() && tasks.get(i).refreshesProgressFromPlayerState();
             if (!current.completed && !current.manualSubmitRequired && refreshFromPlayerState) {
-                current.currentAmount = fresh.currentAmount;
-                current.completed = fresh.completed;
+                current.progressTextOverride = "";
+                tasks.get(i).refreshObjectiveProgress(player, current);
             } else if (!refreshFromPlayerState) {
                 current.currentAmount = Math.min(current.currentAmount, current.requiredAmount);
                 current.completed = current.completed || current.currentAmount >= current.requiredAmount;
@@ -415,18 +465,54 @@ public class QuestSubmissionService {
         return true;
     }
 
+    private static void triggerObjectiveActions(ServerPlayer player, PlayerQuestState questState, QuestFile questFile,
+                                                String stepId, TaskObjectiveProgress objective) {
+        if (objective == null || !objective.completed || objective.objectiveId == null || objective.objectiveId.isBlank()) {
+            return;
+        }
+        for (ObjectiveAction action : questFile.findObjectiveActions(stepId, objective.objectiveId)) {
+            if (action == null || action.actionId == null || action.actionId.isBlank()) {
+                continue;
+            }
+            String triggerKey = stepId + ":" + objective.objectiveId + ":" + action.actionId;
+            if (!questState.triggeredObjectiveActions.add(triggerKey)) {
+                continue;
+            }
+            if (!canRunObjectiveAction(player, questState, action)) {
+                continue;
+            }
+            action.edge.applyMutations(questState.questVariables, player.registryAccess(), player);
+            QuestFlowExecutor.printDebugMessages(player, questState, action.edge);
+            for (var reward : action.rewards) {
+                QuestRewardService.grantDynamicReward(player, reward);
+            }
+        }
+    }
+
+    private static boolean canRunObjectiveAction(ServerPlayer player, PlayerQuestState questState, ObjectiveAction action) {
+        for (var gate : action.gates) {
+            if (gate != null && !gate.evaluate(questState.questVariables, player.registryAccess(), player)) {
+                return false;
+            }
+        }
+        return action.edge == null || action.edge.evaluate(questState.questVariables, player.registryAccess(), player);
+    }
+
     private static boolean failQuestFromObjective(ServerPlayer player, QuestSavedData savedData,
                                                   QuestPlayerData playerData, PlayerQuestState questState,
                                                   QuestFile questFile, TaskProgress progress, String stepId) {
+        Set<String> activeStepIdsBeforeSubmit = activeStepIds(questState);
         progress.status = TaskStatus.FAILED;
-        QuestFlowExecutor.failQuest(player, questState, questFile, stepId);
+        QuestFlowExecutor.failStepNode(player, questState, questFile, stepId);
         savedData.setDirty();
-        QuestTrackingService.refresh(player);
-        QuestTeamProgressService.syncQuestState(player, questState);
-        if (playerData.trackedQuestId.equals(questState.questId)) {
+        if (questState.status != QuestStatus.ACTIVE && playerData.trackedQuestId.equals(questState.questId)) {
             playerData.trackedQuestId = "";
             playerData.trackedStepId = "";
+            QuestTrackingService.refresh(player);
+        } else {
+            QuestTrackingService.refreshAfterStepSubmit(player, playerData, questState, stepId, activeStepIdsBeforeSubmit);
         }
+        QuestTeamProgressService.syncQuestState(player, questState);
         return true;
     }
 

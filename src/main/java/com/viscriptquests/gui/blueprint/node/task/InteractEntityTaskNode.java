@@ -2,6 +2,7 @@ package com.viscriptquests.gui.blueprint.node.task;
 
 import com.lowdragmc.lowdraglib2.nodegraphtookit.api.node.NodeAttribute;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.definition.IOptionDefinitionContext;
+import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.definition.IPortDefinitionContext;
 import com.viscriptquests.gui.blueprint.QuestBlueprintGraph;
 import com.viscriptquests.gui.blueprint.node.QuestBlueprintNode;
 import net.minecraft.network.chat.Component;
@@ -19,5 +20,10 @@ public class InteractEntityTaskNode extends QuestBlueprintNode {
         anyEntityTypeOption(context, "entity_type", "minecraft:pig");
         stringOption(context, "tag", "");
         taskCommonOptions(context);
+    }
+
+    @Override
+    public void onDefinePorts(IPortDefinitionContext context) {
+        taskFlowPorts(context);
     }
 }

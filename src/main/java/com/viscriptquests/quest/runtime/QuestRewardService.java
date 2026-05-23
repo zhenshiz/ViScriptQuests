@@ -29,6 +29,10 @@ public class QuestRewardService {
         }
     }
 
+    static void grantDynamicReward(ServerPlayer player, IReward reward) {
+        grantReward(player, reward);
+    }
+
     public static void grantPendingRewards(ServerPlayer player) {
         QuestPlayerData playerData = QuestSavedData.get(player.getServer()).getPlayer(player.getUUID());
         if (playerData.pendingRewards.isEmpty()) {

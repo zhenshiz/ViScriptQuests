@@ -25,6 +25,7 @@ public class SubQuestNode extends QuestLinkedNode {
     @Override
     public void onDefinePorts(IPortDefinitionContext context) {
         inputFlow(context);
-        outputFlow(context, "next");
+        outputFlow(context, "success");
+        outputFlow(context, "failure");
     }
 }

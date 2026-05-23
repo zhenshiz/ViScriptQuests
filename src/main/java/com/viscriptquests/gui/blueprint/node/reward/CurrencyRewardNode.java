@@ -2,6 +2,7 @@ package com.viscriptquests.gui.blueprint.node.reward;
 
 import com.lowdragmc.lowdraglib2.nodegraphtookit.api.node.NodeAttribute;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.definition.IOptionDefinitionContext;
+import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.definition.IPortDefinitionContext;
 import com.viscriptquests.gui.blueprint.QuestBlueprintGraph;
 import com.viscriptquests.gui.blueprint.node.QuestBlueprintNode;
 import com.viscriptshop.ViscriptShop;
@@ -19,5 +20,10 @@ public class CurrencyRewardNode extends QuestBlueprintNode {
     public void onDefineOptions(IOptionDefinitionContext context) {
         intOption(context, "currency", 1);
         rewardCommonOptions(context);
+    }
+
+    @Override
+    public void onDefinePorts(IPortDefinitionContext context) {
+        rewardFlowPorts(context);
     }
 }

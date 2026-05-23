@@ -2,6 +2,7 @@ package com.viscriptquests.gui.blueprint.node.task;
 
 import com.lowdragmc.lowdraglib2.nodegraphtookit.api.node.NodeAttribute;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.definition.IOptionDefinitionContext;
+import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.definition.IPortDefinitionContext;
 import com.viscriptquests.gui.blueprint.QuestBlueprintGraph;
 import com.viscriptquests.gui.blueprint.QuestBlueprintTypes;
 import com.viscriptquests.gui.blueprint.node.QuestBlueprintNode;
@@ -25,4 +26,8 @@ public class ItemTaskNode extends QuestBlueprintNode {
         taskCommonOptions(context);
     }
 
+    @Override
+    public void onDefinePorts(IPortDefinitionContext context) {
+        taskFlowPorts(context);
+    }
 }

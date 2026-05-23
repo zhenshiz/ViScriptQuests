@@ -11,6 +11,8 @@ import net.minecraft.server.level.ServerPlayer;
 // HUD 展示单个目标用的数据。一个小任务可以包含多个目标，所以这里不要再聚合成一条文本。
 public class TaskObjectiveProgress implements IPersistedSerializable {
     @Persisted
+    public String objectiveId = "";
+    @Persisted
     public Component hint = Component.empty();
     @Persisted
     public DisplayIcon displayIcon = new DisplayIcon();
@@ -26,12 +28,19 @@ public class TaskObjectiveProgress implements IPersistedSerializable {
     public QuestGuideMarker guideMarker = new QuestGuideMarker();
     @Persisted
     public TaskObjectiveType objectiveType = TaskObjectiveType.REQUIRED;
+    // 目标激活后的起始游戏时间。倒计时类目标用它避免刷新 HUD 时重置计时。
+    @Persisted
+    public long startedGameTime = -1L;
+    // 进度文本覆盖值，用于倒计时这类不适合显示“当前/需求”的目标。
+    @Persisted
+    public String progressTextOverride = "";
 
     public static TaskObjectiveProgress fromTask(ITask task, ServerPlayer player) {
         TaskObjectiveProgress progress = new TaskObjectiveProgress();
         if (task == null) {
             return progress;
         }
+        progress.objectiveId = task.objectiveId == null ? "" : task.objectiveId;
         progress.objectiveType = task.objectiveType == null ? TaskObjectiveType.REQUIRED : task.objectiveType;
         Component hint = task.getTaskHint();
         progress.hint = hint == null ? Component.empty() : hint.copy();
@@ -46,7 +55,10 @@ public class TaskObjectiveProgress implements IPersistedSerializable {
     }
 
     public String progressText() {
-        return "[" + Math.max(0, currentAmount) + "/" + Math.max(1, requiredAmount) + "] ";
+        if (progressTextOverride != null && !progressTextOverride.isBlank()) {
+            return progressTextOverride;
+        }
+        return "(" + Math.max(0, currentAmount) + "/" + Math.max(1, requiredAmount) + ")";
     }
 
     public Component objectiveTypeLabel() {
@@ -82,5 +94,9 @@ public class TaskObjectiveProgress implements IPersistedSerializable {
 
     public Component progressHint() {
         return Component.literal(progressText()).append(displayHint());
+    }
+
+    public int displayTextColor() {
+        return (objectiveType == null ? TaskObjectiveType.REQUIRED : objectiveType).getDisplayTextColor();
     }
 }

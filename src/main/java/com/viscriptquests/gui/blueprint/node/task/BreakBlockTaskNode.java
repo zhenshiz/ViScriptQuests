@@ -2,6 +2,7 @@ package com.viscriptquests.gui.blueprint.node.task;
 
 import com.lowdragmc.lowdraglib2.nodegraphtookit.api.node.NodeAttribute;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.definition.IOptionDefinitionContext;
+import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.definition.IPortDefinitionContext;
 import com.viscriptquests.gui.blueprint.QuestBlueprintGraph;
 import com.viscriptquests.gui.blueprint.node.QuestBlueprintNode;
 import net.minecraft.network.chat.Component;
@@ -20,5 +21,10 @@ public class BreakBlockTaskNode extends QuestBlueprintNode {
         blockOption(context, "block", Blocks.STONE);
         intOption(context, "break_count", 1);
         taskCommonOptions(context);
+    }
+
+    @Override
+    public void onDefinePorts(IPortDefinitionContext context) {
+        taskFlowPorts(context);
     }
 }

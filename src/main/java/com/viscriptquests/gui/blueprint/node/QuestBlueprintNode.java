@@ -54,12 +54,22 @@ public abstract class QuestBlueprintNode extends Node {
         taskHintOption(context);
     }
 
+    protected void taskFlowPorts(IPortDefinitionContext context) {
+        inputFlow(context);
+        outputFlow(context, "next");
+    }
+
     protected void rewardCommonOptions(IOptionDefinitionContext context) {
         displayIconOption(context, "reward_icon");
         stringOption(context, "reward_tooltip", "");
         if (QuestTeamService.isLoaded()) {
             boolOption(context, "team_leader_only", false);
         }
+    }
+
+    protected void rewardFlowPorts(IPortDefinitionContext context) {
+        inputFlow(context);
+        outputFlow(context, "next");
     }
 
     protected void dimensionOption(IOptionDefinitionContext context, String id, String defaultValue) {
