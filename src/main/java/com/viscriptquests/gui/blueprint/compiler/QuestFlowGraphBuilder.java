@@ -2,7 +2,6 @@ package com.viscriptquests.gui.blueprint.compiler;
 
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.CustomNodeModelImpl;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.PortModel;
-import com.viscriptquests.gui.blueprint.QuestBlueprintCompiler.CompareOp;
 import com.viscriptquests.gui.blueprint.QuestBlueprintFlowTypes;
 import com.viscriptquests.gui.blueprint.node.flow.*;
 import com.viscriptquests.gui.blueprint.node.logic.*;

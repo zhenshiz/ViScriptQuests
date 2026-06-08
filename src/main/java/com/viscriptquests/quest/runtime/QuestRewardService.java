@@ -2,6 +2,7 @@ package com.viscriptquests.quest.runtime;
 
 import com.viscriptquests.compat.team.QuestTeamScope;
 import com.viscriptquests.compat.team.QuestTeamService;
+import com.viscript_lib.util.CodecUtil;
 import com.viscriptquests.quest.data.QuestFile;
 import com.viscriptquests.quest.data.QuestSavedData;
 import com.viscriptquests.quest.data.reward.IReward;
@@ -72,8 +73,8 @@ public class QuestRewardService {
     }
 
     private static IReward copyReward(IReward reward, net.minecraft.core.HolderLookup.Provider provider) {
-        return com.viscriptquests.util.CodecUtil.deserializeNBT(IReward.CODEC,
-                com.viscriptquests.util.CodecUtil.serializeNBT(IReward.CODEC, reward, provider),
+        return CodecUtil.deserializeNBT(IReward.CODEC,
+                CodecUtil.serializeNBT(IReward.CODEC, reward, provider),
                 provider);
     }
 }

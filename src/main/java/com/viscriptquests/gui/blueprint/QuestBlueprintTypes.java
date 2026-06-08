@@ -14,7 +14,7 @@ import com.lowdragmc.lowdraglib2.nodegraphtookit.api.type.TypeHandleHelpers;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.api.type.TypeHandles;
 import com.viscriptquests.gui.blueprint.data.QuestRegistryId;
 import com.viscriptquests.gui.blueprint.data.MathOperation;
-import com.viscriptquests.gui.blueprint.QuestBlueprintCompiler.CompareOp;
+import com.viscriptquests.quest.data.CompareOp;
 import com.viscriptquests.quest.data.DisplayIcon;
 import com.viscriptquests.quest.data.DisplayIcon.IconType;
 import com.viscriptquests.quest.data.QuestJoinMode;

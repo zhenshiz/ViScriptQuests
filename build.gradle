@@ -154,16 +154,18 @@ modAccessor {
 dependencies {
     // LDLib2
     implementation("com.lowdragmc.ldlib2:ldlib2-neoforge-${minecraft_version}:${ldlib2_version}:all")
+    implementation "com.zhenshiz:ViScriptLib-neoforge-${minecraft_version}:${viscriptlib_version}"
+    jarJar "com.zhenshiz:ViScriptLib-neoforge-${minecraft_version}:${viscriptlib_version}"
 
     // KubeJS
     implementation "dev.latvian.mods:rhino:${rhino_version}"
     implementation "dev.latvian.mods:kubejs-neoforge:${kubejs_version}"
 
     //精妙背包
-    implementation "maven.modrinth:sophisticated-backpacks:${sophisticated_backpacks_version}"
-    implementation "maven.modrinth:sophisticated-core:${sophisticated_core_version}"
+    runtimeOnly "maven.modrinth:sophisticated-backpacks:${sophisticated_backpacks_version}"
+    runtimeOnly "maven.modrinth:sophisticated-core:${sophisticated_core_version}"
     //超越维度
-    implementation "curse.maven:beyond-dimensions-1222890:${beyonddimensions_version}"
+    runtimeOnly "curse.maven:beyond-dimensions-1222890:${beyonddimensions_version}"
     //ViScriptShop
     implementation("com:ViScriptShop-neoforge-1.21.1:${viscriptshop_version}") {
         transitive = false

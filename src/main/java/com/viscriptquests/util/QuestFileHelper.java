@@ -1,6 +1,7 @@
 package com.viscriptquests.util;
 
-import com.lowdragmc.lowdraglib2.LDLib2;
+import com.viscript_lib.gui.editor.EditorAssetFiles;
+import com.viscript_lib.gui.editor.EditorFileFormat;
 import com.viscriptquests.ViScriptQuests;
 import com.viscriptquests.quest.data.QuestFile;
 import net.minecraft.core.HolderLookup;
@@ -16,21 +17,18 @@ import java.util.*;
 
 public final class QuestFileHelper {
     public static final String QUEST_SUFFIX = ".quest";
-    public static final String PROJECT_SUFFIX = ".questproj";
+    public static final EditorFileFormat FORMAT = EditorFileFormat.compressed(ViScriptQuests.MOD_ID, "quest", QUEST_SUFFIX);
+    public static final String PROJECT_SUFFIX = FORMAT.projectSuffix();
     private static final String PROJECT_NAME = "viscript_quests.editor.quest.add";
     private static final Map<String, QuestFile> CACHE = new LinkedHashMap<>();
 
     public static Path questDirectory() {
-        return LDLib2.getAssetsDir().toPath()
-                .resolve(ViScriptQuests.MOD_ID)
-                .resolve("quest");
+        return FORMAT.functionDirectory().toPath();
     }
 
     // 项目文件目录，存放 .questproj 编辑器项目文件
     public static Path projectDirectory() {
-        return LDLib2.getAssetsDir().toPath()
-                .resolve(ViScriptQuests.MOD_ID)
-                .resolve("project");
+        return FORMAT.projectDirectory().toPath();
     }
 
     public static String normalizeQuestId(String questId) {
@@ -73,22 +71,9 @@ public final class QuestFileHelper {
 
     // 扫描 quest 目录下的所有 .quest 文件，返回不带引号的逻辑任务文件 ID。
     public static List<String> getServerQuestIds() {
-        List<String> questIds = new ArrayList<>();
-        Path directory = questDirectory();
-        if (!Files.isDirectory(directory)) {
-            return questIds;
-        }
-        try (var stream = Files.walk(directory)) {
-            stream.filter(Files::isRegularFile)
-                    .filter(path -> path.getFileName().toString().endsWith(QUEST_SUFFIX))
-                    .sorted()
-                    .forEach(path -> {
-                        String relative = directory.relativize(path).toString().replace('\\', '/');
-                        questIds.add(normalizeQuestId(relative));
-                    });
-        } catch (IOException ignored) {
-        }
-        return questIds;
+        return EditorAssetFiles.listRuntimeFiles(FORMAT, true).stream()
+                .map(QuestFileHelper::normalizeQuestId)
+                .toList();
     }
 
     public static Optional<QuestFile> getQuest(String questId, HolderLookup.Provider provider) {
@@ -145,12 +130,7 @@ public final class QuestFileHelper {
     }
 
     private static Path resolveQuestPath(String questId) {
-        Path directory = questDirectory().toAbsolutePath().normalize();
-        Path path = directory.resolve(normalizeQuestId(questId) + QUEST_SUFFIX).normalize();
-        if (!path.startsWith(directory)) {
-            throw new IllegalArgumentException("Quest path escapes quest directory: " + questId);
-        }
-        return path;
+        return EditorAssetFiles.resolveRuntimeFile(FORMAT, normalizeQuestId(questId), true);
     }
 
     // ========== 项目文件 (.questproj) 方法 ==========
@@ -224,7 +204,7 @@ public final class QuestFileHelper {
         return projectOrGraphTag.copy();
     }
 
-    private static CompoundTag readProjectFileTag(Path path) throws IOException {
+    public static CompoundTag readProjectFileTag(Path path) throws IOException {
         try {
             CompoundTag tag = NbtIo.read(path);
             if (tag != null) {
@@ -236,33 +216,14 @@ public final class QuestFileHelper {
         return NbtIo.readCompressed(path, NbtAccounter.unlimitedHeap());
     }
 
-    // 扫描项目目录下的所有 .questproj 文件，用于命令 tab 补全
+    // 扫描项目目录下的所有 .questproj 文件，返回不带引号的项目 ID 用于命令补全。
     public static List<String> getServerProjectFiles() {
-        List<String> projectFiles = new ArrayList<>();
-        Path directory = projectDirectory();
-        if (Files.exists(directory) && Files.isDirectory(directory)) {
-            try (var stream = Files.walk(directory)) {
-                stream.filter(Files::isRegularFile).forEach(file -> {
-                    String path = file.toString();
-                    if (path.endsWith(PROJECT_SUFFIX)) {
-                        String relative = directory.relativize(file).toString()
-                                .replace('\\', '/')
-                                .replace(PROJECT_SUFFIX, "");
-                        projectFiles.add("\"" + relative + "\"");
-                    }
-                });
-            } catch (IOException ignored) {
-            }
-        }
-        return projectFiles;
+        return EditorAssetFiles.listProjectFiles(FORMAT, true).stream()
+                .map(QuestFileHelper::normalizeProjectId)
+                .toList();
     }
 
     private static Path resolveProjectPath(String projectId) {
-        Path directory = projectDirectory().toAbsolutePath().normalize();
-        Path path = directory.resolve(normalizeProjectId(projectId) + PROJECT_SUFFIX).normalize();
-        if (!path.startsWith(directory)) {
-            throw new IllegalArgumentException("Project path escapes project directory: " + projectId);
-        }
-        return path;
+        return EditorAssetFiles.resolveProjectFile(FORMAT, normalizeProjectId(projectId), true);
     }
 }

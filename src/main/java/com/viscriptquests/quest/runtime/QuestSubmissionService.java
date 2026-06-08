@@ -28,7 +28,6 @@ import net.minecraft.world.level.block.state.BlockState;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -91,7 +90,7 @@ public class QuestSubmissionService {
         }
 
         List<ITask> tasks = questFile.findTasksForStep(stepId);
-        if (!syncObjectiveShape(tasks, progress.get(), player)) {
+        if (!QuestObjectiveProgressService.syncObjectiveShape(tasks, progress.get(), player)) {
             return false;
         }
         boolean changed = false;
@@ -146,7 +145,7 @@ public class QuestSubmissionService {
             return false;
         }
         List<ITask> tasks = questFile.findTasksForStep(stepId);
-        if (!syncObjectiveShape(tasks, progress.get(), player)
+        if (!QuestObjectiveProgressService.syncObjectiveShape(tasks, progress.get(), player)
                 || objectiveIndex < 0
                 || objectiveIndex >= tasks.size()
                 || objectiveIndex >= progress.get().objectives.size()) {
@@ -187,7 +186,7 @@ public class QuestSubmissionService {
             }
             for (TaskProgress progress : new ArrayList<>(questState.taskProgresses)) {
                 if (progress.status != TaskStatus.ACTIVE
-                        || !stepContainsTaskType(questFile, progress.stepId, taskType)) {
+                        || !QuestObjectiveProgressService.stepContainsTaskType(questFile, progress.stepId, taskType)) {
                     continue;
                 }
                 if (submit(player, questState.questId, progress.stepId, true)) {
@@ -363,7 +362,7 @@ public class QuestSubmissionService {
                                                                        Class<T> taskType,
                                                                        TaskProgressRecorder<T> recorder) {
         List<ITask> tasks = questFile.findTasksForStep(progress.stepId);
-        if (!syncObjectiveShape(tasks, progress, player)) {
+        if (!QuestObjectiveProgressService.syncObjectiveShape(tasks, progress, player)) {
             return false;
         }
         boolean changed = false;
@@ -392,13 +391,6 @@ public class QuestSubmissionService {
         return true;
     }
 
-    private static boolean stepContainsTaskType(QuestFile questFile, String stepId, Class<? extends ITask> taskType) {
-        if (taskType == null) {
-            return true;
-        }
-        return questFile.findTasksForStep(stepId).stream().anyMatch(taskType::isInstance);
-    }
-
     private static boolean completeStepIfReady(ServerPlayer player, QuestSavedData savedData, QuestPlayerData playerData,
                                                PlayerQuestState questState, QuestFile questFile,
                                                TaskProgress progress, String stepId) {
@@ -420,48 +412,6 @@ public class QuestSubmissionService {
         savedData.setDirty();
         QuestTrackingService.refreshAfterStepSubmit(player, playerData, questState, stepId, activeStepIdsBeforeSubmit);
         QuestTeamProgressService.syncQuestState(player, questState);
-        return true;
-    }
-
-    private static boolean syncObjectiveShape(List<ITask> tasks, TaskProgress progress, ServerPlayer player) {
-        if (tasks.isEmpty()) {
-            return false;
-        }
-        TaskProgress refreshed = TaskProgress.fromTasks(progress.stepId, tasks, null, player);
-        for (int i = 0; i < refreshed.objectives.size(); i++) {
-            if (i >= progress.objectives.size()) {
-                progress.objectives.add(refreshed.objectives.get(i));
-                continue;
-            }
-            TaskObjectiveProgress current = progress.objectives.get(i);
-            TaskObjectiveProgress fresh = refreshed.objectives.get(i);
-            boolean sameObjective = Objects.equals(current.objectiveId, fresh.objectiveId);
-            if (!sameObjective) {
-                current.currentAmount = 0;
-                current.completed = false;
-                current.startedGameTime = -1L;
-            }
-            current.objectiveId = fresh.objectiveId;
-            current.hint = fresh.displayHint();
-            current.displayIcon = fresh.displayIcon;
-            current.objectiveType = fresh.objectiveType;
-            current.requiredAmount = fresh.requiredAmount;
-            current.manualSubmitRequired = fresh.manualSubmitRequired;
-            current.guideMarker = fresh.guideMarker;
-            current.progressTextOverride = fresh.progressTextOverride == null ? "" : fresh.progressTextOverride;
-            boolean refreshFromPlayerState = i < tasks.size() && tasks.get(i).refreshesProgressFromPlayerState();
-            if (!current.completed && !current.manualSubmitRequired && refreshFromPlayerState) {
-                current.progressTextOverride = "";
-                tasks.get(i).refreshObjectiveProgress(player, current);
-            } else if (!refreshFromPlayerState) {
-                current.currentAmount = Math.min(current.currentAmount, current.requiredAmount);
-                current.completed = current.completed || current.currentAmount >= current.requiredAmount;
-            }
-        }
-        while (progress.objectives.size() > refreshed.objectives.size()) {
-            progress.objectives.removeLast();
-        }
-        progress.manualSubmitRequired = progress.objectives.stream().anyMatch(objective -> objective.manualSubmitRequired);
         return true;
     }
 

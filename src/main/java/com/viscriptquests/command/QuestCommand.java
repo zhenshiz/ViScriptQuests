@@ -8,6 +8,9 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
+import com.mojang.brigadier.suggestion.Suggestions;
+import com.mojang.brigadier.suggestion.SuggestionsBuilder;
+import com.viscript_lib.register.ICommand;
 import com.viscriptquests.ViScriptQuests;
 import com.viscriptquests.gui.blueprint.data.QuestBlueprintRegistryCache;
 import com.viscriptquests.gui.editor.QuestEditor;
@@ -36,21 +39,21 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
 @LDLRegister(name = "quest", registry = ICommand.COMMAND_ID)
 public class QuestCommand implements ICommand {
     private static final SuggestionProvider<CommandSourceStack> QUEST_SUGGESTIONS = (context, builder) -> {
-        getServerQuestFiles().forEach(builder::suggest);
-        return builder.buildFuture();
+        return suggestMatching(getServerQuestFiles(), builder);
     };
 
     private static final SuggestionProvider<CommandSourceStack> PROJECT_SUGGESTIONS = (context, builder) -> {
-        QuestFileHelper.getServerProjectFiles().forEach(builder::suggest);
-        return builder.buildFuture();
+        return suggestMatching(QuestFileHelper.getServerProjectFiles(), builder);
     };
 
     private static final SuggestionProvider<CommandSourceStack> STEP_SUGGESTIONS = (context, builder) -> {
@@ -66,7 +69,7 @@ public class QuestCommand implements ICommand {
                 .then(Commands.literal("editor")
                         .requires(source -> source.hasPermission(4))
                         .executes(this::openEditor)
-                        .then(Commands.argument("project", StringArgumentType.string())
+                        .then(Commands.argument("project", StringArgumentType.greedyString())
                                 .suggests(PROJECT_SUGGESTIONS)
                                 .executes(this::openEditorWithProject)))
                 .then(Commands.literal("book")
@@ -79,17 +82,17 @@ public class QuestCommand implements ICommand {
                                 .executes(this::reloadPlayers)))
                 .then(Commands.literal("grant")
                         .then(Commands.argument("target", EntityArgument.players())
-                                .then(Commands.argument("quest", StringArgumentType.string())
+                                .then(Commands.argument("quest", StringArgumentType.greedyString())
                                         .suggests(QUEST_SUGGESTIONS)
                                         .executes(this::grant))))
                 .then(Commands.literal("revoke")
                         .then(Commands.argument("target", EntityArgument.players())
-                                .then(Commands.argument("quest", StringArgumentType.string())
+                                .then(Commands.argument("quest", StringArgumentType.greedyString())
                                         .suggests(QUEST_SUGGESTIONS)
                                         .executes(this::revoke))))
                 .then(Commands.literal("complete")
                         .then(Commands.argument("target", EntityArgument.players())
-                                .then(Commands.argument("quest", StringArgumentType.string())
+                                .then(Commands.argument("quest", StringArgumentType.greedyString())
                                         .suggests(QUEST_SUGGESTIONS)
                                         .executes(this::complete))))
                 .then(Commands.literal("submit")
@@ -328,6 +331,16 @@ public class QuestCommand implements ICommand {
         return new ArrayList<>(values);
     }
 
+    private static CompletableFuture<Suggestions> suggestMatching(Collection<String> suggestions, SuggestionsBuilder builder) {
+        String remaining = builder.getRemaining().toLowerCase(Locale.ROOT);
+        for (String suggestion : suggestions) {
+            if (suggestion.toLowerCase(Locale.ROOT).startsWith(remaining)) {
+                builder.suggest(suggestion);
+            }
+        }
+        return builder.buildFuture();
+    }
+
     private Component grantPrecheckFailure(ServerPlayer player, String questId) {
         String normalizedQuestId = QuestFileHelper.normalizeQuestId(questId);
         var questFile = QuestFileHelper.getQuest(normalizedQuestId, player.registryAccess());
@@ -412,10 +425,8 @@ public class QuestCommand implements ICommand {
         return null;
     }
 
-    // 扫描 quest 目录下的所有 .quest 文件，返回带引号的相对路径用于命令建议
+    // 扫描 quest 目录下的所有 .quest 文件，返回不带引号的相对路径用于命令建议。
     public static List<String> getServerQuestFiles() {
-        return QuestFileHelper.getServerQuestIds().stream()
-                .map(questId -> "\"" + questId + "\"")
-                .toList();
+        return QuestFileHelper.getServerQuestIds();
     }
 }

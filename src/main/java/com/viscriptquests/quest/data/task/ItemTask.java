@@ -2,13 +2,16 @@ package com.viscriptquests.quest.data.task;
 
 import com.lowdragmc.lowdraglib2.registry.annotation.LDLRegister;
 import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
+import com.viscript_lib.util.item.ItemStackCompareMode;
+import com.viscript_lib.util.item.ItemUtil;
 import com.viscriptquests.quest.data.DisplayIcon;
 import com.viscriptquests.quest.data.QuestSubmitMode;
 import com.viscriptquests.quest.data.runtime.TaskObjectiveProgress;
-import com.viscriptquests.util.ItemUtil;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
+
+import java.util.List;
 
 // 物品收集/提交任务，检查玩家背包中是否有指定物品
 @LDLRegister(name = "item_task", registry = ITask.ID)
@@ -24,7 +27,7 @@ public class ItemTask extends ITask {
 
     @Override
     public boolean checkCompletion(ServerPlayer player) {
-        return ItemUtil.getItemForPlayerCount(player, itemStack, strictComponents) >= itemStack.getCount();
+        return getPlayerItemCount(player) >= itemStack.getCount();
     }
 
     @Override
@@ -32,7 +35,7 @@ public class ItemTask extends ITask {
         if (!consumeItem) {
             return true;
         }
-        return ItemUtil.removeItemForPlayer(player, itemStack, strictComponents, itemStack.getCount());
+        return removePlayerItems(player, itemStack.getCount());
     }
 
     @Override
@@ -55,7 +58,7 @@ public class ItemTask extends ITask {
         }
         progress.currentAmount = progress.completed
                 ? required
-                : Math.min(required, ItemUtil.getItemForPlayerCount(player, itemStack, strictComponents));
+                : Math.min(required, getPlayerItemCount(player));
     }
 
     @Override
@@ -70,7 +73,7 @@ public class ItemTask extends ITask {
             progress.currentAmount = required;
             return true;
         }
-        int available = ItemUtil.getItemForPlayerCount(player, itemStack, strictComponents);
+        int available = getPlayerItemCount(player);
         if (available <= 0) {
             return false;
         }
@@ -85,7 +88,7 @@ public class ItemTask extends ITask {
             return true;
         }
         int toSubmit = Math.min(available, remaining);
-        if (!ItemUtil.removeItemForPlayer(player, itemStack, strictComponents, toSubmit)) {
+        if (!removePlayerItems(player, toSubmit)) {
             return false;
         }
         progress.currentAmount = Math.min(required, progress.currentAmount + toSubmit);
@@ -107,5 +110,25 @@ public class ItemTask extends ITask {
     @Override
     public DisplayIcon getDisplayIcon() {
         return DisplayIcon.item(itemStack);
+    }
+
+    private int getPlayerItemCount(ServerPlayer player) {
+        if (itemStack.isEmpty()) {
+            return 0;
+        }
+        return ItemUtil.getItemForPlayerCount(player, itemStack, itemCompareMode(), List.of());
+    }
+
+    private boolean removePlayerItems(ServerPlayer player, int count) {
+        if (player == null || itemStack.isEmpty() || count <= 0) {
+            return true;
+        }
+        int remaining = ItemUtil.removeItemForPlayer(player, itemStack, count, itemCompareMode(), List.of());
+        player.containerMenu.broadcastChanges();
+        return remaining <= 0;
+    }
+
+    private ItemStackCompareMode itemCompareMode() {
+        return strictComponents ? ItemStackCompareMode.ALL_COMPONENTS : ItemStackCompareMode.INCLUDE_COMPONENTS;
     }
 }

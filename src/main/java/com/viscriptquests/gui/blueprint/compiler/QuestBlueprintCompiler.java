@@ -1,4 +1,4 @@
-package com.viscriptquests.gui.blueprint;
+package com.viscriptquests.gui.blueprint.compiler;
 
 import com.lowdragmc.lowdraglib2.Platform;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.graph.GraphModel;
@@ -6,13 +6,8 @@ import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.CustomNodeModelImpl;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.PortModel;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.SubgraphNodeModel;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.VariableNodeModelImpl;
-import com.viscriptquests.gui.blueprint.compiler.IQuestRewardNodeCompiler;
-import com.viscriptquests.gui.blueprint.compiler.IQuestTaskNodeCompiler;
-import com.viscriptquests.gui.blueprint.compiler.QuestCompileContext;
-import com.viscriptquests.gui.blueprint.compiler.QuestFlowGraphBuilder;
-import com.viscriptquests.gui.blueprint.compiler.QuestObjectiveActionCompiler;
-import com.viscriptquests.gui.blueprint.compiler.QuestBlueprintValidationException;
-import com.viscriptquests.gui.blueprint.compiler.QuestBlueprintValidator;
+import com.viscriptquests.gui.blueprint.QuestBlueprintFlowTypes;
+import com.viscriptquests.gui.blueprint.QuestBlueprintGraph;
 import com.viscriptquests.gui.blueprint.model.QuestSubQuestNodeModel;
 import com.viscriptquests.gui.blueprint.node.flow.QuestStartNode;
 import com.viscriptquests.gui.blueprint.node.flow.SubQuestStartNode;
@@ -22,12 +17,8 @@ import com.viscriptquests.quest.data.*;
 import com.viscriptquests.quest.data.reward.IReward;
 import com.viscriptquests.quest.data.runtime.RewardDisplay;
 import com.viscriptquests.quest.data.task.ITask;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
-import net.minecraft.util.StringRepresentable;
-import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
 
@@ -413,36 +404,5 @@ public final class QuestBlueprintCompiler {
     }
 
     private record SubQuestInfo(String stepId, String title, String subtitle, String[] description) {
-    }
-
-    // 步骤转移条件使用的比较运算符
-    @Getter
-    @AllArgsConstructor
-    public enum CompareOp implements StringRepresentable {
-        EQ("viscript_quests.compare_op.eq"),
-        NE("viscript_quests.compare_op.ne"),
-        GT("viscript_quests.compare_op.gt"),
-        GE("viscript_quests.compare_op.ge"),
-        LT("viscript_quests.compare_op.lt"),
-        LE("viscript_quests.compare_op.le");
-
-        private final String name;
-
-        // 评估比较结果
-        public boolean test(float actual, float expected) {
-            return switch (this) {
-                case EQ -> actual == expected;
-                case NE -> actual != expected;
-                case GT -> actual > expected;
-                case GE -> actual >= expected;
-                case LT -> actual < expected;
-                case LE -> actual <= expected;
-            };
-        }
-
-        @Override
-        public @NotNull String getSerializedName() {
-            return name;
-        }
     }
 }

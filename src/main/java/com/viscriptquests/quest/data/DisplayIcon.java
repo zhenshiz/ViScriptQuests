@@ -11,7 +11,7 @@ import com.lowdragmc.lowdraglib2.syncdata.IPersistedSerializable;
 import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
 import com.lowdragmc.lowdraglib2.utils.PersistedParser;
 import com.mojang.serialization.Codec;
-import com.viscriptquests.util.CodecUtil;
+import com.viscript_lib.util.CodecUtil;
 import io.netty.buffer.ByteBuf;
 import lombok.AllArgsConstructor;
 import lombok.Data;

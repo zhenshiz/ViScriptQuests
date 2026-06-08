@@ -2,7 +2,6 @@ package com.viscriptquests.quest.data;
 
 import com.lowdragmc.lowdraglib2.syncdata.IPersistedSerializable;
 import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
-import com.viscriptquests.gui.blueprint.QuestBlueprintCompiler;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.server.level.ServerPlayer;
 
@@ -21,7 +20,7 @@ public class QuestFlowEdge implements IPersistedSerializable {
     @Persisted
     public String conditionVariable = "";
     @Persisted
-    public QuestBlueprintCompiler.CompareOp compareOp = QuestBlueprintCompiler.CompareOp.EQ;
+    public CompareOp compareOp = CompareOp.EQ;
     @Persisted
     public float compareValue = 0f;
     @Persisted

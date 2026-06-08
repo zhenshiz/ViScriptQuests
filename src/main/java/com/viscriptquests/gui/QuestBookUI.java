@@ -53,27 +53,27 @@ import java.util.Set;
 // 玩家正式任务书 UI：左侧分类书签，书页左侧展示任务树，右侧展示当前任务/目标详情。
 public class QuestBookUI extends UIElement {
     private static final ItemStack DEFAULT_ICON = new ItemStack(Items.WRITABLE_BOOK);
-    private static final int CATEGORY_RAIL_WIDTH = 36;
-    private static final int LEFT_PAGE_WIDTH = 230;
-    private static final int QUEST_ITEM_HEIGHT = 32;
-    private static final int TASK_ITEM_HEIGHT = 22;
-    private static final int BOOKMARK_HEIGHT = 28;
-    private static final int BOOKMARK_GAP = 3;
-    private static final int BOOKMARK_ICON_SIZE = 16;
-    private static final int QUEST_ICON_SIZE = 16;
-    private static final int REWARD_SLOT_SIZE = 34;
-    private static final int REWARD_ICON_SIZE = 18;
-    private static final int OBJECTIVE_ROW_HEIGHT = 18;
-    private static final int OBJECTIVE_ICON_SIZE = 16;
-    private static final int SUB_TASK_INDENT = 24;
+    private static final int CATEGORY_RAIL_WIDTH = 32;
+    private static final int LEFT_PAGE_WIDTH = 214;
+    private static final int QUEST_ITEM_HEIGHT = 28;
+    private static final int TASK_ITEM_HEIGHT = 19;
+    private static final int BOOKMARK_HEIGHT = 24;
+    private static final int BOOKMARK_GAP = 2;
+    private static final int BOOKMARK_ICON_SIZE = 14;
+    private static final int QUEST_ICON_SIZE = 14;
+    private static final int REWARD_SLOT_SIZE = 28;
+    private static final int REWARD_ICON_SIZE = 16;
+    private static final int OBJECTIVE_ROW_HEIGHT = 16;
+    private static final int OBJECTIVE_ICON_SIZE = 14;
+    private static final int SUB_TASK_INDENT = 18;
     private static final int CATEGORIES_PER_PAGE = 5;
-    private static final float FONT_WINDOW_TITLE = 9.0f;
-    private static final float FONT_PANEL_TITLE = 8.5f;
-    private static final float FONT_ROW_TITLE = 8.0f;
-    private static final float FONT_ROW_SUBTITLE = 7.5f;
-    private static final float FONT_DETAIL_TITLE = 9.0f;
-    private static final float FONT_BODY = 8.0f;
-    private static final float FONT_SMALL = 7.5f;
+    private static final float FONT_WINDOW_TITLE = 8.2f;
+    private static final float FONT_PANEL_TITLE = 7.8f;
+    private static final float FONT_ROW_TITLE = 7.2f;
+    private static final float FONT_ROW_SUBTITLE = 6.8f;
+    private static final float FONT_DETAIL_TITLE = 8.2f;
+    private static final float FONT_BODY = 7.2f;
+    private static final float FONT_SMALL = 6.8f;
 
     private static final int ROOT_BG = 0xE0060709;
     private static final int TEXT_GOLD = 0xFFFFD84B;
@@ -125,7 +125,7 @@ public class QuestBookUI extends UIElement {
         layout(layout -> {
             layout.widthPercent(100);
             layout.heightPercent(100);
-            layout.paddingAll(8);
+            layout.paddingAll(6);
         });
         style(style -> style.backgroundTexture(new ColorRectTexture(ROOT_BG)));
 
@@ -146,8 +146,8 @@ public class QuestBookUI extends UIElement {
             layout.flex(1);
             layout.heightPercent(100);
             layout.flexDirection(FlexDirection.COLUMN);
-            layout.paddingAll(12);
-            layout.gapAll(7);
+            layout.paddingAll(9);
+            layout.gapAll(5);
         });
         stage.addChild(shell);
 
@@ -158,7 +158,7 @@ public class QuestBookUI extends UIElement {
             layout.widthPercent(100);
             layout.flex(1);
             layout.flexDirection(FlexDirection.ROW);
-            layout.gapAll(6);
+            layout.gapAll(5);
         });
         shell.addChild(body);
 
@@ -172,12 +172,12 @@ public class QuestBookUI extends UIElement {
         UIElement topBar = panel(0x88351C10, 0xAA7A431E);
         topBar.layout(layout -> {
             layout.widthPercent(100);
-            layout.height(34);
+            layout.height(30);
             layout.flexDirection(FlexDirection.ROW);
             layout.alignItems(AlignItems.CENTER);
             layout.justifyContent(AlignContent.SPACE_BETWEEN);
-            layout.paddingHorizontal(10);
-            layout.gapAll(8);
+            layout.paddingHorizontal(8);
+            layout.gapAll(6);
         });
 
         UIElement titleBlock = new UIElement();
@@ -185,20 +185,20 @@ public class QuestBookUI extends UIElement {
             layout.flex(1);
             layout.flexDirection(FlexDirection.ROW);
             layout.alignItems(AlignItems.CENTER);
-            layout.gapAll(8);
+            layout.gapAll(6);
         });
 
         UIElement bookIcon = texturedPanel(BOOK_ICON_TEXTURE);
         bookIcon.layout(layout -> {
-            layout.width(24);
-            layout.height(24);
+            layout.width(20);
+            layout.height(20);
         });
         titleBlock.addChild(bookIcon);
 
-        Label title = label(Component.translatable("viscript_quests.quest_book.window_title"), 16);
+        Label title = label(Component.translatable("viscript_quests.quest_book.window_title"), 14);
         title.layout(layout -> {
-            layout.width(92);
-            layout.height(16);
+            layout.width(86);
+            layout.height(14);
         });
         title.textStyle(style -> style.textColor(TEXT_GOLD).fontSize(FONT_WINDOW_TITLE).textWrap(TextWrap.HIDE));
         titleBlock.addChild(title);
@@ -213,7 +213,7 @@ public class QuestBookUI extends UIElement {
             layout.width(CATEGORY_RAIL_WIDTH);
             layout.heightPercent(100);
             layout.flexDirection(FlexDirection.COLUMN);
-            layout.paddingTop(58);
+            layout.paddingTop(50);
             layout.gapAll(BOOKMARK_GAP);
         });
 
@@ -273,14 +273,14 @@ public class QuestBookUI extends UIElement {
             layout.width(LEFT_PAGE_WIDTH);
             layout.heightPercent(100);
             layout.flexDirection(FlexDirection.COLUMN);
-            layout.paddingAll(6);
-            layout.gapAll(4);
+            layout.paddingAll(5);
+            layout.gapAll(3);
         });
 
-        Label title = label(Component.translatable("viscript_quests.quest_book.quest_list"), 14);
+        Label title = label(Component.translatable("viscript_quests.quest_book.quest_list"), 12);
         title.layout(layout -> {
             layout.widthPercent(100);
-            layout.height(14);
+            layout.height(12);
         });
         title.textStyle(style -> style.textColor(TEXT_GOLD).fontSize(FONT_PANEL_TITLE).textWrap(TextWrap.HIDE));
         questPanel.addChild(title);
@@ -303,7 +303,7 @@ public class QuestBookUI extends UIElement {
             layout.flex(1);
             layout.heightPercent(100);
             layout.flexDirection(FlexDirection.COLUMN);
-            layout.paddingAll(7);
+            layout.paddingAll(5);
         });
 
         detailScroller = new ScrollerView();
@@ -329,7 +329,7 @@ public class QuestBookUI extends UIElement {
         scroller.viewContainer(view -> view.layout(layout -> {
             layout.widthPercent(100);
             layout.flexDirection(FlexDirection.COLUMN);
-            layout.gapAll(3);
+            layout.gapAll(2);
         }));
     }
 
@@ -453,8 +453,8 @@ public class QuestBookUI extends UIElement {
             layout.height(BOOKMARK_HEIGHT);
             layout.flexDirection(FlexDirection.COLUMN);
             layout.alignItems(AlignItems.CENTER);
-            layout.paddingVertical(3);
-            layout.paddingHorizontal(3);
+            layout.paddingVertical(2);
+            layout.paddingHorizontal(2);
         });
         row.style(style -> style.tooltips(title));
         row.addEventListener(UIEvents.CLICK, event -> selectCategory(categoryId));
@@ -506,16 +506,16 @@ public class QuestBookUI extends UIElement {
             layout.height(QUEST_ITEM_HEIGHT);
             layout.flexDirection(FlexDirection.ROW);
             layout.alignItems(AlignItems.CENTER);
-            layout.paddingVertical(2);
-            layout.paddingHorizontal(3);
-            layout.gapAll(3);
+            layout.paddingVertical(1);
+            layout.paddingHorizontal(2);
+            layout.gapAll(2);
         });
         row.addEventListener(UIEvents.CLICK, event -> {
             toggleQuestExpanded(quest);
         });
 
-        Label arrow = label(Component.literal(expanded ? "v" : ">"), 11);
-        arrow.layout(layout -> layout.width(8));
+        Label arrow = label(Component.literal(expanded ? "v" : ">"), 10);
+        arrow.layout(layout -> layout.width(7));
         arrow.textStyle(style -> style.textColor(selected ? TEXT_GOLD : TEXT_MUTED).fontSize(FONT_ROW_TITLE));
         row.addChild(arrow);
 
@@ -539,7 +539,7 @@ public class QuestBookUI extends UIElement {
         if (tracked) {
             titleText.append(Component.literal("  *"));
         }
-        Label titleLabel = label(titleText, 11);
+        Label titleLabel = label(titleText, 10);
         titleLabel.textStyle(style -> style
                 .textColor(completedQuest ? 0xFF9E977D : tracked ? TEXT_GOLD : TEXT_MAIN)
                 .fontSize(FONT_ROW_TITLE)
@@ -547,7 +547,7 @@ public class QuestBookUI extends UIElement {
         titleCol.addChild(titleLabel);
 
         if (quest.subtitle != null && !quest.subtitle.isBlank()) {
-            Label preview = label(Component.literal(quest.subtitle), 10);
+            Label preview = label(Component.literal(quest.subtitle), 9);
             preview.textStyle(style -> style
                     .textColor(completedQuest ? 0xFF7F7968 : TEXT_MUTED)
                     .fontSize(FONT_ROW_SUBTITLE)
@@ -585,14 +585,14 @@ public class QuestBookUI extends UIElement {
             layout.flexDirection(FlexDirection.ROW);
             layout.alignItems(AlignItems.CENTER);
             layout.paddingVertical(1);
-            layout.paddingLeft(4);
-            layout.paddingRight(4);
-            layout.gapAll(3);
+            layout.paddingLeft(3);
+            layout.paddingRight(3);
+            layout.gapAll(2);
         });
         row.addEventListener(UIEvents.CLICK, event -> selectTask(quest, taskProgress.stepId));
 
-        Label statusIcon = label(getTaskStatusIcon(taskProgress.status), 10);
-        statusIcon.layout(layout -> layout.width(10));
+        Label statusIcon = label(getTaskStatusIcon(taskProgress.status), 9);
+        statusIcon.layout(layout -> layout.width(8));
         statusIcon.textStyle(style -> style.fontSize(FONT_SMALL));
         row.addChild(statusIcon);
 
@@ -604,7 +604,7 @@ public class QuestBookUI extends UIElement {
             layout.justifyContent(AlignContent.CENTER);
         });
 
-        Label title = label(Component.literal(taskTitle(taskProgress)), 11);
+        Label title = label(Component.literal(taskTitle(taskProgress)), 9);
         title.textStyle(style -> style
                 .textColor(statusColor(taskProgress.status))
                 .fontSize(FONT_ROW_TITLE)
@@ -615,13 +615,13 @@ public class QuestBookUI extends UIElement {
 
         UIElement statusTag = texturedPanel(STATUS_TAG);
         statusTag.layout(layout -> {
-            layout.width(50);
-            layout.height(15);
+            layout.width(44);
+            layout.height(13);
             layout.justifyContent(AlignContent.CENTER);
             layout.alignItems(AlignItems.CENTER);
             layout.paddingHorizontal(2);
         });
-        Label statusText = label(taskProgress.status.displayName(), 10);
+        Label statusText = label(taskProgress.status.displayName(), 9);
         statusText.textStyle(style -> style
                 .textColor(statusColor(taskProgress.status))
                 .fontSize(FONT_SMALL)
@@ -655,25 +655,25 @@ public class QuestBookUI extends UIElement {
         UIElement header = new UIElement();
         header.layout(layout -> {
             layout.widthPercent(100);
-            layout.minHeight(30);
+            layout.minHeight(24);
             layout.flexDirection(FlexDirection.COLUMN);
-            layout.paddingAll(3);
-            layout.gapAll(2);
+            layout.paddingAll(2);
+            layout.gapAll(1);
         });
 
         UIElement titleCol = new UIElement();
         titleCol.layout(layout -> {
             layout.widthPercent(100);
             layout.flexDirection(FlexDirection.COLUMN);
-            layout.gapAll(2);
+            layout.gapAll(1);
         });
 
-        Label title = label(Component.literal(taskTitle(taskProgress)), 14);
+        Label title = label(Component.literal(taskTitle(taskProgress)), 12);
         title.textStyle(style -> style.textColor(TEXT_GOLD).fontSize(FONT_DETAIL_TITLE).textWrap(TextWrap.HIDE));
         titleCol.addChild(title);
 
         if (taskProgress.subtitle != null && !taskProgress.subtitle.isBlank()) {
-            Label subtitle = label(Component.literal(taskProgress.subtitle), 12);
+            Label subtitle = label(Component.literal(taskProgress.subtitle), 10);
             subtitle.textStyle(style -> style.textColor(TEXT_MUTED).fontSize(FONT_BODY).textWrap(TextWrap.HIDE));
             titleCol.addChild(subtitle);
         }
@@ -691,12 +691,12 @@ public class QuestBookUI extends UIElement {
         card.layout(layout -> {
             layout.widthPercent(100);
             layout.flexDirection(FlexDirection.COLUMN);
-            layout.paddingAll(4);
-            layout.gapAll(2);
+            layout.paddingAll(3);
+            layout.gapAll(1);
         });
         for (String line : taskProgress.description) {
             if (line != null && !line.isBlank()) {
-                card.addChild(wrappedLabel(Component.literal(line), 12, TEXT_MAIN));
+                card.addChild(wrappedLabel(Component.literal(line), 10, TEXT_MAIN));
             }
         }
         detailScroller.addScrollViewChild(card);
@@ -707,14 +707,14 @@ public class QuestBookUI extends UIElement {
         UIElement card = texturedPanel(SECTION_PANEL);
         card.layout(layout -> {
             layout.widthPercent(100);
-            layout.minHeight(24);
+            layout.minHeight(20);
             layout.flexDirection(FlexDirection.COLUMN);
-            layout.paddingAll(4);
-            layout.gapAll(3);
+            layout.paddingAll(3);
+            layout.gapAll(2);
         });
 
         if (taskProgress.objectives.isEmpty()) {
-            card.addChild(wrappedLabel(taskHint(taskProgress), 12, TEXT_MAIN));
+            card.addChild(wrappedLabel(taskHint(taskProgress), 10, TEXT_MAIN));
         } else {
             for (int i = 0; i < taskProgress.objectives.size(); i++) {
                 card.addChild(createObjectiveRow(quest, taskProgress, i, taskProgress.objectives.get(i)));
@@ -732,7 +732,7 @@ public class QuestBookUI extends UIElement {
             layout.height(OBJECTIVE_ROW_HEIGHT);
             layout.flexDirection(FlexDirection.ROW);
             layout.alignItems(AlignItems.CENTER);
-            layout.gapAll(4);
+            layout.gapAll(3);
         });
 
         UIElement icon = createDisplayIcon(objective.displayIcon, objectiveTooltip(objective));
@@ -787,8 +787,8 @@ public class QuestBookUI extends UIElement {
             layout.widthPercent(100);
             layout.flexDirection(FlexDirection.ROW);
             layout.wrap(FlexWrap.WRAP);
-            layout.paddingVertical(2);
-            layout.gapAll(6);
+            layout.paddingVertical(1);
+            layout.gapAll(4);
         });
 
         for (RewardDisplay rewardDisplay : rewardsToShow) {
@@ -824,11 +824,11 @@ public class QuestBookUI extends UIElement {
         UIElement row = new UIElement();
         row.layout(layout -> {
             layout.widthPercent(100);
-            layout.height(24);
+            layout.height(20);
             layout.flexDirection(FlexDirection.ROW);
             layout.justifyContent(AlignContent.FLEX_END);
             layout.alignItems(AlignItems.CENTER);
-            layout.marginTop(4);
+            layout.marginTop(3);
         });
 
         boolean tracked = isTrackedTask(quest, taskProgress);
@@ -847,8 +847,8 @@ public class QuestBookUI extends UIElement {
                 .textAlignVertical(Vertical.CENTER)
                 .textWrap(TextWrap.HIDE));
         button.layout(layout -> {
-            layout.width(82);
-            layout.height(18);
+            layout.width(74);
+            layout.height(16);
         });
         button.addEventListener(UIEvents.CLICK, event -> toggleTrackedTask(quest, taskProgress));
         row.addChild(button);
@@ -869,8 +869,8 @@ public class QuestBookUI extends UIElement {
                 .textAlignVertical(Vertical.CENTER)
                 .textWrap(TextWrap.HIDE));
         button.layout(layout -> {
-            layout.width(54);
-            layout.height(16);
+            layout.width(48);
+            layout.height(14);
         });
         button.style(style -> style.tooltips(Component.translatable("viscript_quests.quest_book.submit_task_button.tooltip")));
         button.addEventListener(UIEvents.CLICK, event -> submitObjective(quest, taskProgress, objectiveIndex));
@@ -883,16 +883,16 @@ public class QuestBookUI extends UIElement {
             layout.widthPercent(100);
             layout.flexDirection(FlexDirection.ROW);
             layout.alignItems(AlignItems.CENTER);
-            layout.gapAll(5);
-            layout.marginTop(2);
+            layout.gapAll(4);
+            layout.marginTop(1);
         });
 
-        Label marker = label(Component.literal(">"), 12);
-        marker.layout(layout -> layout.width(8));
+        Label marker = label(Component.literal(">"), 10);
+        marker.layout(layout -> layout.width(7));
         marker.textStyle(style -> style.textColor(TEXT_GOLD).fontSize(FONT_SMALL));
         header.addChild(marker);
 
-        Label label = label(Component.translatable(key), 12);
+        Label label = label(Component.translatable(key), 10);
         label.layout(layout -> {
             layout.width(0);
             layout.flex(1);
@@ -906,11 +906,11 @@ public class QuestBookUI extends UIElement {
         UIElement empty = texturedPanel(SECTION_PANEL);
         empty.layout(layout -> {
             layout.widthPercent(100);
-            layout.minHeight(34);
-            layout.paddingAll(7);
+            layout.minHeight(28);
+            layout.paddingAll(5);
             layout.justifyContent(AlignContent.CENTER);
         });
-        Label label = wrappedLabel(Component.translatable(key), 12, TEXT_MAIN);
+        Label label = wrappedLabel(Component.translatable(key), 10, TEXT_MAIN);
         empty.addChild(label);
         return empty;
     }

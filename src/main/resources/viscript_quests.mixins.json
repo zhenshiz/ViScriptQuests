@@ -4,7 +4,6 @@
   "package": "com.viscriptquests.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
-    "ItemStackAccessorMixin"
   ],
   "client": [
   ],
