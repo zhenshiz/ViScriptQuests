@@ -18,6 +18,7 @@ import com.viscriptquests.util.QuestFileHelper;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import org.appliedenergistics.yoga.YogaEdge;
 
 import javax.annotation.Nonnull;
 import java.io.File;
@@ -27,7 +28,7 @@ public class QuestEditor extends ProjectFileEditor {
 
     public QuestEditor() {
         registerProjectFileType(QuestProject.TYPE);
-        rootWindow.setViewContainer(new ViewContainer());
+        configureQuestLayout();
     }
 
     public static ModularUI createUI() {
@@ -94,7 +95,42 @@ public class QuestEditor extends ProjectFileEditor {
 
     @Override
     public void applyLayout(EditorLayout layout) {
-        // 任务编辑器固定为单窗口蓝图编辑器，不恢复 LDLib2 默认的资源/历史/检查器多面板布局。
+        // 任务编辑器使用固定两列布局，不恢复资源/历史等额外窗口。
+    }
+
+    @Override
+    protected void onPrepareInspectorView() {
+        // 构造器里会在精简后的右侧窗口重新放置。
+    }
+
+    @Override
+    protected void onPrepareHistoryView() {
+        // 任务编辑器不显示底部历史窗口。
+    }
+
+    @Override
+    protected void onPrepareResourceView() {
+        // 任务编辑器不显示底部资源窗口。
+    }
+
+    private void configureQuestLayout() {
+        inspectorView.removeSelf();
+        historyView.removeSelf();
+        resourceView.removeSelf();
+
+        rootWindow.setViewContainer(new ViewContainer());
+        var split = rootWindow
+                .splitStyle(style -> style.percentage(80).minPercentage(5).maxPercentage(95))
+                .splitNew(YogaEdge.RIGHT);
+
+        centerWindow = split.getFirst().setImmortal(true);
+        centerWindow.setAnchorId(ANCHOR_CENTER);
+        rightWindow = split.getSecond().setImmortal(true);
+        rightWindow.setAnchorId(ANCHOR_RIGHT);
+        leftWindow = centerWindow;
+        bottomWindow = centerWindow;
+
+        placeView(inspectorView, () -> rightWindow.getRightTop());
     }
 
     private String defaultBaseName() {

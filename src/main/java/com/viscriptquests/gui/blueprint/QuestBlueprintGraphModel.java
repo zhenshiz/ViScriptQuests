@@ -12,6 +12,7 @@ import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.AbstractNodeModel;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.CustomNodeModelImpl;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.NodeModel;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.PortModel;
+import com.viscriptquests.gui.blueprint.model.QuestBlueprintNodeModel;
 import com.viscriptquests.gui.blueprint.model.QuestSubQuestNodeModel;
 import com.viscriptquests.gui.blueprint.model.QuestMathOperationNodeModel;
 import com.viscriptquests.gui.blueprint.node.QuestBlueprintNode;
@@ -65,7 +66,26 @@ public class QuestBlueprintGraphModel extends CustomGraphModelImpl {
                     data.spawnFlags()
             );
         }
-        return CustomGraphModelImpl.createNodeFromData(data, nodeClass);
+        return data.graphModel().createNode(
+                QuestBlueprintNodeModel.class,
+                "",
+                data.position(),
+                data.uuid(),
+                node -> {
+                    if (node instanceof QuestBlueprintNodeModel customNode) {
+                        customNode.initCustomNode(createNode(nodeClass));
+                    }
+                },
+                data.spawnFlags()
+        );
+    }
+
+    private static Node createNode(Class<? extends Node> nodeClass) {
+        try {
+            return nodeClass.getConstructor().newInstance();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to instantiate quest blueprint node " + nodeClass.getName(), e);
+        }
     }
 
     @Override
@@ -121,7 +141,8 @@ public class QuestBlueprintGraphModel extends CustomGraphModelImpl {
             return createNodeWithType(QuestMathOperationNodeModel.class, "", position, null,
                     model -> model.initCustomNode(node), null);
         }
-        return super.createNodeModel(node, position);
+        return createNodeWithType(QuestBlueprintNodeModel.class, "", position, null,
+                model -> model.initCustomNode(node), null);
     }
 
     @Override
@@ -139,6 +160,9 @@ public class QuestBlueprintGraphModel extends CustomGraphModelImpl {
 
     @Override
     protected AbstractNodeModel createNodeFromDiscriminator(String type) {
+        if ("custom".equals(type)) {
+            return new QuestBlueprintNodeModel();
+        }
         if ("quest_sub_quest".equals(type)) {
             return new QuestSubQuestNodeModel();
         }

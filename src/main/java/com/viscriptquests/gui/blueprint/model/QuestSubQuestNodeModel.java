@@ -2,7 +2,6 @@ package com.viscriptquests.gui.blueprint.model;
 
 import com.lowdragmc.lowdraglib2.nodegraphtookit.editor.GraphEditorView;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.gui.GraphElement;
-import com.lowdragmc.lowdraglib2.nodegraphtookit.gui.node.NodeElement;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.ChangeHint;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.graph.GraphModel;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.CustomNodeModelImpl;
@@ -118,7 +117,7 @@ public class QuestSubQuestNodeModel extends CustomNodeModelImpl {
         return new QuestSubQuestNodeElement(this);
     }
 
-    private static class QuestSubQuestNodeElement extends NodeElement {
+    private static class QuestSubQuestNodeElement extends QuestBlueprintNodeElement {
         public QuestSubQuestNodeElement(QuestSubQuestNodeModel nodeModel) {
             super(nodeModel);
         }

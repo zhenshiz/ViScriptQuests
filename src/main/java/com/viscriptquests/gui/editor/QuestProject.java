@@ -85,13 +85,14 @@ public class QuestProject implements IRuntimeFileProject {
         graphEditorView.setIcon(Icons.NODE);
         graphEditorView.setDynamicName(() -> Component.translatable("viscript_quests.editor.view.quest_blueprint"));
 
-        editor.placeView(graphEditorView, () -> editor.rootWindow.getLeftTop());
+        editor.placeView(graphEditorView, () -> editor.centerWindow.getLeftTop());
         QuestBlueprintNodeLibrary.rebuild(graphEditorView.graphView.itemLibrary, graph.graphModel);
     }
 
     @Override
     public void onClosed(Editor editor) {
         refreshGraphSnapshot();
+        editor.inspectorView.clear();
         if (graphEditorView != null) {
             graphEditorView.clear();
             graphEditorView.removeSelf();

@@ -11,8 +11,6 @@ version = mod_version
 group = mod_group_id
 
 repositories {
-    mavenLocal()
-    mavenCentral()
 
     //kubejs
     maven {
@@ -77,6 +75,10 @@ configurations {
             add(dependencyFactory.create("dev.vfyjxf:mixin-hotswap-agent:1.1").setTransitive(false))
         }
     }
+}
+
+configurations.configureEach {
+    resolutionStrategy.cacheChangingModulesFor 0, 'seconds'
 }
 
 
@@ -154,8 +156,12 @@ modAccessor {
 dependencies {
     // LDLib2
     implementation("com.lowdragmc.ldlib2:ldlib2-neoforge-${minecraft_version}:${ldlib2_version}:all")
-    implementation "com.zhenshiz:ViScriptLib-neoforge-${minecraft_version}:${viscriptlib_version}"
-    jarJar "com.zhenshiz:ViScriptLib-neoforge-${minecraft_version}:${viscriptlib_version}"
+    implementation("com.zhenshiz:ViScriptLib-neoforge-${minecraft_version}:${viscriptlib_version}") {
+        changing = true
+    }
+    jarJar("com.zhenshiz:ViScriptLib-neoforge-${minecraft_version}:${viscriptlib_version}") {
+        changing = true
+    }
 
     // KubeJS
     implementation "dev.latvian.mods:rhino:${rhino_version}"
