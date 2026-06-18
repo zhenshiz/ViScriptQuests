@@ -1,6 +1,7 @@
 package com.viscriptquests.gui.blueprint;
 
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.GraphElementModel;
+import com.lowdragmc.lowdraglib2.nodegraphtookit.api.graph.Graph;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.api.node.Node;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.api.node.NodeAttribute;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.gui.itemlibrary.GraphNodeCreationData;
@@ -22,6 +23,7 @@ import com.viscriptquests.gui.blueprint.node.flow.SubQuestNode;
 import com.viscriptquests.gui.blueprint.node.math.MathOperationNode;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.Tag;
+import org.jetbrains.annotations.Nullable;
 import org.joml.Vector2f;
 
 import java.util.HashMap;
@@ -98,11 +100,22 @@ public class QuestBlueprintGraphModel extends CustomGraphModelImpl {
     @Override
     public CustomGraphModelImpl createLocalSubgraphInstance() {
         CustomGraphModelImpl subgraph = super.createLocalSubgraphInstance();
+        markSubQuestContentGraph(subgraph);
+        return subgraph;
+    }
+
+    @Override
+    public CustomGraphModelImpl createLocalSubgraphInstance(@Nullable Class<? extends Graph> graphType) {
+        CustomGraphModelImpl subgraph = super.createLocalSubgraphInstance(graphType);
+        markSubQuestContentGraph(subgraph);
+        return subgraph;
+    }
+
+    private static void markSubQuestContentGraph(@Nullable CustomGraphModelImpl subgraph) {
         if (subgraph instanceof QuestBlueprintGraphModel questSubgraph) {
             // LDLib2 在反序列化本地子图后才设置 parentGraph，因此这里提前标记子图用途。
             questSubgraph.subQuestContentGraph = true;
         }
-        return subgraph;
     }
 
     @Override
