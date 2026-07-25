@@ -20,7 +20,8 @@ public class EntityDeathTaskNodeCompiler implements IQuestTaskNodeCompiler {
         EntityDeathTask task = new EntityDeathTask();
         task.stepId = stepId;
         task.entityType = context.getString(node, "entity_type");
-        task.deathCount = Math.max(1, context.getInt(node, "death_count"));
+        task.deathCount = context.tracePortIntValue(node, "death_count", 1, 1);
+        task.deathCountExpression.addAll(context.compileRuntimeIntExpression(node, "death_count", 1));
         task.tag = context.getString(node, "tag");
         return task;
     }

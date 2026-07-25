@@ -1,24 +1,22 @@
 package com.viscriptquests.gui;
 
-import com.lowdragmc.lowdraglib2.gui.texture.ColorBorderTexture;
 import com.lowdragmc.lowdraglib2.gui.texture.ColorRectTexture;
-import com.lowdragmc.lowdraglib2.gui.texture.GuiTextureGroup;
 import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
 import com.lowdragmc.lowdraglib2.gui.texture.SpriteTexture;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
+import com.lowdragmc.lowdraglib2.gui.ui.data.Horizontal;
 import com.lowdragmc.lowdraglib2.gui.ui.data.ScrollDisplay;
 import com.lowdragmc.lowdraglib2.gui.ui.data.ScrollerMode;
 import com.lowdragmc.lowdraglib2.gui.ui.data.TextWrap;
-import com.lowdragmc.lowdraglib2.gui.ui.data.Horizontal;
 import com.lowdragmc.lowdraglib2.gui.ui.data.Vertical;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.ScrollerView;
-import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import com.lowdragmc.lowdraglib2.math.Size;
 import com.lowdragmc.lowdraglib2.networking.rpc.RPCPacketDistributor;
 import com.viscriptquests.ViScriptQuests;
+import com.viscriptquests.compat.ponder.PonderCompat;
 import com.viscriptquests.config.ClientConfig;
 import com.viscriptquests.network.c2s.C2SPayload;
 import com.viscriptquests.quest.data.DisplayIcon;
@@ -36,88 +34,109 @@ import dev.vfyjxf.taffy.style.AlignContent;
 import dev.vfyjxf.taffy.style.AlignItems;
 import dev.vfyjxf.taffy.style.FlexDirection;
 import dev.vfyjxf.taffy.style.FlexWrap;
-import net.minecraft.client.Minecraft;
-import net.minecraft.core.registries.BuiltInRegistries;
+import dev.vfyjxf.taffy.style.TaffyPosition;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-// 玩家正式任务书 UI：左侧分类书签，书页左侧展示任务树，右侧展示当前任务/目标详情。
+/** 玩家任务书。界面使用固定 480×380 书本坐标系，任务与进度操作仍由原有运行时数据驱动。 */
 public class QuestBookUI extends UIElement {
-    private static final ItemStack DEFAULT_ICON = new ItemStack(Items.WRITABLE_BOOK);
-    private static final int CATEGORY_RAIL_WIDTH = 32;
-    private static final int LEFT_PAGE_WIDTH = 214;
-    private static final int QUEST_ITEM_HEIGHT = 28;
-    private static final int TASK_ITEM_HEIGHT = 19;
-    private static final int BOOKMARK_HEIGHT = 24;
-    private static final int BOOKMARK_GAP = 2;
-    private static final int BOOKMARK_ICON_SIZE = 14;
-    private static final int QUEST_ICON_SIZE = 14;
-    private static final int REWARD_SLOT_SIZE = 28;
-    private static final int REWARD_ICON_SIZE = 16;
-    private static final int OBJECTIVE_ROW_HEIGHT = 16;
-    private static final int OBJECTIVE_ICON_SIZE = 14;
-    private static final int SUB_TASK_INDENT = 18;
-    private static final int CATEGORIES_PER_PAGE = 5;
-    private static final float FONT_WINDOW_TITLE = 8.2f;
-    private static final float FONT_PANEL_TITLE = 7.8f;
-    private static final float FONT_ROW_TITLE = 7.2f;
-    private static final float FONT_ROW_SUBTITLE = 6.8f;
-    private static final float FONT_DETAIL_TITLE = 8.2f;
-    private static final float FONT_BODY = 7.2f;
-    private static final float FONT_SMALL = 6.8f;
+    private static final int BOOK_WIDTH = 480;
+    private static final int BOOK_HEIGHT = 380;
+    private static final float MAX_SCREEN_WIDTH_RATIO = 0.80f;
+    private static final float MAX_SCREEN_HEIGHT_RATIO = 0.90f;
 
-    private static final int ROOT_BG = 0xE0060709;
-    private static final int TEXT_GOLD = 0xFFFFD84B;
-    private static final int TEXT_MAIN = 0xFFFFFFFF;
-    private static final int TEXT_MUTED = 0xFFB5AA86;
-    private static final IGuiTexture BOOK_FRAME = sprite("book_frame.png", 6);
-    private static final IGuiTexture BOOK_ICON_TEXTURE = sprite("book_icon.png", 0);
-    private static final IGuiTexture BOOKMARK_DEFAULT = sprite("bookmark_default.png", 4);
-    private static final IGuiTexture BOOKMARK_HOVER = sprite("bookmark_hover.png", 4);
-    private static final IGuiTexture CONTENT_PANEL = sprite("panel_green.png", 6);
-    private static final IGuiTexture QUEST_DEFAULT = sprite("quest_default.png", 4);
-    private static final IGuiTexture QUEST_SELECTED = sprite("quest_selected.png", 4);
-    private static final IGuiTexture QUEST_COMPLETED = sprite("quest_completed.png", 4);
-    private static final IGuiTexture SECTION_PANEL = sprite("section_panel.png", 5);
-    private static final IGuiTexture STATUS_TAG = sprite("status_tag.png", 4);
-    private static final IGuiTexture TRACK_BUTTON = sprite("track_button.png", 4);
-    private static final IGuiTexture TRACK_BUTTON_HOVER = sprite("track_button_hover.png", 4);
-    private static final IGuiTexture TRACK_BUTTON_PRESSED = sprite("track_button_pressed.png", 4);
+    private static final int CATEGORY_X = 19;
+    private static final int CATEGORY_Y = 68;
+    private static final int CATEGORY_HEIGHT = 18;
+    private static final int CATEGORY_GAP = 5;
+    private static final int CATEGORIES_PER_PAGE = 5;
+
+    private static final int QUEST_LIST_X = 51;
+    private static final int QUEST_LIST_Y = 63;
+    private static final int QUEST_LIST_WIDTH = 167;
+    private static final int QUEST_LIST_HEIGHT = 274;
+    private static final int QUEST_SUMMARY_HEIGHT = 40;
+    private static final int SUB_TASK_SPRITE_HEIGHT = 12;
+    private static final int SUB_TASK_HEIGHT = 16;
+
+    private static final int DETAIL_X = 252;
+    private static final int DETAIL_Y = 38;
+    private static final int DETAIL_WIDTH = 188;
+    private static final int DETAIL_HEIGHT = 314;
+
+    private static final int TEXT_DARK = 0xFF61382F;
+    private static final int TEXT_MUTED = 0xFF8A6657;
+    private static final int TEXT_GREEN = 0xFF4D702F;
+    private static final int TEXT_RED = 0xFF9A352E;
+    private static final int TEXT_SELECTED = 0xFFFFD85A;
+
+    private static final float FONT_TITLE = 9.0f;
+    private static final float FONT_NORMAL = 8.0f;
+    private static final float FONT_SMALL = 7.0f;
+
+    private static final ItemStack DEFAULT_ICON = new ItemStack(Items.WRITABLE_BOOK);
+
+    private static final IGuiTexture BOOK_BACKGROUND = sprite("book.png");
+    private static final IGuiTexture QUEST_LIST_HEADER = sprite("quest_list_header.png");
+    private static final IGuiTexture QUEST_TITLE_DECORATION = sprite("quest_title_decoration.png");
+    private static final IGuiTexture QUEST_SUMMARY_BACKGROUND =
+            spriteRegion("quest_list_entry.png", 0, 0, QUEST_LIST_WIDTH, QUEST_SUMMARY_HEIGHT);
+    private static final IGuiTexture SUB_TASK_BACKGROUND =
+            spriteRegion("quest_list_entry.png", 0, QUEST_SUMMARY_HEIGHT, QUEST_LIST_WIDTH, SUB_TASK_SPRITE_HEIGHT);
+    private static final IGuiTexture OBJECTIVE_ICON_FRAME = sprite("objective_icon_frame.png");
+    private static final IGuiTexture REWARD_ICON_FRAME = sprite("reward_icon_frame.png");
+    private static final IGuiTexture SECTION_BACKGROUND_SHORT = sprite("section_background_short.png");
+    private static final IGuiTexture SECTION_BACKGROUND_TALL = sprite("section_background_tall.png");
+    private static final IGuiTexture DESCRIPTION_ICON = sprite("icon/quest_description.png");
+    private static final IGuiTexture OBJECTIVES_ICON = sprite("icon/icon_task.png");
+    private static final IGuiTexture REWARDS_ICON = sprite("icon/quest_reward.png");
+    private static final IGuiTexture BUTTON_DEFAULT = borderedSprite("button/button_default.png", 3);
+    private static final IGuiTexture BUTTON_HOVER = borderedSprite("button/button_hover.png", 3);
+    private static final IGuiTexture BUTTON_HOLD = borderedSprite("button/button_hold.png", 3);
 
     private QuestPlayerData playerData;
     private QuestCategoryListData categoryData;
     private String selectedCategoryId = "";
     private PlayerQuestState selectedQuest;
     private String selectedStepId = "";
-    private int categoryPage = 0;
-    private final Set<String> expandedQuestIds = new LinkedHashSet<>();
+    private int categoryPage;
+    private final Set<String> collapsedQuestIds = new HashSet<>();
+
     private UIElement categoryListPanel;
     private Button categoryPager;
-    private Label categoryPagerLabel;
-    private ScrollerView questTreeView;
-    private ScrollerView detailScroller;
+    private ScrollerView questListView;
+    private UIElement detailPanel;
+    private UIElement bookElement;
 
     public QuestBookUI(QuestBookData bookData) {
-        this.playerData = bookData.playerData == null ? new QuestPlayerData() : bookData.playerData;
-        this.categoryData = bookData.categoryData == null ? new QuestCategoryListData() : bookData.categoryData;
+        this.playerData = bookData == null || bookData.playerData == null
+                ? new QuestPlayerData()
+                : bookData.playerData;
+        this.categoryData = bookData == null || bookData.categoryData == null
+                ? new QuestCategoryListData()
+                : bookData.categoryData;
         buildUI();
     }
 
     public void syncBookData(QuestBookData bookData) {
         String selectedQuestId = selectedQuest == null ? "" : selectedQuest.questId;
-        this.playerData = bookData.playerData == null ? new QuestPlayerData() : bookData.playerData;
-        this.categoryData = bookData.categoryData == null ? new QuestCategoryListData() : bookData.categoryData;
-        selectedQuest = this.playerData.findQuest(selectedQuestId).orElse(null);
-        ensureSelectedQuestInCategory();
+        String selectedTaskId = selectedStepId;
+        playerData = bookData == null || bookData.playerData == null
+                ? new QuestPlayerData()
+                : bookData.playerData;
+        categoryData = bookData == null || bookData.categoryData == null
+                ? new QuestCategoryListData()
+                : bookData.categoryData;
+        selectedQuest = playerData.findQuest(selectedQuestId).orElse(null);
+        selectedStepId = selectedTaskId == null ? "" : selectedTaskId;
         refreshAll();
     }
 
@@ -125,220 +144,81 @@ public class QuestBookUI extends UIElement {
         layout(layout -> {
             layout.widthPercent(100);
             layout.heightPercent(100);
-            layout.paddingAll(6);
-        });
-        style(style -> style.backgroundTexture(new ColorRectTexture(ROOT_BG)));
-
-        UIElement stage = new UIElement();
-        stage.layout(layout -> {
-            layout.widthPercent(100);
-            layout.heightPercent(100);
-            layout.flexDirection(FlexDirection.ROW);
-            layout.gapAll(0);
-        });
-        addChild(stage);
-
-        buildCategoryRail(stage);
-
-        UIElement shell = texturedPanel(BOOK_FRAME);
-        shell.layout(layout -> {
-            layout.width(0);
-            layout.flex(1);
-            layout.heightPercent(100);
-            layout.flexDirection(FlexDirection.COLUMN);
-            layout.paddingAll(9);
-            layout.gapAll(5);
-        });
-        stage.addChild(shell);
-
-        buildTopBar(shell);
-
-        UIElement body = new UIElement();
-        body.layout(layout -> {
-            layout.widthPercent(100);
-            layout.flex(1);
-            layout.flexDirection(FlexDirection.ROW);
-            layout.gapAll(5);
-        });
-        shell.addChild(body);
-
-        buildQuestTreePanel(body);
-        buildDetailPanel(body);
-
-        refreshAll();
-    }
-
-    private void buildTopBar(UIElement parent) {
-        UIElement topBar = panel(0x88351C10, 0xAA7A431E);
-        topBar.layout(layout -> {
-            layout.widthPercent(100);
-            layout.height(30);
-            layout.flexDirection(FlexDirection.ROW);
-            layout.alignItems(AlignItems.CENTER);
-            layout.justifyContent(AlignContent.SPACE_BETWEEN);
-            layout.paddingHorizontal(8);
-            layout.gapAll(6);
-        });
-
-        UIElement titleBlock = new UIElement();
-        titleBlock.layout(layout -> {
-            layout.flex(1);
-            layout.flexDirection(FlexDirection.ROW);
-            layout.alignItems(AlignItems.CENTER);
-            layout.gapAll(6);
-        });
-
-        UIElement bookIcon = texturedPanel(BOOK_ICON_TEXTURE);
-        bookIcon.layout(layout -> {
-            layout.width(20);
-            layout.height(20);
-        });
-        titleBlock.addChild(bookIcon);
-
-        Label title = label(Component.translatable("viscript_quests.quest_book.window_title"), 14);
-        title.layout(layout -> {
-            layout.width(86);
-            layout.height(14);
-        });
-        title.textStyle(style -> style.textColor(TEXT_GOLD).fontSize(FONT_WINDOW_TITLE).textWrap(TextWrap.HIDE));
-        titleBlock.addChild(title);
-
-        topBar.addChild(titleBlock);
-        parent.addChild(topBar);
-    }
-
-    private void buildCategoryRail(UIElement parent) {
-        UIElement rail = new UIElement();
-        rail.layout(layout -> {
-            layout.width(CATEGORY_RAIL_WIDTH);
-            layout.heightPercent(100);
-            layout.flexDirection(FlexDirection.COLUMN);
-            layout.paddingTop(50);
-            layout.gapAll(BOOKMARK_GAP);
-        });
-
-        categoryListPanel = new UIElement();
-        categoryListPanel.layout(layout -> {
-            layout.widthPercent(100);
-            layout.height(BOOKMARK_HEIGHT * CATEGORIES_PER_PAGE + BOOKMARK_GAP * (CATEGORIES_PER_PAGE - 1));
-            layout.flexDirection(FlexDirection.COLUMN);
-            layout.gapAll(BOOKMARK_GAP);
-        });
-        rail.addChild(categoryListPanel);
-
-        UIElement spacer = new UIElement();
-        spacer.layout(layout -> {
-            layout.widthPercent(100);
-            layout.flex(1);
-        });
-        rail.addChild(spacer);
-
-        categoryPager = new Button();
-        categoryPager.noText();
-        categoryPager.buttonStyle(style -> style
-                .baseTexture(BOOKMARK_DEFAULT)
-                .hoverTexture(BOOKMARK_HOVER)
-                .pressedTexture(BOOKMARK_HOVER));
-        categoryPager.layout(layout -> {
-            layout.widthPercent(100);
-            layout.height(BOOKMARK_HEIGHT);
-            layout.flexDirection(FlexDirection.COLUMN);
             layout.alignItems(AlignItems.CENTER);
             layout.justifyContent(AlignContent.CENTER);
         });
-        categoryPagerLabel = label(Component.literal(">"), BOOKMARK_HEIGHT);
-        categoryPagerLabel.textStyle(style -> style
-                .textColor(TEXT_GOLD)
-                .fontSize(FONT_BODY)
-                .textAlignHorizontal(Horizontal.CENTER)
-                .textAlignVertical(Vertical.CENTER)
-                .textWrap(TextWrap.HIDE));
-        categoryPager.addChild(categoryPagerLabel);
-        categoryPager.addEventListener(UIEvents.CLICK, event -> {
+        style(style -> style.backgroundTexture(new ColorRectTexture(0x70000000)));
+
+        bookElement = texturedPanel(BOOK_BACKGROUND);
+        bookElement.layout(layout -> {
+            layout.width(BOOK_WIDTH);
+            layout.height(BOOK_HEIGHT);
+        });
+        addChild(bookElement);
+
+        buildCategoryTabs(bookElement);
+        buildQuestList(bookElement);
+        buildDetailPanel(bookElement);
+        refreshAll();
+    }
+
+    private void buildCategoryTabs(UIElement book) {
+        categoryListPanel = place(new UIElement(), CATEGORY_X, CATEGORY_Y, 30,
+                CATEGORIES_PER_PAGE * (CATEGORY_HEIGHT + CATEGORY_GAP));
+        categoryListPanel.layout(layout -> {
+            layout.flexDirection(FlexDirection.COLUMN);
+            layout.gapAll(CATEGORY_GAP);
+        });
+        book.addChild(categoryListPanel);
+
+        categoryPager = new Button().noText();
+        categoryPager.buttonStyle(style -> style
+                .baseTexture(SpriteTexture.of(QuestCategoryData.DEFAULT_TAB_BACKGROUND))
+                .hoverTexture(SpriteTexture.of(QuestCategoryData.DEFAULT_SELECTED_TAB_BACKGROUND))
+                .pressedTexture(SpriteTexture.of(QuestCategoryData.DEFAULT_SELECTED_TAB_BACKGROUND)));
+        place(categoryPager, CATEGORY_X, CATEGORY_Y + CATEGORIES_PER_PAGE * (CATEGORY_HEIGHT + CATEGORY_GAP),
+                20, CATEGORY_HEIGHT);
+        Label pagerText = centeredLabel(Component.literal("»"), FONT_NORMAL, TEXT_DARK);
+        pagerText.setAllowHitTest(false);
+        categoryPager.addChild(pagerText);
+        categoryPager.setOnClick(event -> {
             int maxPage = maxCategoryPage();
-            if (maxPage <= 0) {
-                return;
+            if (maxPage > 0) {
+                categoryPage = categoryPage >= maxPage ? 0 : categoryPage + 1;
+                reloadCategoryTabs();
             }
-            categoryPage = categoryPage >= maxPage ? 0 : categoryPage + 1;
-            reloadCategoryList();
         });
-        rail.addChild(categoryPager);
-
-        parent.addChild(rail);
+        book.addChild(categoryPager);
     }
 
-    private void buildQuestTreePanel(UIElement parent) {
-        UIElement questPanel = texturedPanel(CONTENT_PANEL);
-        questPanel.layout(layout -> {
-            layout.width(LEFT_PAGE_WIDTH);
-            layout.heightPercent(100);
-            layout.flexDirection(FlexDirection.COLUMN);
-            layout.paddingAll(5);
-            layout.gapAll(3);
-        });
+    private void buildQuestList(UIElement book) {
+        UIElement header = place(new UIElement(), QUEST_LIST_X, 47, QUEST_LIST_WIDTH, 15);
+        UIElement decoration = place(texturedPanel(QUEST_LIST_HEADER), 0, 5, 113, 9);
+        decoration.setAllowHitTest(false);
+        header.addChild(decoration);
 
-        Label title = label(Component.translatable("viscript_quests.quest_book.quest_list"), 12);
-        title.layout(layout -> {
-            layout.widthPercent(100);
-            layout.height(12);
-        });
-        title.textStyle(style -> style.textColor(TEXT_GOLD).fontSize(FONT_PANEL_TITLE).textWrap(TextWrap.HIDE));
-        questPanel.addChild(title);
+        Label title = place(label(Component.translatable("viscript_quests.quest_book.quest_list"), FONT_TITLE,
+                TEXT_DARK), 10, 3, 145, 11);
+        title.setAllowHitTest(false);
+        header.addChild(title);
+        book.addChild(header);
 
-        questTreeView = new ScrollerView();
-        questTreeView.layout(layout -> {
-            layout.widthPercent(100);
-            layout.flex(1);
-        });
-        configureVerticalScroller(questTreeView, 1);
-        questPanel.addChild(questTreeView);
-
-        parent.addChild(questPanel);
+        questListView = place(new ScrollerView(), QUEST_LIST_X, QUEST_LIST_Y, QUEST_LIST_WIDTH, QUEST_LIST_HEIGHT);
+        configureVerticalScroller(questListView, 0, 0);
+        book.addChild(questListView);
     }
 
-    private void buildDetailPanel(UIElement parent) {
-        UIElement detailPanel = texturedPanel(CONTENT_PANEL);
-        detailPanel.layout(layout -> {
-            layout.width(0);
-            layout.flex(1);
-            layout.heightPercent(100);
-            layout.flexDirection(FlexDirection.COLUMN);
-            layout.paddingAll(5);
-        });
-
-        detailScroller = new ScrollerView();
-        detailScroller.layout(layout -> {
-            layout.widthPercent(100);
-            layout.flex(1);
-        });
-        configureVerticalScroller(detailScroller, 1);
-        detailPanel.addChild(detailScroller);
-
-        parent.addChild(detailPanel);
-    }
-
-    private void configureVerticalScroller(ScrollerView scroller, int padding) {
-        scroller.scrollerStyle(style -> style
-                .mode(ScrollerMode.VERTICAL)
-                .horizontalScrollDisplay(ScrollDisplay.NEVER)
-                .verticalScrollDisplay(ScrollDisplay.NEVER)
-                .scrollerViewStyle(3));
-        scroller.viewPort(view -> view
-                .layout(layout -> layout.paddingAll(padding))
-                .style(style -> style.backgroundTexture(new ColorRectTexture(0x00000000))));
-        scroller.viewContainer(view -> view.layout(layout -> {
-            layout.widthPercent(100);
-            layout.flexDirection(FlexDirection.COLUMN);
-            layout.gapAll(2);
-        }));
+    private void buildDetailPanel(UIElement book) {
+        detailPanel = place(new UIElement(), DETAIL_X, DETAIL_Y, DETAIL_WIDTH, DETAIL_HEIGHT);
+        book.addChild(detailPanel);
     }
 
     private void refreshAll() {
         ensureSelectedCategory();
-        ensureSelectedQuestInCategory();
-        reloadCategoryList();
-        reloadQuestTree();
-        reloadQuestDetail();
+        ensureSelectedEntry();
+        reloadCategoryTabs();
+        reloadQuestList();
+        reloadDetail();
     }
 
     private void ensureSelectedCategory() {
@@ -351,27 +231,30 @@ public class QuestBookUI extends UIElement {
             selectedCategoryId = categoryData.categories.getFirst().id;
         }
         int selectedIndex = categoryIndex(selectedCategoryId);
-        if (selectedIndex >= 0 && selectedIndex / CATEGORIES_PER_PAGE != categoryPage) {
+        if (selectedIndex >= 0) {
             categoryPage = selectedIndex / CATEGORIES_PER_PAGE;
         }
     }
 
-    private void ensureSelectedQuestInCategory() {
-        List<PlayerQuestState> filtered = getFilteredQuests();
-        if (selectedQuest != null) {
-            for (PlayerQuestState quest : filtered) {
-                if (quest.questId.equals(selectedQuest.questId)) {
-                    selectedQuest = quest;
-                    ensureSelectedTaskInQuest();
-                    return;
-                }
-            }
+    private void ensureSelectedEntry() {
+        if (selectedQuest == null || selectedStepId == null || selectedStepId.isBlank()) {
+            selectedQuest = null;
+            selectedStepId = "";
+            return;
         }
-        selectedQuest = filtered.isEmpty() ? null : filtered.getFirst();
-        if (selectedQuest != null) {
-            expandedQuestIds.add(selectedQuest.questId);
+
+        QuestListEntry selected = getQuestListEntries().stream()
+                .filter(entry -> entry.quest.questId.equals(selectedQuest.questId)
+                        && entry.stepId().equals(selectedStepId))
+                .findFirst()
+                .orElse(null);
+        if (selected == null) {
+            selectedQuest = null;
+            selectedStepId = "";
+            return;
         }
-        ensureSelectedTaskInQuest();
+        selectedQuest = selected.quest;
+        selectedStepId = selected.stepId();
     }
 
     private void selectCategory(String categoryId) {
@@ -381,661 +264,406 @@ public class QuestBookUI extends UIElement {
         refreshAll();
     }
 
-    private void selectQuest(PlayerQuestState quest) {
-        selectedQuest = quest;
-        selectedStepId = "";
-        expandedQuestIds.add(quest.questId);
-        reloadQuestTree();
-        reloadQuestDetail();
+    private void selectEntry(QuestListEntry entry) {
+        selectedQuest = entry.quest;
+        selectedStepId = entry.stepId();
+        reloadQuestList();
+        reloadDetail();
     }
 
-    private void selectTask(PlayerQuestState quest, String stepId) {
-        selectedQuest = quest;
-        selectedStepId = stepId == null ? "" : stepId;
-        expandedQuestIds.add(quest.questId);
-        reloadQuestTree();
-        reloadQuestDetail();
+    private void toggleQuestCollapsed(PlayerQuestState quest) {
+        if (!collapsedQuestIds.add(quest.questId)) {
+            collapsedQuestIds.remove(quest.questId);
+        }
+        reloadQuestList();
     }
 
-    private void toggleQuestExpanded(PlayerQuestState quest) {
-        boolean switchedQuest = selectedQuest == null || !selectedQuest.questId.equals(quest.questId);
-        if (expandedQuestIds.contains(quest.questId)) {
-            expandedQuestIds.remove(quest.questId);
-        } else {
-            expandedQuestIds.add(quest.questId);
-        }
-        selectedQuest = quest;
-        selectedStepId = "";
-        if (switchedQuest) {
-            expandedQuestIds.add(quest.questId);
-        }
-        reloadQuestTree();
-        reloadQuestDetail();
-    }
-
-    private void ensureSelectedTaskInQuest() {
-        if (selectedQuest == null) {
-            selectedStepId = "";
-            return;
-        }
-        if (selectedStepId == null || selectedStepId.isBlank()) {
-            return;
-        }
-        boolean exists = getVisibleTasks(selectedQuest).stream()
-                .anyMatch(progress -> progress.stepId.equals(selectedStepId));
-        if (!exists) {
-            selectedStepId = "";
-        }
-    }
-
-    private void reloadCategoryList() {
+    private void reloadCategoryTabs() {
         categoryPage = Math.max(0, Math.min(categoryPage, maxCategoryPage()));
         categoryListPanel.clearAllChildren();
-        List<QuestCategoryData> categories = pagedCategories();
-        for (QuestCategoryData category : categories) {
-            addCategoryItem(category.id,
-                    Component.literal(category.title),
-                    category);
+        for (QuestCategoryData category : pagedCategories()) {
+            boolean selected = category.id.equals(selectedCategoryId);
+            Button tab = new Button().noText();
+            IGuiTexture normalTexture = SpriteTexture.of(category.tabBackgroundLocation(false));
+            IGuiTexture selectedTexture = SpriteTexture.of(category.tabBackgroundLocation(true));
+            tab.buttonStyle(style -> style
+                    .baseTexture(selected ? selectedTexture : normalTexture)
+                    .hoverTexture(selectedTexture)
+                    .pressedTexture(selectedTexture));
+            tab.layout(layout -> {
+                layout.width(selected ? 30 : 20);
+                layout.height(CATEGORY_HEIGHT);
+            });
+            String categoryTitle = category.title == null || category.title.isBlank() ? category.id : category.title;
+            tab.style(style -> style.tooltips(Component.literal(categoryTitle)));
+            tab.setOnClick(event -> selectCategory(category.id));
+
+            UIElement icon = createDisplayIcon(category.displayIcon, Component.empty());
+            place(icon, 2, 2, 14, 14);
+            icon.setAllowHitTest(false);
+            tab.addChild(icon);
+            categoryListPanel.addChild(tab);
         }
-        reloadCategoryPager();
-    }
 
-    private void addCategoryItem(String categoryId, Component title, Object icon) {
-        boolean selected = categoryId.equals(selectedCategoryId);
-        Button row = new Button();
-        row.noText();
-        row.buttonStyle(style -> style
-                .baseTexture(selected ? BOOKMARK_HOVER : BOOKMARK_DEFAULT)
-                .hoverTexture(BOOKMARK_HOVER)
-                .pressedTexture(BOOKMARK_HOVER));
-        row.layout(layout -> {
-            layout.widthPercent(100);
-            layout.height(BOOKMARK_HEIGHT);
-            layout.flexDirection(FlexDirection.COLUMN);
-            layout.alignItems(AlignItems.CENTER);
-            layout.paddingVertical(2);
-            layout.paddingHorizontal(2);
-        });
-        row.style(style -> style.tooltips(title));
-        row.addEventListener(UIEvents.CLICK, event -> selectCategory(categoryId));
-
-        row.addChild(createCategoryIcon(icon, title));
-        categoryListPanel.addChild(row);
-    }
-
-    private void reloadCategoryPager() {
         int maxPage = maxCategoryPage();
-        if (maxPage <= 0) {
-            categoryPager.setVisible(false);
-            return;
-        }
-        categoryPager.setVisible(true);
-        categoryPagerLabel.setText(Component.literal(">"));
-        categoryPager.style(style -> style.tooltips(Component.literal((categoryPage + 1) + "/" + (maxPage + 1))));
-    }
-
-    private void reloadQuestTree() {
-        questTreeView.clearAllScrollViewChildren();
-
-        List<PlayerQuestState> quests = getFilteredQuests();
-        if (!ClientConfig.SHOW_COMPLETED_QUESTS_IN_BOOK.get()) {
-            quests = quests.stream()
-                    .filter(quest -> quest.status != QuestStatus.COMPLETED)
-                    .toList();
-        }
-        if (quests.isEmpty()) {
-            questTreeView.addScrollViewChild(emptyMessage("viscript_quests.quest_book.empty"));
-            return;
-        }
-
-        for (PlayerQuestState quest : quests) {
-            addQuestTreeItem(quest);
+        categoryPager.setVisible(maxPage > 0);
+        if (maxPage > 0) {
+            categoryPager.style(style -> style.tooltips(Component.literal(
+                    (categoryPage + 1) + "/" + (maxPage + 1))));
         }
     }
 
-    private void addQuestTreeItem(PlayerQuestState quest) {
-        boolean selected = selectedQuest != null && selectedQuest.questId.equals(quest.questId);
-        boolean tracked = playerData.trackedQuestId.equals(quest.questId);
-        boolean completedQuest = quest.status == QuestStatus.COMPLETED;
-        boolean expanded = expandedQuestIds.contains(quest.questId);
-
-        IGuiTexture rowTexture = selected ? QUEST_SELECTED : completedQuest ? QUEST_COMPLETED : QUEST_DEFAULT;
-        UIElement row = texturedPanel(rowTexture);
-        row.layout(layout -> {
-            layout.widthPercent(100);
-            layout.height(QUEST_ITEM_HEIGHT);
-            layout.flexDirection(FlexDirection.ROW);
-            layout.alignItems(AlignItems.CENTER);
-            layout.paddingVertical(1);
-            layout.paddingHorizontal(2);
-            layout.gapAll(2);
-        });
-        row.addEventListener(UIEvents.CLICK, event -> {
-            toggleQuestExpanded(quest);
-        });
-
-        Label arrow = label(Component.literal(expanded ? "v" : ">"), 10);
-        arrow.layout(layout -> layout.width(7));
-        arrow.textStyle(style -> style.textColor(selected ? TEXT_GOLD : TEXT_MUTED).fontSize(FONT_ROW_TITLE));
-        row.addChild(arrow);
-
-        UIElement iconSlot = createDisplayIcon(quest.icon, Component.empty());
-        iconSlot.layout(layout -> {
-            layout.width(QUEST_ICON_SIZE);
-            layout.height(QUEST_ICON_SIZE);
-        });
-        row.addChild(iconSlot);
-
-        UIElement titleCol = new UIElement();
-        titleCol.layout(layout -> {
-            layout.width(0);
-            layout.flex(1);
-            layout.flexDirection(FlexDirection.COLUMN);
-            layout.justifyContent(AlignContent.CENTER);
-            layout.gapAll(1);
-        });
-
-        MutableComponent titleText = Component.literal(questTitle(quest));
-        if (tracked) {
-            titleText.append(Component.literal("  *"));
-        }
-        Label titleLabel = label(titleText, 10);
-        titleLabel.textStyle(style -> style
-                .textColor(completedQuest ? 0xFF9E977D : tracked ? TEXT_GOLD : TEXT_MAIN)
-                .fontSize(FONT_ROW_TITLE)
-                .textWrap(TextWrap.HIDE));
-        titleCol.addChild(titleLabel);
-
-        if (quest.subtitle != null && !quest.subtitle.isBlank()) {
-            Label preview = label(Component.literal(quest.subtitle), 9);
-            preview.textStyle(style -> style
-                    .textColor(completedQuest ? 0xFF7F7968 : TEXT_MUTED)
-                    .fontSize(FONT_ROW_SUBTITLE)
-                    .textWrap(TextWrap.HIDE));
-            titleCol.addChild(preview);
-        }
-
-        row.addChild(titleCol);
-
-        questTreeView.addScrollViewChild(row);
-
-        if (expanded) {
-            List<TaskProgress> visibleTasks = getVisibleTasks(quest);
-            for (TaskProgress taskProgress : visibleTasks) {
-                addQuestTreeTaskItem(quest, taskProgress);
+    private void reloadQuestList() {
+        questListView.clearAllScrollViewChildren();
+        for (QuestListGroup group : getQuestListGroups()) {
+            questListView.addScrollViewChild(createQuestSummary(group.quest));
+            if (!collapsedQuestIds.contains(group.quest.questId)) {
+                for (TaskProgress task : group.tasks) {
+                    questListView.addScrollViewChild(createSubTaskEntry(new QuestListEntry(group.quest, task)));
+                }
             }
         }
     }
 
-    private void addQuestTreeTaskItem(PlayerQuestState quest, TaskProgress taskProgress) {
-        boolean selected = selectedQuest != null
-                && selectedQuest.questId.equals(quest.questId)
-                && taskProgress.stepId.equals(selectedStepId);
-        UIElement wrapper = new UIElement();
-        wrapper.layout(layout -> {
-            layout.widthPercent(100);
-            layout.height(TASK_ITEM_HEIGHT);
-            layout.paddingLeft(SUB_TASK_INDENT);
-        });
-
-        UIElement row = texturedPanel(selected ? QUEST_SELECTED : taskProgress.status == TaskStatus.COMPLETED ? QUEST_COMPLETED : QUEST_DEFAULT);
+    private UIElement createQuestSummary(PlayerQuestState quest) {
+        UIElement row = texturedPanel(QUEST_SUMMARY_BACKGROUND);
         row.layout(layout -> {
+            layout.width(QUEST_LIST_WIDTH);
+            layout.height(QUEST_SUMMARY_HEIGHT);
+        });
+        row.addEventListener(com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents.CLICK,
+                event -> toggleQuestCollapsed(quest));
+
+        UIElement iconFrame = place(texturedPanel(OBJECTIVE_ICON_FRAME), 10, 5, 22, 22);
+        UIElement icon = place(createDisplayIcon(quest.icon, Component.empty()), 3, 3, 16, 16);
+        icon.setAllowHitTest(false);
+        iconFrame.addChild(icon);
+        iconFrame.setAllowHitTest(false);
+        row.addChild(iconFrame);
+
+        String questTitle = quest.title == null || quest.title.isBlank() ? quest.questId : quest.title;
+        Label title = place(label(Component.literal(questTitle), FONT_NORMAL, TEXT_DARK), 39, 5, 116, 10);
+        title.textStyle(style -> style.textWrap(TextWrap.HIDE));
+        title.setAllowHitTest(false);
+        row.addChild(title);
+
+        String subtitleText = quest.subtitle == null ? "" : quest.subtitle;
+        Label subtitle = place(label(Component.literal(subtitleText), FONT_SMALL, TEXT_MUTED), 39, 16, 116, 9);
+        subtitle.textStyle(style -> style.textWrap(TextWrap.HIDE));
+        subtitle.setAllowHitTest(false);
+        row.addChild(subtitle);
+        return row;
+    }
+
+    private UIElement createSubTaskEntry(QuestListEntry entry) {
+        boolean selected = selectedQuest != null
+                && selectedQuest.questId.equals(entry.quest.questId)
+                && selectedStepId.equals(entry.stepId());
+        UIElement row = texturedPanel(SUB_TASK_BACKGROUND);
+        row.layout(layout -> {
+            layout.width(QUEST_LIST_WIDTH);
+            layout.height(SUB_TASK_HEIGHT);
+        });
+        row.addEventListener(com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents.CLICK, event -> selectEntry(entry));
+
+        UIElement content = new UIElement();
+        content.layout(layout -> {
             layout.widthPercent(100);
-            layout.heightPercent(100);
+            layout.height(SUB_TASK_SPRITE_HEIGHT);
             layout.flexDirection(FlexDirection.ROW);
             layout.alignItems(AlignItems.CENTER);
-            layout.paddingVertical(1);
-            layout.paddingLeft(3);
-            layout.paddingRight(3);
-            layout.gapAll(2);
+            layout.paddingHorizontal(4);
+            layout.gapAll(3);
         });
-        row.addEventListener(UIEvents.CLICK, event -> selectTask(quest, taskProgress.stepId));
+        row.addChild(content);
 
-        Label statusIcon = label(getTaskStatusIcon(taskProgress.status), 9);
-        statusIcon.layout(layout -> layout.width(8));
-        statusIcon.textStyle(style -> style.fontSize(FONT_SMALL));
-        row.addChild(statusIcon);
-
-        UIElement titleCol = new UIElement();
-        titleCol.layout(layout -> {
+        Label title = label(entry.title(), FONT_SMALL, selected ? TEXT_SELECTED : TEXT_DARK);
+        title.layout(layout -> {
             layout.width(0);
             layout.flex(1);
-            layout.flexDirection(FlexDirection.COLUMN);
-            layout.justifyContent(AlignContent.CENTER);
+            layout.minWidth(20);
+            layout.height(10);
         });
-
-        Label title = label(Component.literal(taskTitle(taskProgress)), 9);
         title.textStyle(style -> style
-                .textColor(statusColor(taskProgress.status))
-                .fontSize(FONT_ROW_TITLE)
-                .textWrap(TextWrap.HIDE));
-        titleCol.addChild(title);
-
-        row.addChild(titleCol);
-
-        UIElement statusTag = texturedPanel(STATUS_TAG);
-        statusTag.layout(layout -> {
-            layout.width(44);
-            layout.height(13);
-            layout.justifyContent(AlignContent.CENTER);
-            layout.alignItems(AlignItems.CENTER);
-            layout.paddingHorizontal(2);
-        });
-        Label statusText = label(taskProgress.status.displayName(), 9);
-        statusText.textStyle(style -> style
-                .textColor(statusColor(taskProgress.status))
-                .fontSize(FONT_SMALL)
-                .textAlignHorizontal(Horizontal.CENTER)
                 .textAlignVertical(Vertical.CENTER)
                 .textWrap(TextWrap.HIDE));
-        statusTag.addChild(statusText);
-        row.addChild(statusTag);
+        title.setAllowHitTest(false);
+        content.addChild(title);
 
-        wrapper.addChild(row);
-        questTreeView.addScrollViewChild(wrapper);
-    }
-
-    private void reloadQuestDetail() {
-        detailScroller.clearAllScrollViewChildren();
-        TaskProgress selectedTask = getSelectedTask(selectedQuest);
-        if (selectedQuest != null && selectedTask != null) {
-            addTaskDetail(selectedQuest, selectedTask);
-        }
-    }
-
-    private void addTaskDetail(PlayerQuestState quest, TaskProgress taskProgress) {
-        addTaskDetailHeader(taskProgress);
-        addTaskDescription(taskProgress);
-        addTaskRequirement(quest, taskProgress);
-        addRewardsForTask(quest, taskProgress.stepId);
-        addTrackTaskButton(quest, taskProgress);
-    }
-
-    private void addTaskDetailHeader(TaskProgress taskProgress) {
-        UIElement header = new UIElement();
-        header.layout(layout -> {
-            layout.widthPercent(100);
-            layout.minHeight(24);
-            layout.flexDirection(FlexDirection.COLUMN);
-            layout.paddingAll(2);
-            layout.gapAll(1);
+        Label status = label(entry.statusName(), FONT_SMALL, entry.statusColor());
+        status.layout(layout -> {
+            layout.height(12);
+            layout.paddingHorizontal(5);
         });
-
-        UIElement titleCol = new UIElement();
-        titleCol.layout(layout -> {
-            layout.widthPercent(100);
-            layout.flexDirection(FlexDirection.COLUMN);
-            layout.gapAll(1);
-        });
-
-        Label title = label(Component.literal(taskTitle(taskProgress)), 12);
-        title.textStyle(style -> style.textColor(TEXT_GOLD).fontSize(FONT_DETAIL_TITLE).textWrap(TextWrap.HIDE));
-        titleCol.addChild(title);
-
-        if (taskProgress.subtitle != null && !taskProgress.subtitle.isBlank()) {
-            Label subtitle = label(Component.literal(taskProgress.subtitle), 10);
-            subtitle.textStyle(style -> style.textColor(TEXT_MUTED).fontSize(FONT_BODY).textWrap(TextWrap.HIDE));
-            titleCol.addChild(subtitle);
-        }
-        header.addChild(titleCol);
-
-        detailScroller.addScrollViewChild(header);
+        status.style(style -> style.backgroundTexture(
+                SpriteTexture.of(entry.task.status.getTagTexture()).setBorder(2)));
+        status.textStyle(style -> style
+                .adaptiveWidth(true)
+                .textAlignHorizontal(Horizontal.CENTER)
+                .textAlignVertical(Vertical.CENTER)
+                .textWrap(TextWrap.NONE));
+        status.setAllowHitTest(false);
+        content.addChild(status);
+        return row;
     }
 
-    private void addTaskDescription(TaskProgress taskProgress) {
-        if (taskProgress.description == null || taskProgress.description.length == 0) {
+    private void reloadDetail() {
+        detailPanel.clearAllChildren();
+        TaskProgress task = getSelectedTask(selectedQuest);
+        if (selectedQuest == null || task == null) {
             return;
         }
-        addSectionHeader("viscript_quests.quest_book.description_label");
-        UIElement card = texturedPanel(SECTION_PANEL);
-        card.layout(layout -> {
-            layout.widthPercent(100);
-            layout.flexDirection(FlexDirection.COLUMN);
-            layout.paddingAll(3);
-            layout.gapAll(1);
-        });
-        for (String line : taskProgress.description) {
-            if (line != null && !line.isBlank()) {
-                card.addChild(wrappedLabel(Component.literal(line), 10, TEXT_MAIN));
-            }
-        }
-        detailScroller.addScrollViewChild(card);
+        addTaskDetail(selectedQuest, task);
     }
 
-    private void addTaskRequirement(PlayerQuestState quest, TaskProgress taskProgress) {
-        addSectionHeader("viscript_quests.quest_book.objectives_label");
-        UIElement card = texturedPanel(SECTION_PANEL);
-        card.layout(layout -> {
-            layout.widthPercent(100);
-            layout.minHeight(20);
-            layout.flexDirection(FlexDirection.COLUMN);
-            layout.paddingAll(3);
-            layout.gapAll(2);
-        });
+    private void addTaskDetail(PlayerQuestState quest, TaskProgress task) {
+        addDetailTitle(Component.literal(taskTitle(task)));
 
-        if (taskProgress.objectives.isEmpty()) {
-            card.addChild(wrappedLabel(taskHint(taskProgress), 10, TEXT_MAIN));
+        List<Component> description = new ArrayList<>();
+        if (task.description != null) {
+            for (String line : task.description) {
+                if (line != null && !line.isBlank()) {
+                    description.add(Component.literal(line));
+                }
+            }
+        }
+        if (description.isEmpty() && task.subtitle != null && !task.subtitle.isBlank()) {
+            description.add(Component.literal(task.subtitle));
+        }
+        if (description.isEmpty()) {
+            description.add(taskHint(task));
+        }
+        addDescription(description);
+        addObjectives(quest, task);
+        addRewards(rewardsForStep(quest, task.stepId));
+        addTrackButton(quest, task);
+    }
+
+    private void addDetailTitle(Component titleText) {
+        UIElement decoration = place(texturedPanel(QUEST_TITLE_DECORATION), 15, 10, 159, 16);
+        decoration.setAllowHitTest(false);
+        detailPanel.addChild(decoration);
+
+        Label title = place(centeredLabel(titleText, FONT_TITLE, TEXT_DARK), 25, 12, 139, 12);
+        title.textStyle(style -> style.textWrap(TextWrap.HOVER_ROLL));
+        detailPanel.addChild(title);
+    }
+
+    private void addDescription(List<Component> lines) {
+        addSectionHeader(DESCRIPTION_ICON, "viscript_quests.quest_book.description_label", 44);
+        UIElement card = place(texturedPanel(SECTION_BACKGROUND_SHORT), 0, 62, 188, 42);
+        ScrollerView scroller = place(new ScrollerView(), 8, 4, 172, 34);
+        configureVerticalScroller(scroller, 0, 1);
+        for (Component line : lines) {
+            Label text = wrappedLabel(line, TEXT_DARK);
+            scroller.addScrollViewChild(text);
+        }
+        card.addChild(scroller);
+        detailPanel.addChild(card);
+    }
+
+    private void addObjectives(PlayerQuestState quest, TaskProgress task) {
+        addSectionHeader(OBJECTIVES_ICON, "viscript_quests.quest_book.objectives_label", 115);
+        UIElement card = place(texturedPanel(SECTION_BACKGROUND_TALL), 0, 133, 188, 72);
+        ScrollerView scroller = place(new ScrollerView(), 8, 3, 172, 66);
+        configureVerticalScroller(scroller, 0, 1);
+
+        if (task.objectives.isEmpty()) {
+            scroller.addScrollViewChild(wrappedLabel(taskHint(task), TEXT_DARK));
         } else {
-            for (int i = 0; i < taskProgress.objectives.size(); i++) {
-                card.addChild(createObjectiveRow(quest, taskProgress, i, taskProgress.objectives.get(i)));
+            for (int i = 0; i < task.objectives.size(); i++) {
+                scroller.addScrollViewChild(createObjectiveRow(quest, task, i, task.objectives.get(i)));
             }
         }
-
-        detailScroller.addScrollViewChild(card);
+        card.addChild(scroller);
+        detailPanel.addChild(card);
     }
 
-    private UIElement createObjectiveRow(PlayerQuestState quest, TaskProgress taskProgress,
-                                         int objectiveIndex, TaskObjectiveProgress objective) {
+    private UIElement createObjectiveRow(PlayerQuestState quest, TaskProgress task, int objectiveIndex,
+                                         TaskObjectiveProgress objective) {
         UIElement row = new UIElement();
         row.layout(layout -> {
-            layout.widthPercent(100);
-            layout.height(OBJECTIVE_ROW_HEIGHT);
+            layout.width(172);
+            layout.minHeight(22);
             layout.flexDirection(FlexDirection.ROW);
+            layout.wrap(FlexWrap.WRAP);
             layout.alignItems(AlignItems.CENTER);
             layout.gapAll(3);
         });
 
-        UIElement icon = createDisplayIcon(objective.displayIcon, objectiveTooltip(objective));
-        icon.layout(layout -> {
-            layout.width(OBJECTIVE_ICON_SIZE);
-            layout.height(OBJECTIVE_ICON_SIZE);
-        });
-        row.addChild(icon);
+        UIElement iconFrame = texturedPanel(OBJECTIVE_ICON_FRAME);
+        iconFrame.layout(layout -> layout.width(22).height(22));
+        UIElement icon = place(createDisplayIcon(objective.displayIcon, objectiveTooltip(objective)), 3, 3, 16, 16);
+        iconFrame.addChild(icon);
+        row.addChild(iconFrame);
 
-        Label taskLabel = objectiveLabel(objective.progressHint(), objective.displayTextColor());
-        taskLabel.layout(layout -> {
+        Label objectiveText = label(objective.progressHintWithType(), FONT_SMALL, objectiveTextColor(objective));
+        objectiveText.layout(layout -> {
             layout.width(0);
             layout.flex(1);
+            layout.minWidth(60);
+            layout.minHeight(20);
         });
-        row.addChild(taskLabel);
+        objectiveText.textStyle(style -> style
+                .adaptiveHeight(true)
+                .textAlignVertical(Vertical.CENTER)
+                .textWrap(TextWrap.WRAP));
+        row.addChild(objectiveText);
 
-        if (taskProgress.status == TaskStatus.ACTIVE && objective.manualSubmitRequired && !objective.completed) {
-            row.addChild(createObjectiveSubmitButton(quest, taskProgress, objectiveIndex));
+        if (objective.hasPonderView()) {
+            row.addChild(createPonderButton(quest, task, objectiveIndex, objective));
+        } else if (task.status == TaskStatus.ACTIVE && objective.manualSubmitRequired && !objective.completed) {
+            row.addChild(createSubmitButton(quest, task, objectiveIndex));
         }
         return row;
     }
 
-    private Component objectiveTooltip(TaskObjectiveProgress objective) {
-        if (objective == null) {
-            return Component.empty();
+    private void addRewards(List<RewardDisplay> rewards) {
+        addSectionHeader(REWARDS_ICON, "viscript_quests.quest_book.rewards_label", 217);
+        ScrollerView rewardScroller = place(new ScrollerView(), 0, 238, 188, 28);
+        configureHorizontalScroller(rewardScroller, 0, 8);
+        for (RewardDisplay reward : rewards) {
+            rewardScroller.addScrollViewChild(createRewardSlot(reward));
         }
-        Component hint = objective.displayHint();
-        if (objective.isRequired()) {
-            return hint;
-        }
-        Component typeLabel = objective.objectiveTypeLabel();
-        if (!hasTooltipText(hint)) {
-            return typeLabel;
-        }
-        return typeLabel.copy()
-                .append(" ")
-                .append(hint);
+        detailPanel.addChild(rewardScroller);
     }
 
-    private void addRewardsForTask(PlayerQuestState quest, String stepId) {
-        List<RewardDisplay> rewards = quest.rewardDisplays.stream()
-                .filter(reward -> reward.stepId.equals(stepId))
-                .toList();
-        addRewards(rewards);
-    }
-
-    private void addRewards(List<RewardDisplay> rewardsToShow) {
-        if (rewardsToShow.isEmpty()) return;
-        addSectionHeader("viscript_quests.quest_book.rewards_label");
-        UIElement rewards = new UIElement();
-        rewards.layout(layout -> {
-            layout.widthPercent(100);
-            layout.flexDirection(FlexDirection.ROW);
-            layout.wrap(FlexWrap.WRAP);
-            layout.paddingVertical(1);
-            layout.gapAll(4);
-        });
-
-        for (RewardDisplay rewardDisplay : rewardsToShow) {
-            addRewardRow(rewards, rewardDisplay);
+    private UIElement createRewardSlot(RewardDisplay reward) {
+        Component tooltip = reward == null ? Component.empty() : reward.displayText();
+        UIElement frame = texturedPanel(REWARD_ICON_FRAME);
+        frame.layout(layout -> layout.width(24).height(24));
+        if (hasTooltipText(tooltip)) {
+            frame.style(style -> style.tooltips(tooltip));
         }
-        detailScroller.addScrollViewChild(rewards);
+        DisplayIcon rewardIcon = reward == null ? null : reward.icon;
+        UIElement icon = place(createDisplayIcon(rewardIcon, tooltip), 4, 4, 16, 16);
+        frame.addChild(icon);
+        return frame;
     }
 
-    private void addRewardRow(UIElement parent, RewardDisplay rewardDisplay) {
-        UIElement slotFrame = texturedPanel(QUEST_DEFAULT);
-        slotFrame.layout(layout -> {
-            layout.width(REWARD_SLOT_SIZE);
-            layout.height(REWARD_SLOT_SIZE);
-            layout.justifyContent(AlignContent.CENTER);
-            layout.alignItems(AlignItems.CENTER);
-        });
-        if (!rewardDisplay.displayText().getString().isBlank()) {
-            slotFrame.style(style -> style.tooltips(rewardDisplay.displayText()));
-        }
-
-        UIElement rewardIcon = createDisplayIcon(rewardDisplay.icon, rewardDisplay.displayText().getString().isBlank()
-                ? Component.empty()
-                : rewardDisplay.displayText());
-        rewardIcon.layout(layout -> {
-            layout.width(REWARD_ICON_SIZE);
-            layout.height(REWARD_ICON_SIZE);
-        });
-        slotFrame.addChild(rewardIcon);
-        parent.addChild(slotFrame);
-    }
-
-    private void addTrackTaskButton(PlayerQuestState quest, TaskProgress taskProgress) {
-        UIElement row = new UIElement();
-        row.layout(layout -> {
-            layout.widthPercent(100);
-            layout.height(20);
-            layout.flexDirection(FlexDirection.ROW);
-            layout.justifyContent(AlignContent.FLEX_END);
-            layout.alignItems(AlignItems.CENTER);
-            layout.marginTop(3);
-        });
-
-        boolean tracked = isTrackedTask(quest, taskProgress);
-        Button button = new Button();
-        button.setText(Component.translatable(tracked
+    private void addTrackButton(PlayerQuestState quest, TaskProgress task) {
+        boolean tracked = isTrackedTask(quest, task);
+        Button button = actionButton(Component.translatable(tracked
                 ? "viscript_quests.quest_book.untrack_task_button"
                 : "viscript_quests.quest_book.track_task_button"));
-        button.buttonStyle(style -> style
-                .baseTexture(TRACK_BUTTON)
-                .hoverTexture(TRACK_BUTTON_HOVER)
-                .pressedTexture(TRACK_BUTTON_PRESSED));
-        button.textStyle(style -> style
-                .textColor(tracked ? TEXT_MUTED : TEXT_GOLD)
-                .fontSize(FONT_BODY)
-                .textAlignHorizontal(Horizontal.CENTER)
-                .textAlignVertical(Vertical.CENTER)
-                .textWrap(TextWrap.HIDE));
-        button.layout(layout -> {
-            layout.width(74);
-            layout.height(16);
+        place(button, 110, 294, 78, 18);
+        button.text.layout(layout -> {
+            layout.width(0);
+            layout.flex(1);
+            layout.heightPercent(100);
         });
-        button.addEventListener(UIEvents.CLICK, event -> toggleTrackedTask(quest, taskProgress));
-        row.addChild(button);
-        detailScroller.addScrollViewChild(row);
+        button.textStyle(style -> style.adaptiveWidth(false).textWrap(TextWrap.HOVER_ROLL));
+        button.setOverflowVisible(false);
+        button.text.setOverflowVisible(false);
+        button.setOnClick(event -> toggleTrackedTask(quest, task));
+        detailPanel.addChild(button);
     }
 
-    private Button createObjectiveSubmitButton(PlayerQuestState quest, TaskProgress taskProgress, int objectiveIndex) {
-        Button button = new Button();
-        button.setText(Component.translatable("viscript_quests.quest_book.submit_task_button"));
-        button.buttonStyle(style -> style
-                .baseTexture(TRACK_BUTTON)
-                .hoverTexture(TRACK_BUTTON_HOVER)
-                .pressedTexture(TRACK_BUTTON_PRESSED));
-        button.textStyle(style -> style
-                .textColor(TEXT_GOLD)
-                .fontSize(FONT_BODY)
-                .textAlignHorizontal(Horizontal.CENTER)
-                .textAlignVertical(Vertical.CENTER)
-                .textWrap(TextWrap.HIDE));
-        button.layout(layout -> {
-            layout.width(48);
-            layout.height(14);
-        });
-        button.style(style -> style.tooltips(Component.translatable("viscript_quests.quest_book.submit_task_button.tooltip")));
-        button.addEventListener(UIEvents.CLICK, event -> submitObjective(quest, taskProgress, objectiveIndex));
+    private Button createSubmitButton(PlayerQuestState quest, TaskProgress task, int objectiveIndex) {
+        Button button = actionButton(Component.translatable("viscript_quests.quest_book.submit_task_button"));
+        button.style(style -> style.tooltips(
+                Component.translatable("viscript_quests.quest_book.submit_task_button.tooltip")));
+        button.setOnClick(event -> submitObjective(quest, task, objectiveIndex));
         return button;
     }
 
-    private void addSectionHeader(String key) {
-        UIElement header = new UIElement();
-        header.layout(layout -> {
-            layout.widthPercent(100);
-            layout.flexDirection(FlexDirection.ROW);
-            layout.alignItems(AlignItems.CENTER);
-            layout.gapAll(4);
-            layout.marginTop(1);
-        });
-
-        Label marker = label(Component.literal(">"), 10);
-        marker.layout(layout -> layout.width(7));
-        marker.textStyle(style -> style.textColor(TEXT_GOLD).fontSize(FONT_SMALL));
-        header.addChild(marker);
-
-        Label label = label(Component.translatable(key), 10);
-        label.layout(layout -> {
-            layout.width(0);
-            layout.flex(1);
-        });
-        label.textStyle(style -> style.textColor(TEXT_GOLD).fontSize(FONT_BODY));
-        header.addChild(label);
-        detailScroller.addScrollViewChild(header);
+    private Button createPonderButton(PlayerQuestState quest, TaskProgress task, int objectiveIndex,
+                                      TaskObjectiveProgress objective) {
+        Button button = actionButton(Component.translatable("viscript_quests.quest_book.view_ponder_button"));
+        button.style(style -> style.tooltips(Component.translatable(
+                "viscript_quests.quest_book.view_ponder_button.tooltip",
+                objective.ponderComponentId == null ? "" : objective.ponderComponentId)));
+        button.setOnClick(event -> viewPonderObjective(quest, task, objectiveIndex, objective));
+        return button;
     }
 
-    private UIElement emptyMessage(String key) {
-        UIElement empty = texturedPanel(SECTION_PANEL);
-        empty.layout(layout -> {
-            layout.widthPercent(100);
-            layout.minHeight(28);
-            layout.paddingAll(5);
-            layout.justifyContent(AlignContent.CENTER);
-        });
-        Label label = wrappedLabel(Component.translatable(key), 10, TEXT_MAIN);
-        empty.addChild(label);
-        return empty;
-    }
-
-    private ItemSlot displayItem(ItemStack stack) {
-        ItemSlot slot = new ItemSlot();
-        slot.setItem(stack == null ? ItemStack.EMPTY : stack);
-        slot.style(style -> style.backgroundTexture(IGuiTexture.EMPTY));
-        slot.slotStyle(style -> style
-                .slotOverlay(IGuiTexture.EMPTY)
-                .hoverOverlay(IGuiTexture.EMPTY)
-                .showItemTooltips(false));
-        return slot;
-    }
-
-    private UIElement createCategoryIcon(Object icon, Component tooltip) {
-        if (icon instanceof DisplayIcon displayIcon && displayIcon.isTexture()) {
-            UIElement texture = texturedPanel(resolveCategoryTexture(displayIcon.getTexture()));
-            texture.layout(layout -> {
-                layout.width(BOOKMARK_ICON_SIZE);
-                layout.height(BOOKMARK_ICON_SIZE);
-            });
-            applyOptionalTooltip(texture, tooltip);
-            return texture;
-        }
-        ItemStack stack = icon instanceof DisplayIcon displayIcon
-                ? displayIcon.renderItemStack()
-                : icon instanceof ItemStack itemStack ? itemStack : DEFAULT_ICON;
-        ItemSlot iconSlot = displayItem(stack == null || stack.isEmpty() ? DEFAULT_ICON : stack);
-        iconSlot.layout(layout -> {
-            layout.width(BOOKMARK_ICON_SIZE);
-            layout.height(BOOKMARK_ICON_SIZE);
-        });
-        applyOptionalTooltip(iconSlot, tooltip);
-        return iconSlot;
-    }
-
-    private UIElement createDisplayIcon(DisplayIcon icon, Component tooltip) {
-        if (icon != null && icon.isTexture()) {
-            UIElement texture = texturedPanel(resolveCategoryTexture(icon.getTexture()));
-            applyOptionalTooltip(texture, tooltip);
-            return texture;
-        }
-        ItemStack stack = icon == null ? ItemStack.EMPTY : icon.renderItemStack();
-        ItemSlot slot = displayItem(stack == null || stack.isEmpty() ? DEFAULT_ICON : stack);
-        applyOptionalTooltip(slot, tooltip);
-        return slot;
-    }
-
-    private void applyOptionalTooltip(UIElement element, Component tooltip) {
-        if (hasTooltipText(tooltip)) {
-            element.style(style -> style.tooltips(tooltip));
-        } else {
-            element.setAllowHitTest(false);
-        }
-    }
-
-    private boolean hasTooltipText(Component tooltip) {
-        return tooltip != null && !tooltip.getString().isBlank();
-    }
-
-    private UIElement texturedPanel(IGuiTexture texture) {
-        UIElement panel = new UIElement();
-        panel.style(style -> style.backgroundTexture(texture));
-        return panel;
-    }
-
-    private UIElement panel(int background, int border) {
-        UIElement panel = new UIElement();
-        panel.style(style -> style.backgroundTexture(texture(background, border)));
-        return panel;
-    }
-
-    private static IGuiTexture sprite(String fileName, int border) {
-        SpriteTexture texture = SpriteTexture.of(ViScriptQuests.id("textures/gui/quest_book/" + fileName));
-        if (border > 0) {
-            texture.setBorder(border);
-        }
-        return texture;
-    }
-
-    private static IGuiTexture texture(int background, int border) {
-        return GuiTextureGroup.of(new ColorRectTexture(background), new ColorBorderTexture(-1, border));
-    }
-
-    private Label label(Component text, int height) {
-        Label label = new Label();
-        label.setText(text);
-        label.layout(layout -> {
-            layout.widthPercent(100);
-            layout.height(height);
-        });
-        label.textStyle(style -> style.textColor(TEXT_MAIN));
-        return label;
-    }
-
-    private Label wrappedLabel(Component text, int minHeight, int color) {
-        Label label = new Label();
-        label.setText(text);
-        label.layout(layout -> {
-            layout.widthPercent(100);
-            layout.minHeight(minHeight);
-        });
-        label.textStyle(style -> style
-                .textColor(color)
-                .fontSize(FONT_BODY)
-                .textWrap(TextWrap.WRAP)
-                .adaptiveHeight(true));
-        return label;
-    }
-
-    private Label objectiveLabel(Component text, int color) {
-        Label label = new Label();
-        label.setText(text);
-        label.layout(layout -> {
-            layout.widthPercent(100);
-            layout.height(OBJECTIVE_ROW_HEIGHT);
-        });
-        label.textStyle(style -> style
-                .textColor(color)
-                .fontSize(FONT_BODY)
-                .textAlignHorizontal(Horizontal.LEFT)
+    private Button actionButton(Component text) {
+        Button button = new Button();
+        button.setText(text);
+        button.buttonStyle(style -> style
+                .baseTexture(BUTTON_DEFAULT)
+                .hoverTexture(BUTTON_HOVER)
+                .pressedTexture(BUTTON_HOLD));
+        button.textStyle(style -> style
+                .textColor(TEXT_DARK)
+                .fontSize(FONT_SMALL)
+                .textShadow(false)
+                .adaptiveWidth(true)
+                .textAlignHorizontal(Horizontal.CENTER)
                 .textAlignVertical(Vertical.CENTER)
-                .textWrap(TextWrap.HIDE));
-        return label;
+                .textWrap(TextWrap.NONE));
+        button.layout(layout -> layout.height(18));
+        return button;
+    }
+
+    private void addSectionHeader(IGuiTexture iconTexture, String translationKey, int y) {
+        UIElement icon = place(texturedPanel(iconTexture), 0, y, 16, 16);
+        icon.setAllowHitTest(false);
+        detailPanel.addChild(icon);
+
+        Label title = place(label(Component.translatable(translationKey), FONT_TITLE, TEXT_DARK),
+                18, y, 170, 16);
+        title.textStyle(style -> style.textAlignVertical(Vertical.CENTER));
+        title.setAllowHitTest(false);
+        detailPanel.addChild(title);
+    }
+
+    private void configureVerticalScroller(ScrollerView scroller, int padding, int gap) {
+        scroller.scrollerStyle(style -> style
+                .mode(ScrollerMode.VERTICAL)
+                .horizontalScrollDisplay(ScrollDisplay.NEVER)
+                .verticalScrollDisplay(ScrollDisplay.NEVER)
+                .scrollerViewStyle(0));
+        scroller.viewPort(view -> view
+                .layout(layout -> layout.paddingAll(padding))
+                .style(style -> style.backgroundTexture(IGuiTexture.EMPTY)));
+        scroller.viewContainer(view -> view.layout(layout -> {
+            layout.widthPercent(100);
+            layout.flexDirection(FlexDirection.COLUMN);
+            layout.gapAll(gap);
+        }));
+    }
+
+    private void configureHorizontalScroller(ScrollerView scroller, int padding, int gap) {
+        scroller.scrollerStyle(style -> style
+                .mode(ScrollerMode.HORIZONTAL)
+                .horizontalScrollDisplay(ScrollDisplay.NEVER)
+                .verticalScrollDisplay(ScrollDisplay.NEVER)
+                .scrollerViewStyle(0));
+        scroller.viewPort(view -> view
+                .layout(layout -> layout.paddingAll(padding))
+                .style(style -> style.backgroundTexture(IGuiTexture.EMPTY)));
+        scroller.viewContainer(view -> view.layout(layout -> {
+            layout.heightPercent(100);
+            layout.flexDirection(FlexDirection.ROW);
+            layout.gapAll(gap);
+        }));
+    }
+
+    private List<QuestListEntry> getQuestListEntries() {
+        List<QuestListEntry> entries = new ArrayList<>();
+        for (QuestListGroup group : getQuestListGroups()) {
+            for (TaskProgress task : group.tasks) {
+                entries.add(new QuestListEntry(group.quest, task));
+            }
+        }
+        return entries;
+    }
+
+    private List<QuestListGroup> getQuestListGroups() {
+        List<QuestListGroup> groups = new ArrayList<>();
+        for (PlayerQuestState quest : getFilteredQuests()) {
+            if (!ClientConfig.SHOW_COMPLETED_QUESTS_IN_BOOK.get() && quest.status == QuestStatus.COMPLETED) {
+                continue;
+            }
+            List<TaskProgress> visibleTasks = quest.taskProgresses.stream()
+                    .filter(this::isVisibleTaskInBook)
+                    .toList();
+            if (!visibleTasks.isEmpty()) {
+                groups.add(new QuestListGroup(quest, visibleTasks));
+            }
+        }
+        return groups;
     }
 
     private List<PlayerQuestState> getFilteredQuests() {
@@ -1052,55 +680,14 @@ public class QuestBookUI extends UIElement {
         return filtered;
     }
 
-    private List<QuestCategoryData> pagedCategories() {
-        int start = categoryPage * CATEGORIES_PER_PAGE;
-        int end = Math.min(categoryData.categories.size(), start + CATEGORIES_PER_PAGE);
-        if (start >= end) {
-            return List.of();
+    private boolean isVisibleTaskInBook(TaskProgress task) {
+        if (task.status == TaskStatus.HIDDEN || task.status == TaskStatus.LOCKED) {
+            return false;
         }
-        return categoryData.categories.subList(start, end);
-    }
-
-    private int maxCategoryPage() {
-        int count = categoryData.categories.size();
-        if (count <= CATEGORIES_PER_PAGE) {
-            return 0;
+        if (task.status == TaskStatus.COMPLETED || task.status == TaskStatus.SKIPPED) {
+            return ClientConfig.SHOW_COMPLETED_TASKS_IN_BOOK.get();
         }
-        return (count - 1) / CATEGORIES_PER_PAGE;
-    }
-
-    private QuestCategoryData findCategory(String categoryId) {
-        String normalizedId = QuestCategoryData.normalizeId(categoryId);
-        return categoryData.categories.stream()
-                .filter(category -> category.id.equals(normalizedId))
-                .findFirst()
-                .orElse(null);
-    }
-
-    private int categoryIndex(String categoryId) {
-        String normalizedId = QuestCategoryData.normalizeId(categoryId);
-        for (int i = 0; i < categoryData.categories.size(); i++) {
-            if (categoryData.categories.get(i).id.equals(normalizedId)) {
-                return i;
-            }
-        }
-        return -1;
-    }
-
-    private String questTitle(PlayerQuestState quest) {
-        return quest.title == null || quest.title.isBlank() ? quest.questId : quest.title;
-    }
-
-    private Component getQuestPreview(PlayerQuestState quest) {
-        if (quest.subtitle != null && !quest.subtitle.isBlank()) {
-            return Component.literal(quest.subtitle);
-        }
-        for (TaskProgress taskProgress : quest.taskProgresses) {
-            if (taskProgress.status == TaskStatus.ACTIVE) {
-                return taskHint(taskProgress);
-            }
-        }
-        return Component.literal(quest.questId);
+        return true;
     }
 
     private TaskProgress getSelectedTask(PlayerQuestState quest) {
@@ -1108,147 +695,267 @@ public class QuestBookUI extends UIElement {
             return null;
         }
         return quest.taskProgresses.stream()
-                .filter(progress -> progress.stepId.equals(selectedStepId))
+                .filter(task -> task.stepId.equals(selectedStepId))
                 .findFirst()
                 .orElse(null);
     }
 
-    private List<TaskProgress> getVisibleTasks(PlayerQuestState quest) {
-        return quest.taskProgresses.stream()
-                .filter(this::isVisibleTaskInBook)
+    private List<RewardDisplay> rewardsForStep(PlayerQuestState quest, String stepId) {
+        String normalizedStepId = stepId == null ? "" : stepId;
+        return quest.rewardDisplays.stream()
+                .filter(reward -> normalizedStepId.equals(reward.stepId))
                 .toList();
     }
 
-    private boolean isVisibleTaskInBook(TaskProgress progress) {
-        if (progress.status == TaskStatus.HIDDEN || progress.status == TaskStatus.LOCKED) {
-            return false;
-        }
-        if (progress.status == TaskStatus.COMPLETED || progress.status == TaskStatus.SKIPPED) {
-            return ClientConfig.SHOW_COMPLETED_TASKS_IN_BOOK.get();
-        }
-        return true;
+    private boolean isTrackedTask(PlayerQuestState quest, TaskProgress task) {
+        return quest.questId.equals(playerData.trackedQuestId)
+                && task.stepId.equals(playerData.trackedStepId);
     }
 
-    private boolean isTrackedTask(PlayerQuestState quest, TaskProgress taskProgress) {
-        return playerData.trackedQuestId.equals(quest.questId)
-                && playerData.trackedStepId.equals(taskProgress.stepId);
-    }
-
-    private void toggleTrackedTask(PlayerQuestState quest, TaskProgress taskProgress) {
-        boolean tracked = isTrackedTask(quest, taskProgress);
+    private void toggleTrackedTask(PlayerQuestState quest, TaskProgress task) {
+        boolean tracked = isTrackedTask(quest, task);
         playerData.trackedQuestId = tracked ? "" : quest.questId;
-        playerData.trackedStepId = tracked ? "" : taskProgress.stepId;
-        sendTrackedTask();
-        reloadQuestTree();
-        reloadQuestDetail();
-    }
-
-    private void sendTrackedTask() {
+        playerData.trackedStepId = tracked ? "" : task.stepId;
         CompoundTag tag = new CompoundTag();
         tag.putString("trackedQuestId", playerData.trackedQuestId == null ? "" : playerData.trackedQuestId);
         tag.putString("trackedStepId", playerData.trackedStepId == null ? "" : playerData.trackedStepId);
         RPCPacketDistributor.rpcToServer(C2SPayload.SAVE_TRACKED_QUEST, tag);
+        reloadQuestList();
+        reloadDetail();
     }
 
-    private void submitObjective(PlayerQuestState quest, TaskProgress taskProgress, int objectiveIndex) {
+    private void submitObjective(PlayerQuestState quest, TaskProgress task, int objectiveIndex) {
         CompoundTag tag = new CompoundTag();
         tag.putString("questId", quest.questId);
-        tag.putString("stepId", taskProgress.stepId);
+        tag.putString("stepId", task.stepId);
         tag.putInt("objectiveIndex", objectiveIndex);
         RPCPacketDistributor.rpcToServer(C2SPayload.SUBMIT_QUEST_TASK, tag);
     }
 
-    private String taskTitle(TaskProgress taskProgress) {
-        return taskProgress.title == null || taskProgress.title.isBlank()
-                ? taskProgress.stepId
-                : taskProgress.title;
+    private void viewPonderObjective(PlayerQuestState quest, TaskProgress task, int objectiveIndex,
+                                     TaskObjectiveProgress objective) {
+        if (objective == null || !PonderCompat.open(objective.ponderComponentId)) {
+            return;
+        }
+        if (task.status == TaskStatus.ACTIVE && !objective.completed && !objective.isFailureCondition()) {
+            objective.requiredAmount = Math.max(1, objective.requiredAmount);
+            objective.currentAmount = objective.requiredAmount;
+            objective.completed = true;
+            if (task.areAllObjectivesCompleted()) {
+                task.status = TaskStatus.COMPLETED;
+            }
+            reloadQuestList();
+            reloadDetail();
+            submitObjective(quest, task, objectiveIndex);
+        }
     }
 
-    private Component taskHint(TaskProgress taskProgress) {
-        if (taskProgress.displayTaskHint() != null && !taskProgress.displayTaskHint().getString().isBlank()) {
-            return taskProgress.displayTaskHint();
-        }
-        if (taskProgress.title != null && !taskProgress.title.isBlank()) {
-            return Component.literal(taskProgress.title);
-        }
-        return Component.literal(taskProgress.stepId);
+    private List<QuestCategoryData> pagedCategories() {
+        int start = categoryPage * CATEGORIES_PER_PAGE;
+        int end = Math.min(categoryData.categories.size(), start + CATEGORIES_PER_PAGE);
+        return start >= end ? List.of() : categoryData.categories.subList(start, end);
     }
 
-    private static Component getTaskStatusIcon(TaskStatus status) {
-        return switch (status) {
-            case COMPLETED -> Component.literal("§a✓");
-            case FAILED -> Component.literal("§c×");
-            case HIDDEN -> Component.literal("§7?");
-            case ACTIVE -> Component.literal("§e●");
-            case LOCKED -> Component.literal("§8□");
-            case SKIPPED -> Component.literal("§7-");
-        };
+    private int maxCategoryPage() {
+        int count = categoryData.categories.size();
+        return count <= CATEGORIES_PER_PAGE ? 0 : (count - 1) / CATEGORIES_PER_PAGE;
+    }
+
+    private QuestCategoryData findCategory(String categoryId) {
+        String normalized = QuestCategoryData.normalizeId(categoryId);
+        return categoryData.categories.stream()
+                .filter(category -> category.id.equals(normalized))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private int categoryIndex(String categoryId) {
+        String normalized = QuestCategoryData.normalizeId(categoryId);
+        for (int i = 0; i < categoryData.categories.size(); i++) {
+            if (categoryData.categories.get(i).id.equals(normalized)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private String taskTitle(TaskProgress task) {
+        return task.title == null || task.title.isBlank() ? task.stepId : task.title;
+    }
+
+    private Component taskHint(TaskProgress task) {
+        Component hint = task.displayTaskHint();
+        if (hasTooltipText(hint)) {
+            return hint;
+        }
+        return Component.literal(taskTitle(task));
+    }
+
+    private Component objectiveTooltip(TaskObjectiveProgress objective) {
+        if (objective == null) {
+            return Component.empty();
+        }
+        Component hint = objective.displayHint();
+        if (objective.isRequired()) {
+            return hint;
+        }
+        return hasTooltipText(hint)
+                ? objective.objectiveTypeLabel().copy().append(" ").append(hint)
+                : objective.objectiveTypeLabel();
+    }
+
+    private int objectiveTextColor(TaskObjectiveProgress objective) {
+        if (objective.completed) {
+            return TEXT_GREEN;
+        }
+        if (objective.isFailureCondition()) {
+            return TEXT_RED;
+        }
+        return objective.isOptional() ? TEXT_MUTED : TEXT_DARK;
+    }
+
+    private UIElement createDisplayIcon(DisplayIcon displayIcon, Component tooltip) {
+        if (displayIcon != null && displayIcon.isTexture()) {
+            ResourceLocation location = ResourceLocation.tryParse(displayIcon.getTexture());
+            UIElement texture = texturedPanel(location == null ? OBJECTIVES_ICON : SpriteTexture.of(location));
+            applyOptionalTooltip(texture, tooltip);
+            return texture;
+        }
+        ItemStack stack = displayIcon == null ? ItemStack.EMPTY : displayIcon.renderItemStack();
+        ItemSlot slot = new ItemSlot();
+        slot.setItem(stack == null || stack.isEmpty() ? DEFAULT_ICON : stack);
+        slot.style(style -> style.backgroundTexture(IGuiTexture.EMPTY));
+        slot.slotStyle(style -> style
+                .slotOverlay(IGuiTexture.EMPTY)
+                .hoverOverlay(IGuiTexture.EMPTY)
+                .showItemTooltips(false));
+        applyOptionalTooltip(slot, tooltip);
+        return slot;
+    }
+
+    private void applyOptionalTooltip(UIElement element, Component tooltip) {
+        if (hasTooltipText(tooltip)) {
+            element.style(style -> style.tooltips(tooltip));
+        } else {
+            element.setAllowHitTest(false);
+        }
+    }
+
+    private boolean hasTooltipText(Component text) {
+        return text != null && !text.getString().isBlank();
+    }
+
+    private Label label(Component text, float fontSize, int color) {
+        Label label = new Label();
+        label.setText(text == null ? Component.empty() : text);
+        label.textStyle(style -> style
+                .textColor(color)
+                .fontSize(fontSize)
+                .textShadow(false));
+        return label;
+    }
+
+    private Label centeredLabel(Component text, float fontSize, int color) {
+        Label label = label(text, fontSize, color);
+        label.layout(layout -> {
+            layout.widthPercent(100);
+            layout.heightPercent(100);
+        });
+        label.textStyle(style -> style
+                .textAlignHorizontal(Horizontal.CENTER)
+                .textAlignVertical(Vertical.CENTER)
+                .textWrap(TextWrap.HIDE));
+        return label;
+    }
+
+    private Label wrappedLabel(Component text, int color) {
+        Label label = label(text, FONT_SMALL, color);
+        label.layout(layout -> {
+            layout.widthPercent(100);
+            layout.minHeight(9);
+        });
+        label.textStyle(style -> style
+                .textWrap(TextWrap.WRAP)
+                .adaptiveHeight(true));
+        return label;
+    }
+
+    private UIElement texturedPanel(IGuiTexture texture) {
+        UIElement panel = new UIElement();
+        panel.style(style -> style.backgroundTexture(texture));
+        return panel;
+    }
+
+    private static IGuiTexture sprite(String path) {
+        return SpriteTexture.of(ViScriptQuests.id("textures/gui/" + path));
+    }
+
+    private static IGuiTexture spriteRegion(String path, int x, int y, int width, int height) {
+        return SpriteTexture.of(ViScriptQuests.id("textures/gui/" + path))
+                .setSprite(x, y, width, height);
+    }
+
+    private static IGuiTexture borderedSprite(String path, int border) {
+        return SpriteTexture.of(ViScriptQuests.id("textures/gui/" + path)).setBorder(border);
+    }
+
+    private static <T extends UIElement> T place(T element, float x, float y, float width, float height) {
+        element.layout(layout -> {
+            layout.positionType(TaffyPosition.ABSOLUTE);
+            layout.left(x);
+            layout.top(y);
+            layout.width(width);
+            layout.height(height);
+        });
+        return element;
     }
 
     private static int statusColor(TaskStatus status) {
         return switch (status) {
-            case COMPLETED -> 0xFF9EE08F;
-            case FAILED -> 0xFFFF8A8A;
-            case ACTIVE -> 0xFFFFE6A0;
-            case SKIPPED -> 0xFF9B9B92;
-            case HIDDEN, LOCKED -> 0xFF777B76;
+            case ACTIVE -> TEXT_DARK;
+            case COMPLETED -> TEXT_GREEN;
+            case FAILED -> TEXT_RED;
+            case LOCKED, SKIPPED, HIDDEN -> TEXT_MUTED;
         };
     }
 
-    private static IGuiTexture resolveCategoryTexture(String textureId) {
-        if (textureId == null || textureId.isBlank()) {
-            return BOOK_ICON_TEXTURE;
-        }
-        ResourceLocation resourceLocation = ResourceLocation.tryParse(textureId);
-        return resourceLocation == null ? BOOK_ICON_TEXTURE : SpriteTexture.of(resourceLocation);
+    private record QuestListGroup(PlayerQuestState quest, List<TaskProgress> tasks) {
     }
 
-    private static ItemStack resolveCategoryItemIcon(String itemId) {
-        if (itemId == null || itemId.isBlank()) {
-            return DEFAULT_ICON;
+    private record QuestListEntry(PlayerQuestState quest, TaskProgress task) {
+        String stepId() {
+            return task.stepId;
         }
-        try {
-            ResourceLocation resourceLocation = ResourceLocation.tryParse(itemId);
-            if (resourceLocation == null) {
-                return DEFAULT_ICON;
-            }
-            return BuiltInRegistries.ITEM.getOptional(resourceLocation)
-                    .map(ItemStack::new)
-                    .orElse(DEFAULT_ICON);
-        } catch (Exception ignored) {
-            return DEFAULT_ICON;
+
+        Component title() {
+            String value = task.title == null || task.title.isBlank() ? task.stepId : task.title;
+            return Component.literal(value);
         }
+
+        Component statusName() {
+            return task.status.displayName();
+        }
+
+        int statusColor() {
+            return QuestBookUI.statusColor(task.status);
+        }
+
     }
+
     @Override
     public void initScreen(int screenWidth, int screenHeight) {
         super.initScreen(screenWidth, screenHeight);
-        applyAutoGuiScaleTransform();
+        applyViewportScale(screenWidth, screenHeight);
     }
 
-    public static Size getAutoGuiScaledSize(Size screenSize) {
-        float scale = getAutoGuiScaleFactor();
-        if (scale <= 0f) {
-            return screenSize;
-        }
-        return Size.of(
-                Math.max(1, Math.round(screenSize.getWidth() / scale)),
-                Math.max(1, Math.round(screenSize.getHeight() / scale))
-        );
+    public static Size getViewportSize(Size screenSize) {
+        return screenSize;
     }
 
-    private void applyAutoGuiScaleTransform() {
-        float scale = getAutoGuiScaleFactor();
-        transform(transform -> transform.pivot(0.5f, 0.5f).scale(scale));
-    }
-
-    private static float getAutoGuiScaleFactor() {
-        Minecraft minecraft = Minecraft.getInstance();
-        var window = minecraft.getWindow();
-        double currentScale = window.getGuiScale();
-        if (currentScale <= 0d) {
-            return 1f;
-        }
-        int autoScale = window.calculateScale(0, minecraft.isEnforceUnicode());
-        return Math.max(1f, (float) (autoScale / currentScale));
+    private void applyViewportScale(int screenWidth, int screenHeight) {
+        float widthScale = screenWidth * MAX_SCREEN_WIDTH_RATIO / BOOK_WIDTH;
+        float heightScale = screenHeight * MAX_SCREEN_HEIGHT_RATIO / BOOK_HEIGHT;
+        float scale = Math.max(0.01f, Math.min(widthScale, heightScale));
+        bookElement.transform(transform -> transform.pivot(0.5f, 0.5f).scale(scale));
     }
 }

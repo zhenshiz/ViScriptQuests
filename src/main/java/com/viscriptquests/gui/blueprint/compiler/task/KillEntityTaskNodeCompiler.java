@@ -20,7 +20,8 @@ public class KillEntityTaskNodeCompiler implements IQuestTaskNodeCompiler {
         KillEntityTask task = new KillEntityTask();
         task.stepId = stepId;
         task.entityType = context.getString(node, "entity_type");
-        task.killCount = Math.max(1, context.getInt(node, "kill_count"));
+        task.killCount = context.tracePortIntValue(node, "kill_count", 1, 1);
+        task.killCountExpression.addAll(context.compileRuntimeIntExpression(node, "kill_count", 1));
         task.tag = context.getString(node, "tag");
         return task;
     }

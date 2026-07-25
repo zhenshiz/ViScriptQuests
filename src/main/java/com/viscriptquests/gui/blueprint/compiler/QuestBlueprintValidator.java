@@ -206,39 +206,6 @@ public final class QuestBlueprintValidator {
         }
     }
 
-    private static void validateNoReachableCycles(Map<String, QuestFlowNode> nodes, List<QuestFlowEdge> edges, Set<String> reachable) {
-        Set<String> visited = new LinkedHashSet<>();
-        Set<String> visiting = new LinkedHashSet<>();
-        for (String nodeId : reachable) {
-            if (!visited.contains(nodeId)) {
-                detectCycle(nodeId, nodes, edges, reachable, visited, visiting);
-            }
-        }
-    }
-
-    private static void detectCycle(String nodeId, Map<String, QuestFlowNode> nodes, List<QuestFlowEdge> edges,
-                                    Set<String> reachable, Set<String> visited, Set<String> visiting) {
-        visiting.add(nodeId);
-        for (QuestFlowEdge edge : outgoing(nodeId, edges)) {
-            if (!reachable.contains(edge.toNodeId)) {
-                continue;
-            }
-            if (!nodes.containsKey(edge.toNodeId)) {
-                continue;
-            }
-            if (visiting.contains(edge.toNodeId)) {
-                throw QuestBlueprintValidationException.create(
-                        "viscript_quests.editor.quest.export.validation.cycle",
-                        displayNode(edge.fromNodeId), displayNode(edge.toNodeId));
-            }
-            if (!visited.contains(edge.toNodeId)) {
-                detectCycle(edge.toNodeId, nodes, edges, reachable, visited, visiting);
-            }
-        }
-        visiting.remove(nodeId);
-        visited.add(nodeId);
-    }
-
     private static void validateAllReachableNodesCanFinish(Map<String, QuestFlowNode> nodes, List<QuestFlowEdge> edges,
                                                            Set<String> reachable) {
         Set<String> canFinish = new LinkedHashSet<>();

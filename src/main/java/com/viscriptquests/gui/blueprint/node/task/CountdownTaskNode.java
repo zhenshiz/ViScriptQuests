@@ -10,7 +10,7 @@ import com.viscriptquests.quest.data.TaskObjectiveType;
 import net.minecraft.network.chat.Component;
 
 // 倒计时目标节点，默认用于“超时失败”这类小任务限制。
-@NodeAttribute(name = "countdown_task", group = QuestBlueprintNode.TASK_GROUP, graphTypes = QuestBlueprintGraph.class)
+@NodeAttribute(name = QuestBlueprintNode.ID + "countdown_task", group = QuestBlueprintNode.TASK_GROUP, graphTypes = QuestBlueprintGraph.class)
 public class CountdownTaskNode extends QuestBlueprintNode {
     @Override
     public Component getDisplayName() {
@@ -19,7 +19,6 @@ public class CountdownTaskNode extends QuestBlueprintNode {
 
     @Override
     public void onDefineOptions(IOptionDefinitionContext context) {
-        intOption(context, "duration_seconds", 60);
         enumOption(context, "objective_type", QuestBlueprintTypes.OBJECTIVE_TYPE, TaskObjectiveType.FAILURE);
         taskHintOption(context);
     }
@@ -27,5 +26,6 @@ public class CountdownTaskNode extends QuestBlueprintNode {
     @Override
     public void onDefinePorts(IPortDefinitionContext context) {
         taskFlowPorts(context);
+        intInput(context, "duration_seconds", 60);
     }
 }

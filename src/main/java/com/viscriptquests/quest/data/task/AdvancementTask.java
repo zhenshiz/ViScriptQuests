@@ -3,6 +3,7 @@ package com.viscriptquests.quest.data.task;
 import com.lowdragmc.lowdraglib2.registry.annotation.LDLRegister;
 import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
 import com.viscriptquests.quest.data.DisplayIcon;
+import com.viscriptquests.quest.data.QuestVariableValue;
 import com.viscriptquests.quest.data.runtime.TaskObjectiveProgress;
 import net.minecraft.advancements.Advancement;
 import net.minecraft.advancements.AdvancementHolder;
@@ -11,6 +12,8 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+
+import java.util.Map;
 
 // 进度目标，检查玩家是否已经完成指定 Minecraft Advancement。
 @LDLRegister(name = "advancement_task", registry = ITask.ID)
@@ -36,6 +39,12 @@ public class AdvancementTask extends ITask {
 
     @Override
     public void refreshObjectiveProgress(ServerPlayer player, TaskObjectiveProgress progress) {
+        refreshObjectiveProgress(player, progress, null);
+    }
+
+    @Override
+    public void refreshObjectiveProgress(ServerPlayer player, TaskObjectiveProgress progress,
+                                         Map<String, QuestVariableValue> questVariables) {
         AdvancementHolder advancement = findAdvancement(player);
         if (advancement != null) {
             if (taskHint == null || taskHint.isBlank()) {
@@ -45,10 +54,10 @@ public class AdvancementTask extends ITask {
             ItemStack icon = advancement.value().display()
                     .map(display -> display.getIcon().copy())
                     .filter(stack -> !stack.isEmpty())
-                    .orElse(Items.KNOWLEDGE_BOOK.getDefaultInstance());
+                .orElse(Items.KNOWLEDGE_BOOK.getDefaultInstance());
             progress.displayIcon = DisplayIcon.item(icon);
         }
-        super.refreshObjectiveProgress(player, progress);
+        super.refreshObjectiveProgress(player, progress, questVariables);
     }
 
     @Override

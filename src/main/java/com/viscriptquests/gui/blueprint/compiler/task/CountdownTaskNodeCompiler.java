@@ -19,7 +19,8 @@ public class CountdownTaskNodeCompiler implements IQuestTaskNodeCompiler {
     public ITask compileTask(QuestCompileContext context, CustomNodeModelImpl node, String stepId) {
         CountdownTask task = new CountdownTask();
         task.stepId = stepId;
-        task.durationSeconds = Math.max(1, context.getInt(node, "duration_seconds"));
+        task.durationSeconds = context.tracePortIntValue(node, "duration_seconds", 60, 1);
+        task.durationExpression.addAll(context.compileRuntimeIntExpression(node, "duration_seconds", 60));
         return task;
     }
 }

@@ -7,6 +7,7 @@ import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.api.IFieldValueConfigurable;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.api.port.PortDirection;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.api.port.PortModelOptions;
+import com.lowdragmc.lowdraglib2.nodegraphtookit.api.type.TypeHandles;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.gui.FieldValueInspector;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.gui.GraphView;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.NodeModel;
@@ -107,6 +108,9 @@ public class QuestNodeParametersPanel extends UIElement {
 
     private static boolean shouldShowInputPort(PortModel port) {
         if (port.getDirection() != PortDirection.INPUT) {
+            return false;
+        }
+        if (TypeHandles.EXECUTION_FLOW.equals(port.getDataTypeHandle())) {
             return false;
         }
         if (port.getNodeModel() instanceof WirePortalModel) {

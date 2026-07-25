@@ -9,10 +9,11 @@ import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
 import com.lowdragmc.lowdraglib2.gui.ui.UI;
 import com.lowdragmc.lowdraglib2.networking.rpc.RPCPacket;
 import com.viscriptquests.ViScriptQuests;
-import com.viscriptquests.gui.blueprint.data.QuestBlueprintRegistryCache;
 import com.viscriptquests.gui.editor.QuestEditor;
+import com.viscriptquests.gui.hud.QuestCompletionToastHud;
 import com.viscriptquests.gui.hud.QuestHudData;
 import com.viscriptquests.gui.editor.QuestProject;
+import com.viscriptquests.quest.data.runtime.QuestCompletionToastData;
 import com.viscriptquests.util.ViScriptQuestsClientUtil;
 import net.minecraft.network.chat.Component;
 import net.minecraft.client.Minecraft;
@@ -24,7 +25,7 @@ public class S2CPayload {
     public static final String OPEN_CATEGORY_CONFIG = ViScriptQuests.MOD_ID + ":open_category_config";
     public static final String SYNC_QUEST_HUD = ViScriptQuests.MOD_ID + ":sync_quest_hud";
     public static final String SYNC_QUEST_BOOK = ViScriptQuests.MOD_ID + ":sync_quest_book";
-    public static final String SYNC_BLUEPRINT_REGISTRIES = ViScriptQuests.MOD_ID + ":sync_blueprint_registries";
+    public static final String SHOW_QUEST_COMPLETION_TOAST = ViScriptQuests.MOD_ID + ":show_quest_completion_toast";
 
     // 服务端发送项目图数据到客户端，打开编辑器并加载该图
     @RPCPacket(OPEN_EDITOR_WITH_PROJECT)
@@ -32,7 +33,7 @@ public class S2CPayload {
         QuestProject project = QuestProject.createProject(graphTag);
         EditorWindow editorWindow = getCurrentEditorWindow();
         if (editorWindow == null) {
-            editorWindow = EditorWindow.open(QuestEditor.EDITOR_ID, QuestEditor::new);
+            editorWindow = QuestEditor.openWindow();
             Minecraft.getInstance().setScreen(new ModularUIScreen(
                     new ModularUI(UI.of(editorWindow)).shouldCloseOnKeyInventory(false),
                     Component.translatable("screen.viscript_quests.quest_editor")));
@@ -81,6 +82,13 @@ public class S2CPayload {
         }
     }
 
+    @RPCPacket(SHOW_QUEST_COMPLETION_TOAST)
+    public static void showQuestCompletionToast(QuestCompletionToastData data) {
+        if (LDLib2.isClient()) {
+            QuestCompletionToastHud.enqueue(data);
+        }
+    }
+
     @RPCPacket(OPEN_CATEGORY_CONFIG)
     public static void openCategoryConfig(CompoundTag data) {
         if (LDLib2.isClient()) {
@@ -88,10 +96,4 @@ public class S2CPayload {
         }
     }
 
-    @RPCPacket(SYNC_BLUEPRINT_REGISTRIES)
-    public static void syncBlueprintRegistries(CompoundTag data) {
-        if (LDLib2.isClient()) {
-            QuestBlueprintRegistryCache.updateClientCache(data);
-        }
-    }
 }

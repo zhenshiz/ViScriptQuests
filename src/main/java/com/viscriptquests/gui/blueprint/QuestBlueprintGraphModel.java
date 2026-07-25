@@ -7,6 +7,7 @@ import com.lowdragmc.lowdraglib2.nodegraphtookit.api.node.NodeAttribute;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.gui.itemlibrary.GraphNodeCreationData;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.api.type.TypeHandle;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.api.type.TypeHandles;
+import com.lowdragmc.lowdraglib2.nodegraphtookit.model.ChangeHint;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.graph.CustomGraphModelImpl;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.graph.GraphModel;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.AbstractNodeModel;
@@ -95,6 +96,11 @@ public class QuestBlueprintGraphModel extends CustomGraphModelImpl {
         return getGraph().getSupportNodes().stream()
                 .filter(this::isNodeAvailableInCurrentGraph)
                 .toList();
+    }
+
+    @Override
+    public boolean allowSubgraphCreation() {
+        return false;
     }
 
     @Override
@@ -192,18 +198,44 @@ public class QuestBlueprintGraphModel extends CustomGraphModelImpl {
     }
 
     @Override
-    public boolean canAssignTo(PortModel fromPort, PortModel toPort) {
-        TypeHandle fromType = fromPort.getDataTypeHandle();
-        TypeHandle toType = toPort.getDataTypeHandle();
+    public boolean canAssignTo(PortModel destination, PortModel source) {
+        TypeHandle destinationType = destination.getDataTypeHandle();
+        TypeHandle sourceType = source.getDataTypeHandle();
         // 允许数值类型之间的隐式连接（INT ↔ FLOAT）
-        if (isNumericType(fromType) && isNumericType(toType)) {
+        if (isNumericType(destinationType) && isNumericType(sourceType)) {
             return true;
         }
         // 允许任意类型连入 Object 端口，使 DebugPrintVariableNode 等通用节点能接收所有变量类型
-        if (toType.equals(QuestBlueprintTypes.OBJECT)) {
+        if (destinationType.equals(QuestBlueprintTypes.OBJECT)) {
             return true;
         }
-        return super.canAssignTo(fromPort, toPort);
+        return super.canAssignTo(destination, source);
+    }
+
+    @Override
+    public void redefineSubgraphNodeModels() {
+        super.redefineSubgraphNodeModels();
+        GraphModel parentGraph = getParentGraph();
+        if (parentGraph == null) {
+            return;
+        }
+        for (AbstractNodeModel node : parentGraph.getNodeModels()) {
+            if (node instanceof QuestSubQuestNodeModel subQuestNode && subQuestNode.getSubgraphModel() == this) {
+                subQuestNode.defineNode();
+                parentGraph.getCurrentGraphChangeDescription()
+                        .addChangedModel(subQuestNode, ChangeHint.GRAPH_TOPOLOGY);
+            }
+        }
+    }
+
+    @Override
+    public void updateSubGraphs() {
+        super.updateSubGraphs();
+        for (AbstractNodeModel node : getNodeModels()) {
+            if (node instanceof QuestSubQuestNodeModel subQuestNode) {
+                subQuestNode.defineNode();
+            }
+        }
     }
 
     private static boolean isNumericType(TypeHandle type) {
@@ -219,7 +251,7 @@ public class QuestBlueprintGraphModel extends CustomGraphModelImpl {
                 && !isNodeInGroup(nodeClass, QuestBlueprintNode.REWARD_GROUP);
     }
 
-    private boolean isSubQuestContentGraph() {
+    public boolean isSubQuestContentGraph() {
         return subQuestContentGraph || getParentGraph() != null;
     }
 

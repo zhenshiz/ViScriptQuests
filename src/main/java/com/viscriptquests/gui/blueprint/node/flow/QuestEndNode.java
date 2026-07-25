@@ -8,7 +8,7 @@ import com.viscriptquests.gui.blueprint.node.QuestBlueprintNode;
 import net.minecraft.network.chat.Component;
 
 // 任务终点节点，标记任务的结束状态
-@NodeAttribute(name = "quest_end", group = QuestBlueprintNode.FLOW_GROUP, graphTypes = QuestBlueprintGraph.class)
+@NodeAttribute(name = QuestBlueprintNode.ID + "quest_end", group = QuestBlueprintNode.FLOW_GROUP, graphTypes = QuestBlueprintGraph.class)
 public class QuestEndNode extends QuestBlueprintNode {
     @Override
     public Component getDisplayName() {

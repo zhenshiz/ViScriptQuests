@@ -12,7 +12,7 @@ import com.viscriptquests.gui.blueprint.node.QuestBlueprintNode;
 import com.viscriptquests.quest.data.VariableMutationOp;
 import net.minecraft.network.chat.Component;
 
-@NodeAttribute(name = "modify_scoreboard_value", group = QuestBlueprintNode.SCOREBOARD_GROUP, graphTypes = QuestBlueprintGraph.class)
+@NodeAttribute(name = QuestBlueprintNode.ID + "modify_scoreboard_value", group = QuestBlueprintNode.SCOREBOARD_GROUP, graphTypes = QuestBlueprintGraph.class)
 public class ModifyScoreboardValueNode extends QuestBlueprintNode {
     public static final String OPERATION_OPTION = "operation";
 

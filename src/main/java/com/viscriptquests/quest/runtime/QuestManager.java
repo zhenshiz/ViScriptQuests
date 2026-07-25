@@ -223,9 +223,9 @@ public class QuestManager {
             if (questFile == null) {
                 continue;
             }
-            state.refreshRewardDisplays(questFile);
+            state.refreshRewardDisplays(questFile, player);
             for (TaskProgress progress : state.taskProgresses) {
-                progress.refreshObjectives(questFile, player);
+                progress.refreshObjectives(questFile, player, state.questVariables);
             }
         }
         savedData.setDirty();

@@ -4,6 +4,8 @@ import com.lowdragmc.lowdraglib2.syncdata.AccessorRegistries;
 import com.lowdragmc.lowdraglib2.syncdata.accessor.direct.CustomDirectAccessor;
 import com.viscript_lib.annotation.ViScriptRegisterAccessors;
 import com.viscript_lib.event.RegisterAccessorEvent;
+import com.viscriptquests.gui.blueprint.data.LocationMarkerConfig;
+import com.viscriptquests.gui.blueprint.data.LocationTargetConfig;
 import com.viscriptquests.gui.blueprint.data.QuestRegistryId;
 import com.viscriptquests.quest.data.*;
 import com.viscriptquests.quest.data.reward.IReward;
@@ -24,6 +26,7 @@ public final class ViScriptQuestsAccessors {
         registerRewardAccessor();
 
         event.register(DisplayIcon.class, DisplayIcon::new);
+        event.register(QuestCompletionToastData.class, QuestCompletionToastData::new);
         event.register(QuestGuideMarker.class, QuestGuideMarker::new);
         event.register(LootTableConfig.class, LootTableConfig::new);
         event.register(LootTableReward.class, LootTableReward::new);
@@ -50,6 +53,8 @@ public final class ViScriptQuestsAccessors {
         event.register(JoinProgress.class, JoinProgress::new);
         event.register(RewardDisplay.class, RewardDisplay::new);
         event.register(QuestRegistryId.class, QuestRegistryId::new);
+        event.register(LocationTargetConfig.class, LocationTargetConfig::new);
+        event.register(LocationMarkerConfig.class, LocationMarkerConfig::new);
     }
 
     private static void registerTaskAccessor() {

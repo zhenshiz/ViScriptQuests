@@ -108,6 +108,29 @@ public class QuestValueToken implements IPersistedSerializable {
         return stack.isEmpty() ? 0f : stack.pop();
     }
 
+    public static int evaluateInt(List<QuestValueToken> expression, Map<String, QuestVariableValue> questVariables,
+                                  ServerPlayer player, int fallback, int minValue) {
+        int resolved = expression == null || expression.isEmpty() || hasUnavailableRuntimeInput(expression, questVariables, player)
+                ? fallback
+                : Math.round(evaluate(expression, questVariables, player));
+        return Math.max(minValue, resolved);
+    }
+
+    private static boolean hasUnavailableRuntimeInput(List<QuestValueToken> expression,
+                                                      Map<String, QuestVariableValue> questVariables,
+                                                      ServerPlayer player) {
+        for (QuestValueToken token : expression) {
+            if (token.kind == Kind.SCOREBOARD && player == null) {
+                return true;
+            }
+            if (token.kind == Kind.VARIABLE
+                    && (questVariables == null || !questVariables.containsKey(token.variableName))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public static float readScoreboardValue(ServerPlayer player, String objectiveName, String scoreHolderName) {
         if (player == null || objectiveName == null || objectiveName.isBlank()) {
             return 0f;

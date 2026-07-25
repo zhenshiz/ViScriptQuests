@@ -7,6 +7,7 @@ public class ClientConfig {
     public static final ModConfigSpec.BooleanValue SHOW_COMPLETED_QUESTS_IN_BOOK;
     public static final ModConfigSpec.BooleanValue SHOW_COMPLETED_TASKS_IN_BOOK;
     public static final ModConfigSpec.BooleanValue REGISTER_OPEN_QUEST_BOOK_KEY;
+    public static final ModConfigSpec.BooleanValue SHOW_QUEST_COMPLETION_TOAST;
     public static final ModConfigSpec.BooleanValue SHOW_TRACKED_QUEST_HUD;
     public static final ModConfigSpec.DoubleValue TRACKED_QUEST_HUD_X_PERCENT;
     public static final ModConfigSpec.DoubleValue TRACKED_QUEST_HUD_Y_PERCENT;
@@ -36,6 +37,17 @@ public class ClientConfig {
         REGISTER_OPEN_QUEST_BOOK_KEY = builder
                 .translation("viscript_quests.configuration.quest_book.register_open_key")
                 .define("registerOpenQuestBookKey", false);
+
+        builder.pop();
+
+        builder
+                .translation("viscript_quests.configuration.completion_toast")
+                .push("completionToast");
+
+        // 是否在大任务或小任务完成时显示屏幕提示。
+        SHOW_QUEST_COMPLETION_TOAST = builder
+                .translation("viscript_quests.configuration.completion_toast.show")
+                .define("showCompletionToast", true);
 
         builder.pop();
 

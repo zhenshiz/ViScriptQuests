@@ -7,6 +7,7 @@ import com.viscriptquests.gui.blueprint.compiler.QuestCompileContext;
 import com.viscriptquests.gui.blueprint.node.reward.ItemRewardNode;
 import com.viscriptquests.quest.data.reward.IReward;
 import com.viscriptquests.quest.data.reward.ItemReward;
+import net.minecraft.world.item.ItemStack;
 
 @LDLRegister(name = "item_reward", registry = IQuestRewardNodeCompiler.ID)
 public class ItemRewardNodeCompiler implements IQuestRewardNodeCompiler {
@@ -19,7 +20,10 @@ public class ItemRewardNodeCompiler implements IQuestRewardNodeCompiler {
     public IReward compileReward(QuestCompileContext context, CustomNodeModelImpl node, String stepId) {
         ItemReward reward = new ItemReward();
         reward.stepId = stepId;
-        reward.itemStack = context.getItemStack(node, "item_stack");
+        ItemStack stack = context.getItemStack(node, "item_stack");
+        reward.itemStack = stack.isEmpty() ? ItemStack.EMPTY : stack.copyWithCount(1);
+        reward.itemCount = context.tracePortIntValue(node, "item_count", 1, 1);
+        reward.itemCountExpression.addAll(context.compileRuntimeIntExpression(node, "item_count", 1));
         IQuestRewardNodeCompiler.applyCommonOptions(context, node, reward);
         return reward;
     }

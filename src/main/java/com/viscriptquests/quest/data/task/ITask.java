@@ -9,6 +9,7 @@ import com.mojang.serialization.Codec;
 import com.viscriptquests.ViScriptQuests;
 import com.viscriptquests.ViScriptQuestsRegistries;
 import com.viscriptquests.quest.data.DisplayIcon;
+import com.viscriptquests.quest.data.QuestVariableValue;
 import com.viscriptquests.quest.data.TaskObjectiveType;
 import com.viscriptquests.quest.data.runtime.QuestGuideMarker;
 import com.viscriptquests.quest.data.runtime.TaskObjectiveProgress;
@@ -18,6 +19,7 @@ import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.server.level.ServerPlayer;
 
+import java.util.Map;
 import java.util.function.Supplier;
 
 // 任务目标接口，所有任务类型（物品收集、击杀、到达位置等）都通过此接口注册和序列化
@@ -26,7 +28,7 @@ public abstract class ITask implements ILDLRegister<ITask, Supplier<ITask>>, IPe
 
     public static final Codec<ITask> CODEC = ViScriptQuestsRegistries.TASKS.optionalCodec()
             .dispatch(ILDLRegister::getRegistryHolderOptional,
-                    optional -> optional.map(holder -> PersistedParser.createCodec(holder.value()).fieldOf("data"))
+                    optional -> optional.map(holder -> PersistedParser.createMapCodec(holder.value()))
                             .orElseGet(LDLibExtraCodecs::errorDecoder));
     public static final StreamCodec<ByteBuf, ITask> STREAM_CODEC = ByteBufCodecs.fromCodec(CODEC);
 
@@ -51,8 +53,16 @@ public abstract class ITask implements ILDLRegister<ITask, Supplier<ITask>>, IPe
     // 检查玩家是否满足完成条件
     public abstract boolean checkCompletion(ServerPlayer player);
 
+    public boolean checkCompletion(ServerPlayer player, Map<String, QuestVariableValue> questVariables) {
+        return checkCompletion(player);
+    }
+
     // 完成时的处理逻辑（如扣除物品），返回是否成功
     public abstract boolean onComplete(ServerPlayer player);
+
+    public boolean onComplete(ServerPlayer player, Map<String, QuestVariableValue> questVariables) {
+        return onComplete(player);
+    }
 
     // 自动提交能力由具体目标决定，避免所有目标都暴露没有意义的提交模式。
     public boolean allowsAutoSubmit() {
@@ -61,14 +71,22 @@ public abstract class ITask implements ILDLRegister<ITask, Supplier<ITask>>, IPe
 
     // 返回任务提示文本，用于 UI 展示（如"需要收集 1 个 合成台"）
     public final Component getTaskHint() {
+        return getTaskHint(null, null);
+    }
+
+    public final Component getTaskHint(ServerPlayer player, Map<String, QuestVariableValue> questVariables) {
         if (taskHint != null && !taskHint.isBlank()) {
             return Component.translatableWithFallback(taskHint, taskHint);
         }
-        return getDefaultTaskHint();
+        return getDefaultTaskHint(player, questVariables);
     }
 
     // 具体目标提供自己的默认提示；公共 taskHint 为空时才会使用。
     protected abstract Component getDefaultTaskHint();
+
+    protected Component getDefaultTaskHint(ServerPlayer player, Map<String, QuestVariableValue> questVariables) {
+        return getDefaultTaskHint();
+    }
 
     // 任务目标显示用图片，任务书和 HUD 都可以复用。
     public DisplayIcon getDisplayIcon() {
@@ -80,9 +98,18 @@ public abstract class ITask implements ILDLRegister<ITask, Supplier<ITask>>, IPe
         return 1;
     }
 
+    public int getRequiredAmount(Map<String, QuestVariableValue> questVariables, ServerPlayer player) {
+        return getRequiredAmount();
+    }
+
     // 刷新目标展示进度，不执行扣物品、发奖励等副作用。
     public void refreshObjectiveProgress(ServerPlayer player, TaskObjectiveProgress progress) {
-        int required = Math.max(1, getRequiredAmount());
+        refreshObjectiveProgress(player, progress, null);
+    }
+
+    public void refreshObjectiveProgress(ServerPlayer player, TaskObjectiveProgress progress,
+                                         Map<String, QuestVariableValue> questVariables) {
+        int required = Math.max(1, getRequiredAmount(questVariables, player));
         progress.requiredAmount = required;
         progress.currentAmount = progress.completed ? required : 0;
     }
@@ -94,19 +121,29 @@ public abstract class ITask implements ILDLRegister<ITask, Supplier<ITask>>, IPe
 
     // 手动提交单个目标。默认目标不提供手动提交能力。
     public boolean submitObjective(ServerPlayer player, TaskObjectiveProgress progress) {
+        return submitObjective(player, progress, null);
+    }
+
+    public boolean submitObjective(ServerPlayer player, TaskObjectiveProgress progress,
+                                   Map<String, QuestVariableValue> questVariables) {
         return false;
     }
 
     // 自动提交单个目标，成功时只标记该目标完成，不直接完成整个小任务。
     public boolean autoCompleteObjective(ServerPlayer player, TaskObjectiveProgress progress) {
+        return autoCompleteObjective(player, progress, null);
+    }
+
+    public boolean autoCompleteObjective(ServerPlayer player, TaskObjectiveProgress progress,
+                                         Map<String, QuestVariableValue> questVariables) {
         if ((!allowsAutoSubmit() && !progress.isFailureCondition())
                 || progress.completed
-                || !checkCompletion(player)
-                || (!progress.isFailureCondition() && !onComplete(player))) {
+                || !checkCompletion(player, questVariables)
+                || (!progress.isFailureCondition() && !onComplete(player, questVariables))) {
             return false;
         }
         progress.completed = true;
-        progress.currentAmount = Math.max(1, getRequiredAmount());
+        progress.currentAmount = Math.max(1, getRequiredAmount(questVariables, player));
         progress.requiredAmount = progress.currentAmount;
         return true;
     }
@@ -114,5 +151,14 @@ public abstract class ITask implements ILDLRegister<ITask, Supplier<ITask>>, IPe
     // 当前目标的导航标记。默认不显示，位置/实体类任务可以覆盖。
     public QuestGuideMarker getGuideMarker(ServerPlayer player) {
         return QuestGuideMarker.disabled();
+    }
+
+    // 客户端任务书附加操作：目标可以声明一个 Ponder 查看按钮，并给出要打开的组件 ID。
+    public String getPonderComponentId() {
+        return "";
+    }
+
+    public boolean hasPonderViewAction() {
+        return false;
     }
 }

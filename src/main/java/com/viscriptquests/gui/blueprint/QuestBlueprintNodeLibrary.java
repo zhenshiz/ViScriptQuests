@@ -9,6 +9,7 @@ import com.lowdragmc.lowdraglib2.nodegraphtookit.gui.itemlibrary.ItemLibraryItem
 import com.lowdragmc.lowdraglib2.nodegraphtookit.gui.itemlibrary.NodeModelLibraryItem;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.graph.GraphModel;
 import com.viscriptquests.ViScriptQuests;
+import com.viscriptquests.gui.blueprint.node.QuestBlueprintNode;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -70,13 +71,15 @@ public final class QuestBlueprintNodeLibrary {
     private static void addNodeLeaf(TreeBuilder<ItemLibraryItem, Void> builder, Class<? extends Node> nodeClass) {
         var attr = nodeClass.getAnnotation(NodeAttribute.class);
         String nodeId = attr != null && !attr.name().isEmpty() ? attr.name() : nodeClass.getSimpleName();
-        String translationKey = ViScriptQuests.MOD_ID + ".blueprint.node." + nodeId;
+        String nodePath = QuestBlueprintNode.pathOf(nodeId);
+        String translationKey = ViScriptQuests.MOD_ID + ".blueprint.node." + nodePath;
 
         var nodeItem = new NodeModelLibraryItem(
                 translationKey,
                 data -> QuestBlueprintGraphModel.createNodeFromData(data, nodeClass)
         );
-        nodeItem.setSearchableName(translationKey + " " + nodeId + " " + nodeClass.getSimpleName());
+        String localizedName = Component.translatable(translationKey).getString();
+        nodeItem.setSearchableName(translationKey + " " + localizedName + " " + nodeId + " " + nodePath + " " + nodeClass.getSimpleName());
         builder.leaf(nodeItem, null);
     }
 }

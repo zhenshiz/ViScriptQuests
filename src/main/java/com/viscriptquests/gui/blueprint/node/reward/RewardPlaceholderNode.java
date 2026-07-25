@@ -9,7 +9,7 @@ import com.viscriptquests.quest.data.DisplayIcon;
 import net.minecraft.network.chat.Component;
 
 // 只用于任务书展示的奖励占位节点，不会编译成实际发放的 IReward。
-@NodeAttribute(name = "reward_placeholder", group = QuestBlueprintNode.REWARD_GROUP, graphTypes = QuestBlueprintGraph.class)
+@NodeAttribute(name = QuestBlueprintNode.ID + "reward_placeholder", group = QuestBlueprintNode.REWARD_GROUP, graphTypes = QuestBlueprintGraph.class)
 public class RewardPlaceholderNode extends QuestBlueprintNode {
     public static final String DEFAULT_ICON_TEXTURE = "ldlib2:textures/gui/icon/help.png";
 

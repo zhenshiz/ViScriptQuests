@@ -12,6 +12,16 @@ group = mod_group_id
 
 repositories {
 
+    // Ponder / Flywheel
+    maven {
+        name = "Create"
+        url = "https://maven.createmod.net"
+        content {
+            includeGroup "net.createmod.ponder"
+            includeGroup "dev.engine-room.flywheel"
+        }
+    }
+
     //kubejs
     maven {
         name = "Latvian"
@@ -81,6 +91,22 @@ configurations.configureEach {
     resolutionStrategy.cacheChangingModulesFor 0, 'seconds'
 }
 
+// 本地测试模组。src/test 会被 git 忽略，方便放临时联动/演示代码。
+def enableLocalTest = file('src/test').exists()
+def localTestModId = "${mod_id}_test"
+
+if (enableLocalTest) {
+    sourceSets {
+        localTest {
+            java.srcDirs = ['src/test/java']
+            resources.srcDirs = ['src/test/resources']
+            compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+            runtimeClasspath += output + compileClasspath + sourceSets.main.runtimeClasspath
+        }
+    }
+    sourceSets.test.java.setSrcDirs([])
+    sourceSets.test.resources.setSrcDirs([])
+}
 
 neoForge {
     version = project.neo_version
@@ -138,6 +164,11 @@ neoForge {
         "${mod_id}" {
             sourceSet(sourceSets.main)
         }
+        if (enableLocalTest) {
+            "${localTestModId}" {
+                sourceSet(sourceSets.localTest)
+            }
+        }
     }
 }
 
@@ -156,12 +187,8 @@ modAccessor {
 dependencies {
     // LDLib2
     implementation("com.lowdragmc.ldlib2:ldlib2-neoforge-${minecraft_version}:${ldlib2_version}:all")
-    implementation("com.zhenshiz:ViScriptLib-neoforge-${minecraft_version}:${viscriptlib_version}") {
-        changing = true
-    }
-    jarJar("com.zhenshiz:ViScriptLib-neoforge-${minecraft_version}:${viscriptlib_version}") {
-        changing = true
-    }
+    implementation("com.zhenshiz:ViScriptLib-neoforge-${minecraft_version}:${viscriptlib_version}")
+    jarJar("com.zhenshiz:ViScriptLib-neoforge-${minecraft_version}:${viscriptlib_version}")
 
     // KubeJS
     implementation "dev.latvian.mods:rhino:${rhino_version}"
@@ -177,7 +204,7 @@ dependencies {
         transitive = false
     }
     //ViScriptTeam
-    compileOnly("com.zhenshiz:ViScriptTeam-neoforge-1.21.1:${viscriptteam_version}") {
+    implementation("com.zhenshiz:ViScriptTeam-neoforge-1.21.1:${viscriptteam_version}") {
         transitive = false
     }
 
@@ -186,6 +213,10 @@ dependencies {
     implementation "maven.modrinth:iris:${iris_version}"
     implementation "maven.modrinth:lan-server-properties:${lsp_version}"
     implementation "maven.modrinth:jei:${jei_version}"
+    compileOnly "curse.maven:xaeros-minimap-263420:${xaeros_minimap_version}"
+    runtimeOnly "curse.maven:xaeros-minimap-263420:${xaeros_minimap_version}"
+    compileOnly "net.createmod.ponder:ponder-neoforge:${ponder_version}"
+    runtimeOnly "net.createmod.ponder:ponder-neoforge:${ponder_version}"
 
     //plugin
     additionalRuntimeClasspath("dev.vfyjxf:mixin-hotswap-agent:1.1")
@@ -203,7 +234,8 @@ tasks.withType(ProcessResources).configureEach {
                              mod_version            : mod_version,
                              mod_authors            : mod_authors,
                              mod_description        : mod_description,
-                             ldlib2_version         : ldlib2_version]
+                             ldlib2_version         : ldlib2_version,
+                             ponder_version_range   : ponder_version_range]
     inputs.properties replaceProperties
 
     filesMatching(['META-INF/neoforge.mods.toml']) {

@@ -1,5 +1,6 @@
 package com.viscriptquests.compat.team;
 
+import com.lowdragmc.lowdraglib2.Platform;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.fml.ModList;
@@ -17,7 +18,7 @@ public class QuestTeamService {
     public static final String VST_MOD_ID = "viscript_team";
 
     public static boolean isLoaded() {
-        return ModList.get().isLoaded(VST_MOD_ID);
+        return Platform.isModLoaded(VST_MOD_ID);
     }
 
     public static QuestTeamScope scopeOf(ServerPlayer player) {

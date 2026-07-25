@@ -13,7 +13,7 @@ import com.viscriptquests.gui.blueprint.data.MathOperation;
 import com.viscriptquests.gui.blueprint.node.QuestBlueprintNode;
 import net.minecraft.network.chat.Component;
 
-@NodeAttribute(name = "math_operation", group = QuestBlueprintNode.MATH_GROUP, graphTypes = QuestBlueprintGraph.class)
+@NodeAttribute(name = QuestBlueprintNode.ID + "math_operation", group = QuestBlueprintNode.MATH_GROUP, graphTypes = QuestBlueprintGraph.class)
 public class MathOperationNode extends QuestBlueprintNode {
     public static final String OPERATION_OPTION = "operation";
     public static final String INPUT_COUNT_OPTION = "input_count";

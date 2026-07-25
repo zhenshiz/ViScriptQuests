@@ -3,6 +3,7 @@ package com.viscriptquests.quest.data.runtime;
 import com.lowdragmc.lowdraglib2.syncdata.IPersistedSerializable;
 import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
 import com.viscriptquests.quest.data.DisplayIcon;
+import com.viscriptquests.quest.data.LocationGuideMarkerProvider;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.phys.Vec3;
@@ -33,6 +34,8 @@ public class QuestGuideMarker implements IPersistedSerializable {
     public boolean hideWhenReached = true;
     @Persisted
     public double arrivalRadius = 2.0;
+    @Persisted
+    public LocationGuideMarkerProvider markerProvider = LocationGuideMarkerProvider.BUILT_IN;
 
     public static QuestGuideMarker disabled() {
         return new QuestGuideMarker();
@@ -40,6 +43,12 @@ public class QuestGuideMarker implements IPersistedSerializable {
 
     public static QuestGuideMarker position(ResourceLocation dimension, Vec3 position, String label,
                                             DisplayIcon icon, int color, double arrivalRadius) {
+        return position(dimension, position, label, icon, color, arrivalRadius, LocationGuideMarkerProvider.BUILT_IN);
+    }
+
+    public static QuestGuideMarker position(ResourceLocation dimension, Vec3 position, String label,
+                                            DisplayIcon icon, int color, double arrivalRadius,
+                                            LocationGuideMarkerProvider markerProvider) {
         QuestGuideMarker marker = new QuestGuideMarker();
         marker.enabled = true;
         marker.dimension = dimension == null ? "" : dimension.toString();
@@ -50,6 +59,7 @@ public class QuestGuideMarker implements IPersistedSerializable {
         marker.icon = icon == null ? new DisplayIcon() : icon.copy();
         marker.color = color;
         marker.arrivalRadius = Math.max(0.0, arrivalRadius);
+        marker.markerProvider = markerProvider == null ? LocationGuideMarkerProvider.BUILT_IN : markerProvider;
         return marker;
     }
 
@@ -85,6 +95,7 @@ public class QuestGuideMarker implements IPersistedSerializable {
         marker.showDistance = showDistance;
         marker.hideWhenReached = hideWhenReached;
         marker.arrivalRadius = arrivalRadius;
+        marker.markerProvider = markerProvider == null ? LocationGuideMarkerProvider.BUILT_IN : markerProvider;
         return marker;
     }
 }

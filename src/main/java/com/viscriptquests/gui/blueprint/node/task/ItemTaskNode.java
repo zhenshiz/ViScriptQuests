@@ -10,7 +10,7 @@ import com.viscriptquests.quest.data.QuestSubmitMode;
 import net.minecraft.network.chat.Component;
 
 // 物品目标配置节点，纯数据节点，参数与 ItemTask 数据类一一对应
-@NodeAttribute(name = "item_task", group = QuestBlueprintNode.TASK_GROUP, graphTypes = QuestBlueprintGraph.class)
+@NodeAttribute(name = QuestBlueprintNode.ID + "item_task", group = QuestBlueprintNode.TASK_GROUP, graphTypes = QuestBlueprintGraph.class)
 public class ItemTaskNode extends QuestBlueprintNode {
     @Override
     public Component getDisplayName() {
@@ -29,5 +29,6 @@ public class ItemTaskNode extends QuestBlueprintNode {
     @Override
     public void onDefinePorts(IPortDefinitionContext context) {
         taskFlowPorts(context);
+        intInput(context, "item_count", 1);
     }
 }

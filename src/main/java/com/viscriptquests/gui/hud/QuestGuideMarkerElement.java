@@ -31,8 +31,12 @@ public class QuestGuideMarkerElement extends UIElement {
     private static final ItemStack DEFAULT_ICON = new ItemStack(Items.COMPASS);
     private static final int TEXT_WHITE = 0xFFFFFFFF;
     private static final int TEXT_MUTED = 0xFFDAD5E8;
-    private static final float FONT_LABEL = 7.5f;
-    private static final float FONT_DISTANCE = 7.0f;
+    private static final float FONT_LABEL = 3.0f;
+    private static final float FONT_DISTANCE = 3.0f;
+    private static final float FONT_EDGE_DISTANCE = 4.5f;
+    private static final int LABEL_HEIGHT = 4;
+    private static final int DISTANCE_HEIGHT = 4;
+    private static final int EDGE_DISTANCE_HEIGHT = 6;
 
     private final UIElement markerCard = new UIElement();
     private final UIElement edgeCard = new UIElement();
@@ -40,7 +44,7 @@ public class QuestGuideMarkerElement extends UIElement {
     private final UIElement iconHolder = new UIElement();
     private final Label label = label(FONT_LABEL, TEXT_WHITE);
     private final Label distanceLabel = label(FONT_DISTANCE, TEXT_MUTED);
-    private final Label edgeDistanceLabel = label(FONT_DISTANCE, TEXT_MUTED);
+    private final Label edgeDistanceLabel = label(FONT_EDGE_DISTANCE, TEXT_MUTED);
     private String lastIconKey = "";
     private int lastIconSize = -1;
 
@@ -61,7 +65,7 @@ public class QuestGuideMarkerElement extends UIElement {
             layout.positionType(TaffyPosition.ABSOLUTE);
             layout.flexDirection(FlexDirection.COLUMN);
             layout.alignItems(AlignItems.CENTER);
-            layout.gapAll(1);
+            layout.gapAll(0);
         });
 
         edgeCard.setAllowHitTest(false);
@@ -70,7 +74,7 @@ public class QuestGuideMarkerElement extends UIElement {
             layout.positionType(TaffyPosition.ABSOLUTE);
             layout.flexDirection(FlexDirection.ROW);
             layout.alignItems(AlignItems.CENTER);
-            layout.gapAll(4);
+            layout.gapAll(2);
         });
 
         arrow.setAllowHitTest(false);
@@ -84,11 +88,18 @@ public class QuestGuideMarkerElement extends UIElement {
     }
 
     public void update(QuestHudData.ComponentState snapshot) {
-        if (!ClientConfig.SHOW_QUEST_GUIDE_MARKER.get() || snapshot.isEmpty()) {
+        if (snapshot == null || snapshot.isEmpty()) {
             hide();
             return;
         }
-        QuestGuideMarker marker = snapshot.task().guideMarker;
+        update(snapshot.task().guideMarker, snapshot.task().title);
+    }
+
+    public void update(QuestGuideMarker marker, String fallbackLabel) {
+        if (!ClientConfig.SHOW_QUEST_GUIDE_MARKER.get()) {
+            hide();
+            return;
+        }
         Minecraft minecraft = Minecraft.getInstance();
         if (!canShow(marker, minecraft)) {
             hide();
@@ -106,18 +117,20 @@ public class QuestGuideMarkerElement extends UIElement {
         int screenHeight = minecraft.getWindow().getGuiScaledHeight();
         int iconSize = markerIconSize(screenWidth, screenHeight);
         int arrowSize = Math.max(9, Math.round(iconSize * 0.82f));
-        boolean showLabel = marker.showLabel && !displayLabel(marker, snapshot).isBlank();
+        boolean showLabel = marker.showLabel && !displayLabel(marker, fallbackLabel).isBlank();
         boolean showDistance = marker.showDistance;
         int textWidth = showLabel || showDistance ? Math.max(42, Math.round(screenWidth * 0.07f)) : iconSize;
         int cardWidth = Math.max(iconSize, textWidth);
-        int cardHeight = iconSize + (showLabel ? 10 : 0) + (showDistance ? 9 : 0) + 4;
+        int cardHeight = iconSize
+                + (showLabel ? LABEL_HEIGHT : 0)
+                + (showDistance ? DISTANCE_HEIGHT : 0);
         ProjectedPoint point = project(target, screenWidth, screenHeight, cardWidth, cardHeight, minecraft);
         if (point == null) {
             hide();
             return;
         }
         int edgeWidth = arrowSize + (showDistance ? 32 : 0);
-        int edgeHeight = Math.max(arrowSize, 10);
+        int edgeHeight = Math.max(arrowSize, EDGE_DISTANCE_HEIGHT);
         if (!point.onScreen) {
             ProjectedPoint edgePoint = project(target, screenWidth, screenHeight, edgeWidth, edgeHeight, minecraft);
             if (edgePoint == null) {
@@ -129,7 +142,7 @@ public class QuestGuideMarkerElement extends UIElement {
 
         setVisible(true);
         updateLayout(point, cardWidth, cardHeight, edgeWidth, edgeHeight, iconSize, arrowSize, textWidth);
-        updateText(marker, snapshot, distance, showLabel, showDistance, point.onScreen);
+        updateText(marker, fallbackLabel, distance, showLabel, showDistance, point.onScreen);
         updateArrow(point);
         if (point.onScreen) {
             updateIcon(marker.icon, iconSize);
@@ -143,6 +156,9 @@ public class QuestGuideMarkerElement extends UIElement {
 
     private static boolean canShow(QuestGuideMarker marker, Minecraft minecraft) {
         if (marker == null || !marker.enabled || minecraft.player == null || minecraft.level == null) {
+            return false;
+        }
+        if (QuestGuideMarkerClientBridge.hidesBuiltInMarker(marker)) {
             return false;
         }
         if (marker.dimension == null || marker.dimension.isBlank()) {
@@ -180,26 +196,26 @@ public class QuestGuideMarkerElement extends UIElement {
         });
         label.layout(layout -> {
             layout.width(textWidth);
-            layout.height(10);
+            layout.height(LABEL_HEIGHT);
         });
         distanceLabel.layout(layout -> {
             layout.width(textWidth);
-            layout.height(9);
+            layout.height(DISTANCE_HEIGHT);
         });
         edgeDistanceLabel.layout(layout -> {
             layout.width(28);
-            layout.height(10);
+            layout.height(EDGE_DISTANCE_HEIGHT);
         });
     }
 
-    private void updateText(QuestGuideMarker marker, QuestHudData.ComponentState snapshot,
+    private void updateText(QuestGuideMarker marker, String fallbackLabel,
                             double distance, boolean showLabel, boolean showDistance, boolean onScreen) {
         updateTextColor(marker.color);
         label.setVisible(onScreen && showLabel);
         distanceLabel.setVisible(onScreen && showDistance);
         edgeDistanceLabel.setVisible(!onScreen && showDistance);
         if (onScreen && showLabel) {
-            label.setText(Component.literal(displayLabel(marker, snapshot)));
+            label.setText(Component.literal(displayLabel(marker, fallbackLabel)));
         }
         if (showDistance) {
             Component distanceText = Component.literal(formatDistance(distance));
@@ -250,7 +266,7 @@ public class QuestGuideMarkerElement extends UIElement {
             ResourceLocation location = ResourceLocation.tryParse(icon.getTexture());
             UIElement element = new UIElement();
             element.style(style -> style.backgroundTexture(SpriteTexture.of(location == null
-                    ? ViScriptQuests.id("textures/gui/quest_book/book_icon.png")
+                    ? ViScriptQuests.id("textures/gui/icon/icon_task.png")
                     : location)));
             return element;
         }
@@ -340,11 +356,11 @@ public class QuestGuideMarkerElement extends UIElement {
         return vector.x * axis.x() + vector.y * axis.y() + vector.z * axis.z();
     }
 
-    private static String displayLabel(QuestGuideMarker marker, QuestHudData.ComponentState snapshot) {
+    private static String displayLabel(QuestGuideMarker marker, String fallbackLabel) {
         if (marker.label != null && !marker.label.isBlank()) {
             return marker.label;
         }
-        return snapshot.task().title == null ? "" : snapshot.task().title;
+        return fallbackLabel == null ? "" : fallbackLabel;
     }
 
     private static String formatDistance(double distance) {

@@ -3,6 +3,8 @@ package com.viscriptquests.quest.data.task;
 import com.lowdragmc.lowdraglib2.registry.annotation.LDLRegister;
 import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
 import com.viscriptquests.quest.data.DisplayIcon;
+import com.viscriptquests.quest.data.QuestValueToken;
+import com.viscriptquests.quest.data.QuestVariableValue;
 import com.viscriptquests.quest.data.runtime.TaskObjectiveProgress;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
@@ -12,6 +14,10 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.Items;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
 // 实体死亡目标，监听任何原因导致的生物死亡，常用于保护目标这类失败条件。
 @LDLRegister(name = "entity_death_task", registry = ITask.ID)
 public class EntityDeathTask extends ITask {
@@ -19,6 +25,8 @@ public class EntityDeathTask extends ITask {
     public String entityType = "minecraft:villager";
     @Persisted
     public int deathCount = 1;
+    @Persisted
+    public final List<QuestValueToken> deathCountExpression = new ArrayList<>();
     @Persisted
     public String tag = "";
 
@@ -38,12 +46,23 @@ public class EntityDeathTask extends ITask {
 
     @Override
     public int getRequiredAmount() {
-        return Math.max(1, deathCount);
+        return getRequiredAmount(null, null);
+    }
+
+    @Override
+    public int getRequiredAmount(Map<String, QuestVariableValue> questVariables, ServerPlayer player) {
+        return QuestValueToken.evaluateInt(deathCountExpression, questVariables, player, deathCount, 1);
     }
 
     @Override
     public void refreshObjectiveProgress(ServerPlayer player, TaskObjectiveProgress progress) {
-        int required = getRequiredAmount();
+        refreshObjectiveProgress(player, progress, null);
+    }
+
+    @Override
+    public void refreshObjectiveProgress(ServerPlayer player, TaskObjectiveProgress progress,
+                                         Map<String, QuestVariableValue> questVariables) {
+        int required = getRequiredAmount(questVariables, player);
         progress.requiredAmount = required;
         progress.currentAmount = progress.completed ? required : Math.min(required, Math.max(0, progress.currentAmount));
         progress.completed = progress.completed || progress.currentAmount >= required;
@@ -56,23 +75,34 @@ public class EntityDeathTask extends ITask {
 
     @Override
     public boolean autoCompleteObjective(ServerPlayer player, TaskObjectiveProgress progress) {
+        return autoCompleteObjective(player, progress, null);
+    }
+
+    @Override
+    public boolean autoCompleteObjective(ServerPlayer player, TaskObjectiveProgress progress,
+                                         Map<String, QuestVariableValue> questVariables) {
         if (progress.completed) {
             return false;
         }
-        refreshObjectiveProgress(player, progress);
+        refreshObjectiveProgress(player, progress, questVariables);
         return progress.completed;
     }
 
     @Override
     protected Component getDefaultTaskHint() {
+        return getDefaultTaskHint(null, null);
+    }
+
+    @Override
+    protected Component getDefaultTaskHint(ServerPlayer player, Map<String, QuestVariableValue> questVariables) {
         Component entityName = entityDisplayName();
         String requiredTag = normalize(tag);
         if (!requiredTag.isEmpty()) {
             return Component.translatable("viscript_quests.task_hint.entity_death_task.with_tag",
-                    getRequiredAmount(), entityName, requiredTag);
+                    getRequiredAmount(questVariables, player), entityName, requiredTag);
         }
         return Component.translatable("viscript_quests.task_hint.entity_death_task",
-                getRequiredAmount(), entityName);
+                getRequiredAmount(questVariables, player), entityName);
     }
 
     @Override

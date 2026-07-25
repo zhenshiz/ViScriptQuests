@@ -39,7 +39,7 @@ import java.util.Set;
 public class QuestSubmissionService {
     @FunctionalInterface
     public interface TaskProgressRecorder<T extends ITask> {
-        boolean record(ServerPlayer player, T task, TaskObjectiveProgress objective);
+        boolean record(ServerPlayer player, T task, TaskObjectiveProgress objective, PlayerQuestState questState);
     }
 
     /**
@@ -90,7 +90,7 @@ public class QuestSubmissionService {
         }
 
         List<ITask> tasks = questFile.findTasksForStep(stepId);
-        if (!QuestObjectiveProgressService.syncObjectiveShape(tasks, progress.get(), player)) {
+        if (!QuestObjectiveProgressService.syncObjectiveShape(tasks, progress.get(), player, questState.questVariables)) {
             return false;
         }
         boolean changed = false;
@@ -101,10 +101,10 @@ public class QuestSubmissionService {
             }
             ITask task = tasks.get(i);
             boolean submitted = objective.isFailureCondition()
-                    ? task.autoCompleteObjective(player, objective)
+                    ? task.autoCompleteObjective(player, objective, questState.questVariables)
                     : (task.allowsAutoSubmit()
-                    ? task.autoCompleteObjective(player, objective)
-                    : !automatic && task.submitObjective(player, objective));
+                    ? task.autoCompleteObjective(player, objective, questState.questVariables)
+                    : !automatic && task.submitObjective(player, objective, questState.questVariables));
             if (submitted) {
                 changed = true;
                 triggerObjectiveActions(player, questState, questFile, stepId, objective);
@@ -145,7 +145,7 @@ public class QuestSubmissionService {
             return false;
         }
         List<ITask> tasks = questFile.findTasksForStep(stepId);
-        if (!QuestObjectiveProgressService.syncObjectiveShape(tasks, progress.get(), player)
+        if (!QuestObjectiveProgressService.syncObjectiveShape(tasks, progress.get(), player, questState.questVariables)
                 || objectiveIndex < 0
                 || objectiveIndex >= tasks.size()
                 || objectiveIndex >= progress.get().objectives.size()) {
@@ -155,7 +155,7 @@ public class QuestSubmissionService {
         if (objective.isFailureCondition()) {
             return false;
         }
-        if (!tasks.get(objectiveIndex).submitObjective(player, objective)) {
+        if (!tasks.get(objectiveIndex).submitObjective(player, objective, questState.questVariables)) {
             return false;
         }
         triggerObjectiveActions(player, questState, questFile, stepId, objective);
@@ -238,14 +238,14 @@ public class QuestSubmissionService {
         if (player == null || killedEntity == null || player.level().isClientSide()) {
             return false;
         }
-        return recordTaskProgress(player, KillEntityTask.class, (recordPlayer, killTask, objective) -> {
+        return recordTaskProgress(player, KillEntityTask.class, (recordPlayer, killTask, objective, questState) -> {
             if (!killTask.matches(killedEntity)) {
                 return false;
             }
             if (objective.completed) {
                 return false;
             }
-            int required = Math.max(1, killTask.getRequiredAmount());
+            int required = Math.max(1, killTask.getRequiredAmount(questState.questVariables, recordPlayer));
             objective.requiredAmount = required;
             objective.currentAmount = Math.min(required, Math.max(0, objective.currentAmount) + 1);
             objective.completed = objective.currentAmount >= required;
@@ -260,14 +260,14 @@ public class QuestSubmissionService {
         PlayerList players = deadEntity.getServer().getPlayerList();
         boolean changed = false;
         for (ServerPlayer player : players.getPlayers()) {
-            if (recordTaskProgress(player, EntityDeathTask.class, (recordPlayer, deathTask, objective) -> {
+            if (recordTaskProgress(player, EntityDeathTask.class, (recordPlayer, deathTask, objective, questState) -> {
                 if (!deathTask.matches(deadEntity)) {
                     return false;
                 }
                 if (objective.completed) {
                     return false;
                 }
-                int required = Math.max(1, deathTask.getRequiredAmount());
+                int required = Math.max(1, deathTask.getRequiredAmount(questState.questVariables, recordPlayer));
                 objective.requiredAmount = required;
                 objective.currentAmount = Math.min(required, Math.max(0, objective.currentAmount) + 1);
                 objective.completed = objective.currentAmount >= required;
@@ -283,14 +283,14 @@ public class QuestSubmissionService {
         if (player == null || blockState == null || player.level().isClientSide()) {
             return false;
         }
-        return recordTaskProgress(player, BreakBlockTask.class, (recordPlayer, breakTask, objective) -> {
+        return recordTaskProgress(player, BreakBlockTask.class, (recordPlayer, breakTask, objective, questState) -> {
             if (!breakTask.matches(blockState)) {
                 return false;
             }
             if (objective.completed) {
                 return false;
             }
-            int required = Math.max(1, breakTask.getRequiredAmount());
+            int required = Math.max(1, breakTask.getRequiredAmount(questState.questVariables, recordPlayer));
             objective.requiredAmount = required;
             objective.currentAmount = Math.min(required, Math.max(0, objective.currentAmount) + 1);
             objective.completed = objective.currentAmount >= required;
@@ -302,14 +302,14 @@ public class QuestSubmissionService {
         if (player == null || target == null || player.level().isClientSide()) {
             return false;
         }
-        return recordTaskProgress(player, InteractEntityTask.class, (recordPlayer, interactTask, objective) -> {
+        return recordTaskProgress(player, InteractEntityTask.class, (recordPlayer, interactTask, objective, questState) -> {
             if (!interactTask.matches(target)) {
                 return false;
             }
             if (objective.completed) {
                 return false;
             }
-            int required = Math.max(1, interactTask.getRequiredAmount());
+            int required = Math.max(1, interactTask.getRequiredAmount(questState.questVariables, recordPlayer));
             objective.requiredAmount = required;
             objective.currentAmount = required;
             objective.completed = true;
@@ -321,11 +321,11 @@ public class QuestSubmissionService {
         if (player == null || advancement == null || player.level().isClientSide()) {
             return false;
         }
-        return recordTaskProgress(player, AdvancementTask.class, (recordPlayer, advancementTask, objective) -> {
+        return recordTaskProgress(player, AdvancementTask.class, (recordPlayer, advancementTask, objective, questState) -> {
             if (!advancementTask.matches(advancement) || objective.completed) {
                 return false;
             }
-            int required = Math.max(1, advancementTask.getRequiredAmount());
+            int required = Math.max(1, advancementTask.getRequiredAmount(questState.questVariables, recordPlayer));
             objective.requiredAmount = required;
             objective.currentAmount = required;
             objective.completed = true;
@@ -337,11 +337,11 @@ public class QuestSubmissionService {
         if (player == null || triggerId == null || triggerId.isBlank() || player.level().isClientSide()) {
             return false;
         }
-        return recordTaskProgress(player, CustomTriggerTask.class, (recordPlayer, triggerTask, objective) -> {
+        return recordTaskProgress(player, CustomTriggerTask.class, (recordPlayer, triggerTask, objective, questState) -> {
             if (!triggerTask.matches(triggerId) || objective.completed) {
                 return false;
             }
-            int required = Math.max(1, triggerTask.getRequiredAmount());
+            int required = Math.max(1, triggerTask.getRequiredAmount(questState.questVariables, recordPlayer));
             objective.requiredAmount = required;
             objective.currentAmount = required;
             objective.completed = true;
@@ -351,7 +351,8 @@ public class QuestSubmissionService {
 
     public static boolean tickCountdownTasks(ServerPlayer player) {
         return recordTaskProgress(player, CountdownTask.class,
-                (recordPlayer, countdownTask, objective) -> countdownTask.autoCompleteObjective(recordPlayer, objective));
+                (recordPlayer, countdownTask, objective, questState) ->
+                        countdownTask.autoCompleteObjective(recordPlayer, objective, questState.questVariables));
     }
 
     private static <T extends ITask> boolean recordTaskProgressForStep(ServerPlayer player, QuestSavedData savedData,
@@ -362,7 +363,7 @@ public class QuestSubmissionService {
                                                                        Class<T> taskType,
                                                                        TaskProgressRecorder<T> recorder) {
         List<ITask> tasks = questFile.findTasksForStep(progress.stepId);
-        if (!QuestObjectiveProgressService.syncObjectiveShape(tasks, progress, player)) {
+        if (!QuestObjectiveProgressService.syncObjectiveShape(tasks, progress, player, questState.questVariables)) {
             return false;
         }
         boolean changed = false;
@@ -373,7 +374,7 @@ public class QuestSubmissionService {
             }
             TaskObjectiveProgress objective = progress.objectives.get(i);
             boolean wasCompleted = objective.completed;
-            if (recorder.record(player, taskType.cast(task), objective)) {
+            if (recorder.record(player, taskType.cast(task), objective, questState)) {
                 changed = true;
                 if (!wasCompleted && objective.completed) {
                     triggerObjectiveActions(player, questState, questFile, progress.stepId, objective);
@@ -407,6 +408,7 @@ public class QuestSubmissionService {
         Set<String> activeStepIdsBeforeSubmit = activeStepIds(questState);
         // 到这里才真正提交成功：写进度、发奖励、推进蓝图流程，并刷新任务追踪。
         progress.status = TaskStatus.COMPLETED;
+        QuestCompletionNotificationService.notifyTaskCompleted(player, progress);
         QuestRewardService.grantStepRewards(player, questFile, questState, stepId);
         QuestFlowExecutor.completeStepNode(player, questState, questFile, stepId);
         savedData.setDirty();
@@ -434,7 +436,7 @@ public class QuestSubmissionService {
             action.edge.applyMutations(questState.questVariables, player.registryAccess(), player);
             QuestFlowExecutor.printDebugMessages(player, questState, action.edge);
             for (var reward : action.rewards) {
-                QuestRewardService.grantDynamicReward(player, reward);
+                QuestRewardService.grantDynamicReward(player, reward, questState);
             }
         }
     }

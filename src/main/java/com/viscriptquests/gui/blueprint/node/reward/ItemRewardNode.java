@@ -8,7 +8,7 @@ import com.viscriptquests.gui.blueprint.node.QuestBlueprintNode;
 import net.minecraft.network.chat.Component;
 
 // 物品奖励配置节点，纯数据节点，参数与 ItemReward 数据类一一对应
-@NodeAttribute(name = "item_reward", group = QuestBlueprintNode.REWARD_GROUP, graphTypes = QuestBlueprintGraph.class)
+@NodeAttribute(name = QuestBlueprintNode.ID + "item_reward", group = QuestBlueprintNode.REWARD_GROUP, graphTypes = QuestBlueprintGraph.class)
 public class ItemRewardNode extends QuestBlueprintNode {
     @Override
     public Component getDisplayName() {
@@ -24,5 +24,6 @@ public class ItemRewardNode extends QuestBlueprintNode {
     @Override
     public void onDefinePorts(IPortDefinitionContext context) {
         rewardFlowPorts(context);
+        intInput(context, "item_count", 1);
     }
 }

@@ -7,7 +7,7 @@ version = "${mod_version}"
 displayName = "${mod_name}"
 authors = "${mod_authors}"
 description = '''${mod_description}'''
-#logoFile = "icon.png"
+logoFile = "icon.png"
 
 [[mixins]]
 config = "${mod_id}.mixins.json"
@@ -32,6 +32,20 @@ type = "required"
 versionRange = "[${ldlib2_version},)"
 ordering = "NONE"
 side = "BOTH"
+
+[[dependencies."${mod_id}"]]
+modId = "xaerominimap"
+type = "optional"
+versionRange = "[25.3.13,)"
+ordering = "AFTER"
+side = "CLIENT"
+
+[[dependencies."${mod_id}"]]
+modId = "ponder"
+type = "optional"
+versionRange = "${ponder_version_range}"
+ordering = "AFTER"
+side = "CLIENT"
 
 [features."${mod_id}"]
 openGLVersion = "[3.2,)"

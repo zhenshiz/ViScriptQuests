@@ -41,6 +41,7 @@ public class QuestCategoryListData implements IPersistedSerializable {
             if (copy.id.isBlank() || !seenIds.add(copy.id)) {
                 continue;
             }
+            copy.normalizeTabBackgrounds();
             sanitizeQuestIds(copy.questIds);
             result.add(copy);
         }

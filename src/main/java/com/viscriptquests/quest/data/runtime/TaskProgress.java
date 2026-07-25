@@ -5,11 +5,13 @@ import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
 import com.viscriptquests.quest.data.DisplayIcon;
 import com.viscriptquests.quest.data.QuestFile;
 import com.viscriptquests.quest.data.QuestStep;
+import com.viscriptquests.quest.data.QuestVariableValue;
 import com.viscriptquests.quest.data.task.ITask;
 import net.minecraft.network.chat.Component;
 
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Map;
 import java.util.Objects;
 
 // 任务目标的运行时进度追踪
@@ -40,6 +42,11 @@ public class TaskProgress implements IPersistedSerializable {
     }
 
     public static TaskProgress fromTask(ITask task, QuestStep step, net.minecraft.server.level.ServerPlayer player) {
+        return fromTask(task, step, player, null);
+    }
+
+    public static TaskProgress fromTask(ITask task, QuestStep step, net.minecraft.server.level.ServerPlayer player,
+                                        Map<String, QuestVariableValue> questVariables) {
         TaskProgress progress = new TaskProgress();
         progress.stepId = task.stepId;
         if (step != null) {
@@ -47,7 +54,7 @@ public class TaskProgress implements IPersistedSerializable {
             progress.subtitle = step.subtitle;
             progress.description = step.description.clone();
         }
-        TaskObjectiveProgress objective = TaskObjectiveProgress.fromTask(task, player);
+        TaskObjectiveProgress objective = TaskObjectiveProgress.fromTask(task, player, questVariables);
         progress.objectives.add(objective);
         progress.manualSubmitRequired = objective.manualSubmitRequired;
         progress.taskHint = objective.displayHint();
@@ -59,6 +66,12 @@ public class TaskProgress implements IPersistedSerializable {
 
     public static TaskProgress fromTasks(String stepId, List<ITask> tasks, QuestStep step,
                                          net.minecraft.server.level.ServerPlayer player) {
+        return fromTasks(stepId, tasks, step, player, null);
+    }
+
+    public static TaskProgress fromTasks(String stepId, List<ITask> tasks, QuestStep step,
+                                         net.minecraft.server.level.ServerPlayer player,
+                                         Map<String, QuestVariableValue> questVariables) {
         TaskProgress progress = new TaskProgress();
         progress.stepId = stepId == null ? "" : stepId;
         if (step != null) {
@@ -72,7 +85,7 @@ public class TaskProgress implements IPersistedSerializable {
         }
         progress.objectives.clear();
         for (ITask task : tasks) {
-            progress.objectives.add(TaskObjectiveProgress.fromTask(task, player));
+            progress.objectives.add(TaskObjectiveProgress.fromTask(task, player, questVariables));
         }
         progress.manualSubmitRequired = progress.objectives.stream().anyMatch(objective -> objective.manualSubmitRequired);
         progress.taskHint = joinObjectiveHints(progress.objectives);
@@ -86,6 +99,11 @@ public class TaskProgress implements IPersistedSerializable {
     }
 
     public void refreshObjectives(QuestFile questFile, net.minecraft.server.level.ServerPlayer player) {
+        refreshObjectives(questFile, player, null);
+    }
+
+    public void refreshObjectives(QuestFile questFile, net.minecraft.server.level.ServerPlayer player,
+                                  Map<String, QuestVariableValue> questVariables) {
         if (questFile == null || stepId == null || stepId.isBlank()) {
             return;
         }
@@ -94,7 +112,8 @@ public class TaskProgress implements IPersistedSerializable {
             return;
         }
         net.minecraft.server.level.ServerPlayer refreshPlayer = status == TaskStatus.ACTIVE ? player : null;
-        TaskProgress refreshed = fromTasks(stepId, tasks, questFile.findStep(stepId).orElse(null), refreshPlayer);
+        TaskProgress refreshed = fromTasks(stepId, tasks, questFile.findStep(stepId).orElse(null), refreshPlayer,
+                questVariables);
         taskHint = refreshed.taskHint;
         manualSubmitRequired = refreshed.manualSubmitRequired;
         displayIcon = refreshed.displayIcon;
@@ -122,10 +141,14 @@ public class TaskProgress implements IPersistedSerializable {
             current.progressTextOverride = refreshedObjective.progressTextOverride == null
                     ? ""
                     : refreshedObjective.progressTextOverride;
+            current.ponderComponentId = refreshedObjective.ponderComponentId == null
+                    ? ""
+                    : refreshedObjective.ponderComponentId;
+            current.ponderViewAction = refreshedObjective.ponderViewAction;
             boolean refreshFromPlayerState = i < tasks.size() && tasks.get(i).refreshesProgressFromPlayerState();
             if (!current.completed && !current.manualSubmitRequired && refreshFromPlayerState && refreshPlayer != null) {
                 current.progressTextOverride = "";
-                tasks.get(i).refreshObjectiveProgress(refreshPlayer, current);
+                tasks.get(i).refreshObjectiveProgress(refreshPlayer, current, questVariables);
             } else if (!refreshFromPlayerState) {
                 current.currentAmount = Math.min(current.currentAmount, current.requiredAmount);
                 current.completed = current.completed || current.currentAmount >= current.requiredAmount;

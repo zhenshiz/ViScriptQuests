@@ -9,12 +9,14 @@ import com.mojang.serialization.Codec;
 import com.viscriptquests.ViScriptQuests;
 import com.viscriptquests.ViScriptQuestsRegistries;
 import com.viscriptquests.quest.data.DisplayIcon;
+import com.viscriptquests.quest.data.QuestVariableValue;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.server.level.ServerPlayer;
 
+import java.util.Map;
 import java.util.function.Supplier;
 
 // 任务奖励接口，所有奖励类型（物品、经验、命令等）都通过此接口注册和序列化
@@ -23,7 +25,7 @@ public abstract class IReward implements ILDLRegister<IReward, Supplier<IReward>
 
     public static final Codec<IReward> CODEC = ViScriptQuestsRegistries.REWARDS.optionalCodec()
             .dispatch(ILDLRegister::getRegistryHolderOptional,
-                    optional -> optional.map(holder -> PersistedParser.createCodec(holder.value()).fieldOf("data"))
+                    optional -> optional.map(holder -> PersistedParser.createMapCodec(holder.value()))
                             .orElseGet(LDLibExtraCodecs::errorDecoder));
     public static final StreamCodec<ByteBuf, IReward> STREAM_CODEC = ByteBufCodecs.fromCodec(CODEC);
 
@@ -48,9 +50,20 @@ public abstract class IReward implements ILDLRegister<IReward, Supplier<IReward>
     // 发放奖励给玩家
     public abstract void grant(ServerPlayer player);
 
+    public void grant(ServerPlayer player, Map<String, QuestVariableValue> questVariables) {
+        grant(player);
+    }
+
+    public void resolveDynamicValues(Map<String, QuestVariableValue> questVariables, ServerPlayer player) {
+    }
+
     // 奖励的 UI 显示文本（用于任务书展示）
     public Component getRewardHint() {
         return rewardHintOrDefault(getDisplayName());
+    }
+
+    public Component getRewardHint(ServerPlayer player, Map<String, QuestVariableValue> questVariables) {
+        return getRewardHint();
     }
 
     // 奖励的 UI 显示图标（用于任务书渲染）

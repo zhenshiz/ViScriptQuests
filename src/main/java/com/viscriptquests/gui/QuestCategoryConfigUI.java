@@ -14,9 +14,10 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.ScrollerView;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Selector;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
+import com.lowdragmc.lowdraglib2.gui.texture.SpriteTexture;
 import com.lowdragmc.lowdraglib2.math.Size;
 import com.lowdragmc.lowdraglib2.networking.rpc.RPCPacketDistributor;
-import com.viscriptquests.gui.components.DraggableUI;
+import com.viscript_lib.gui.components.DraggableUI;
 import com.viscriptquests.network.c2s.C2SPayload;
 import com.viscriptquests.quest.data.DisplayIcon;
 import com.viscriptquests.quest.data.runtime.QuestCategoryConfigData;
@@ -246,18 +247,39 @@ public class QuestCategoryConfigUI extends UIElement {
             layout.flexDirection(FlexDirection.ROW);
             layout.alignItems(AlignItems.CENTER);
             layout.paddingAll(2);
+            layout.gapAll(2);
         });
 
-        Button button = new Button();
         boolean selected = selectedCategory == category;
-        button.setText(Component.literal((selected ? "§e" : "§f") + category.title + " §8(" + category.id + ")"));
+        UIElement tabPreview = new UIElement();
+        tabPreview.layout(layout -> layout.width(24).height(18));
+        tabPreview.style(style -> style.backgroundTexture(
+                SpriteTexture.of(category.tabBackgroundLocation(selected))));
+        tabPreview.setAllowHitTest(false);
+        row.addChild(tabPreview);
+
+        Button button = new Button();
+        String title = category.title == null || category.title.isBlank() ? category.id : category.title;
+        button.setText(Component.literal((selected ? "§e" : "§f") + title + " §8(" + category.id + ")"));
         button.layout(layout -> {
             layout.width(0);
             layout.flex(1);
             layout.height(18);
         });
+        button.text.layout(layout -> {
+            layout.width(0);
+            layout.flex(1);
+            layout.heightPercent(100);
+        });
+        button.textStyle(style -> style
+                .adaptiveWidth(false)
+                .textWrap(TextWrap.HOVER_ROLL)
+                .textAlignHorizontal(Horizontal.LEFT)
+                .textAlignVertical(Vertical.CENTER));
+        button.setOverflowVisible(false);
+        button.text.setOverflowVisible(false);
         button.addEventListener(UIEvents.MOUSE_DOWN, event -> event.stopPropagation());
-        button.addEventListener(UIEvents.CLICK, event -> selectCategory(category));
+        button.setOnClick(event -> selectCategory(category));
         row.addChild(button);
         return new CategoryRow(row);
     }
@@ -450,6 +472,7 @@ public class QuestCategoryConfigUI extends UIElement {
         if (category.displayIcon == null) {
             category.displayIcon = new DisplayIcon();
         }
+        category.normalizeTabBackgrounds();
         QuestCategoryListData.sanitizeQuestIds(category.questIds);
     }
 

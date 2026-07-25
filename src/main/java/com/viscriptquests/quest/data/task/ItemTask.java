@@ -6,18 +6,27 @@ import com.viscript_lib.util.item.ItemStackCompareMode;
 import com.viscript_lib.util.item.ItemUtil;
 import com.viscriptquests.quest.data.DisplayIcon;
 import com.viscriptquests.quest.data.QuestSubmitMode;
+import com.viscriptquests.quest.data.QuestValueToken;
+import com.viscriptquests.quest.data.QuestVariableValue;
 import com.viscriptquests.quest.data.runtime.TaskObjectiveProgress;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.Style;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 // 物品收集/提交任务，检查玩家背包中是否有指定物品
 @LDLRegister(name = "item_task", registry = ITask.ID)
 public class ItemTask extends ITask {
     @Persisted
     public ItemStack itemStack = ItemStack.EMPTY;
+    @Persisted
+    public int itemCount = 1;
+    @Persisted
+    public final List<QuestValueToken> itemCountExpression = new ArrayList<>();
     @Persisted
     public boolean strictComponents = false;
     @Persisted
@@ -27,15 +36,25 @@ public class ItemTask extends ITask {
 
     @Override
     public boolean checkCompletion(ServerPlayer player) {
-        return getPlayerItemCount(player) >= itemStack.getCount();
+        return checkCompletion(player, null);
+    }
+
+    @Override
+    public boolean checkCompletion(ServerPlayer player, Map<String, QuestVariableValue> questVariables) {
+        return getPlayerItemCount(player) >= getRequiredAmount(questVariables, player);
     }
 
     @Override
     public boolean onComplete(ServerPlayer player) {
+        return onComplete(player, null);
+    }
+
+    @Override
+    public boolean onComplete(ServerPlayer player, Map<String, QuestVariableValue> questVariables) {
         if (!consumeItem) {
             return true;
         }
-        return removePlayerItems(player, itemStack.getCount());
+        return removePlayerItems(player, getRequiredAmount(questVariables, player));
     }
 
     @Override
@@ -45,12 +64,23 @@ public class ItemTask extends ITask {
 
     @Override
     public int getRequiredAmount() {
-        return itemStack.isEmpty() ? 1 : itemStack.getCount();
+        return getRequiredAmount(null, null);
+    }
+
+    @Override
+    public int getRequiredAmount(Map<String, QuestVariableValue> questVariables, ServerPlayer player) {
+        return QuestValueToken.evaluateInt(itemCountExpression, questVariables, player, itemCount, 1);
     }
 
     @Override
     public void refreshObjectiveProgress(ServerPlayer player, TaskObjectiveProgress progress) {
-        int required = getRequiredAmount();
+        refreshObjectiveProgress(player, progress, null);
+    }
+
+    @Override
+    public void refreshObjectiveProgress(ServerPlayer player, TaskObjectiveProgress progress,
+                                         Map<String, QuestVariableValue> questVariables) {
+        int required = getRequiredAmount(questVariables, player);
         progress.requiredAmount = required;
         if (progress.manualSubmitRequired) {
             progress.currentAmount = progress.completed ? required : Math.min(progress.currentAmount, required);
@@ -63,10 +93,16 @@ public class ItemTask extends ITask {
 
     @Override
     public boolean submitObjective(ServerPlayer player, TaskObjectiveProgress progress) {
-        if (submitMode.isAutoSubmit() || progress.completed || itemStack.isEmpty()) {
+        return submitObjective(player, progress, null);
+    }
+
+    @Override
+    public boolean submitObjective(ServerPlayer player, TaskObjectiveProgress progress,
+                                   Map<String, QuestVariableValue> questVariables) {
+        if (submitMode.isAutoSubmit() || progress.completed || itemIdentityStack().isEmpty()) {
             return false;
         }
-        int required = getRequiredAmount();
+        int required = getRequiredAmount(questVariables, player);
         int remaining = Math.max(0, required - progress.currentAmount);
         if (remaining == 0) {
             progress.completed = true;
@@ -99,33 +135,43 @@ public class ItemTask extends ITask {
 
     @Override
     protected Component getDefaultTaskHint() {
-        if (itemStack.isEmpty()) return Component.empty();
-        int count = itemStack.getCount();
+        return getDefaultTaskHint(null, null);
+    }
+
+    @Override
+    protected Component getDefaultTaskHint(ServerPlayer player, Map<String, QuestVariableValue> questVariables) {
+        ItemStack identity = itemIdentityStack();
+        if (identity.isEmpty()) return Component.empty();
+        int count = getRequiredAmount(questVariables, player);
         String key = consumeItem
                 ? "viscript_quests.task_hint.item_task.submit"
                 : "viscript_quests.task_hint.item_task.have";
-        return Component.translatable(key, count, itemStack.getDisplayName());
+        return Component.translatable(key, count, identity.getDisplayName().copy().setStyle(Style.EMPTY));
     }
 
     @Override
     public DisplayIcon getDisplayIcon() {
-        return DisplayIcon.item(itemStack);
+        return DisplayIcon.item(itemIdentityStack());
     }
 
     private int getPlayerItemCount(ServerPlayer player) {
-        if (itemStack.isEmpty()) {
+        if (itemIdentityStack().isEmpty()) {
             return 0;
         }
-        return ItemUtil.getItemForPlayerCount(player, itemStack, itemCompareMode(), List.of());
+        return ItemUtil.getItemForPlayerCount(player, itemIdentityStack(), itemCompareMode(), List.of());
     }
 
     private boolean removePlayerItems(ServerPlayer player, int count) {
-        if (player == null || itemStack.isEmpty() || count <= 0) {
+        if (player == null || itemIdentityStack().isEmpty() || count <= 0) {
             return true;
         }
-        int remaining = ItemUtil.removeItemForPlayer(player, itemStack, count, itemCompareMode(), List.of());
+        int remaining = ItemUtil.removeItemForPlayer(player, itemIdentityStack(), count, itemCompareMode(), List.of());
         player.containerMenu.broadcastChanges();
         return remaining <= 0;
+    }
+
+    private ItemStack itemIdentityStack() {
+        return itemStack == null || itemStack.isEmpty() ? ItemStack.EMPTY : itemStack.copyWithCount(1);
     }
 
     private ItemStackCompareMode itemCompareMode() {

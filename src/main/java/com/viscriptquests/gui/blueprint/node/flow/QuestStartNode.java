@@ -8,7 +8,7 @@ import com.viscriptquests.gui.blueprint.node.QuestBlueprintNode;
 import net.minecraft.network.chat.Component;
 
 // 任务起点节点，定义任务的基本信息
-@NodeAttribute(name = "quest_start", group = QuestBlueprintNode.FLOW_GROUP, graphTypes = QuestBlueprintGraph.class)
+@NodeAttribute(name = QuestBlueprintNode.ID + "quest_start", group = QuestBlueprintNode.FLOW_GROUP, graphTypes = QuestBlueprintGraph.class)
 public class QuestStartNode extends QuestBlueprintNode {
     @Override
     public Component getDisplayName() {

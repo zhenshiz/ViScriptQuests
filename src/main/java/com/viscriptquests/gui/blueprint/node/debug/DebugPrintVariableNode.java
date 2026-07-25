@@ -11,7 +11,7 @@ import net.minecraft.network.chat.Component;
 // 1. 通过 value 输入端口连线到黑板变量节点（自动检测变量名）
 // 2. 通过 variable_name 选项手动填写变量名（备用方式）
 // 运行时默认将变量值写入日志，需要玩家聊天栏反馈时可显式勾选。
-@NodeAttribute(name = "debug_print_var", group = QuestBlueprintNode.DEBUG_GROUP, graphTypes = QuestBlueprintGraph.class)
+@NodeAttribute(name = QuestBlueprintNode.ID + "debug_print_var", group = QuestBlueprintNode.DEBUG_GROUP, graphTypes = QuestBlueprintGraph.class)
 public class DebugPrintVariableNode extends QuestBlueprintNode {
     @Override
     public Component getDisplayName() {

@@ -1,14 +1,19 @@
 package com.viscriptquests.gui.blueprint.compiler;
 
 import com.lowdragmc.lowdraglib2.Platform;
+import com.lowdragmc.lowdraglib2.nodegraphtookit.model.constant.Constant;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.graph.GraphModel;
+import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.ConstantNodeModel;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.CustomNodeModelImpl;
+import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.NodeOption;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.PortModel;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.SubgraphNodeModel;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.VariableNodeModelImpl;
+import com.lowdragmc.lowdraglib2.nodegraphtookit.model.variable.VariableDeclarationModelBase;
 import com.viscriptquests.gui.blueprint.QuestBlueprintFlowTypes;
 import com.viscriptquests.gui.blueprint.QuestBlueprintGraph;
 import com.viscriptquests.gui.blueprint.model.QuestSubQuestNodeModel;
+import com.viscriptquests.gui.blueprint.node.QuestLinkedNode;
 import com.viscriptquests.gui.blueprint.node.flow.QuestStartNode;
 import com.viscriptquests.gui.blueprint.node.flow.SubQuestStartNode;
 import com.viscriptquests.gui.blueprint.node.flow.SubQuestNode;
@@ -32,8 +37,8 @@ public final class QuestBlueprintCompiler {
             graph.graphModel.deserializeNBT(Platform.getFrozenRegistry(), graphTag.copy());
         }
 
-        Map<UUID, String> portUuidToVarName = buildVarWireMap(graph.graphModel);
-        QuestCompileContext context = new QuestCompileContext(graph.graphModel, portUuidToVarName);
+        QuestVariableBindingData variableBindings = buildVariableBindings(graph.graphModel);
+        QuestCompileContext context = new QuestCompileContext(graph.graphModel, variableBindings);
 
         CustomNodeModelImpl startNodeModel = null;
         Map<String, SubQuestInfo> subQuests = new LinkedHashMap<>();
@@ -132,7 +137,7 @@ public final class QuestBlueprintCompiler {
         }
 
         Set<String> processedVars = new LinkedHashSet<>();
-        collectVariableDefaults(graph.graphModel, questFile, processedVars, new HashSet<>());
+        collectVariableDefaults(graph.graphModel, questFile, processedVars, new HashSet<>(), variableBindings);
 
         QuestBlueprintValidator.validateExport(questFile);
         return questFile;
@@ -299,22 +304,35 @@ public final class QuestBlueprintCompiler {
     }
 
     private static void collectVariableDefaults(GraphModel graphModel, QuestFile questFile,
-                                                Set<String> processedVars, Set<UUID> visitedGraphs) {
+                                                Set<String> processedVars, Set<UUID> visitedGraphs,
+                                                QuestVariableBindingData variableBindings) {
         if (!visitedGraphs.add(graphModel.getUid())) {
             return;
         }
         for (var nodeModel : graphModel.getNodeModels()) {
             if (nodeModel instanceof VariableNodeModelImpl varNode) {
                 var decl = varNode.getVariableDeclarationModel();
-                if (decl != null && processedVars.add(decl.getName())) {
-                    questFile.variableDefaults.put(decl.getName(),
-                            QuestVariableValue.fromConstant(decl.getDataTypeHandle(), decl.getInitializationModel()));
+                if (decl == null || isInheritedVariable(decl, variableBindings)) {
+                    continue;
+                }
+                String runtimeName = variableNameFor(decl, variableBindings.variableAliases());
+                if (processedVars.add(runtimeName)) {
+                    QuestVariableValue override = defaultOverride(decl, variableBindings);
+                    questFile.variableDefaults.put(runtimeName, override == null
+                            ? QuestVariableValue.fromConstant(decl.getDataTypeHandle(), decl.getInitializationModel())
+                            : override.copy());
+                }
+            }
+            if (nodeModel instanceof QuestSubQuestNodeModel subQuestNode) {
+                GraphModel nested = subQuestNode.getSubgraphModel();
+                if (nested != null) {
+                    collectVariableDefaults(nested, questFile, processedVars, visitedGraphs, variableBindings);
                 }
             }
             if (nodeModel instanceof SubgraphNodeModel subgraphNode) {
                 GraphModel nested = subgraphNode.getSubgraphModel();
                 if (nested != null) {
-                    collectVariableDefaults(nested, questFile, processedVars, visitedGraphs);
+                    collectVariableDefaults(nested, questFile, processedVars, visitedGraphs, variableBindings);
                 }
             }
         }
@@ -322,7 +340,7 @@ public final class QuestBlueprintCompiler {
         if (localSubGraphs != null) {
             for (GraphModel subgraph : localSubGraphs) {
                 if (subgraph != null) {
-                    collectVariableDefaults(subgraph, questFile, processedVars, visitedGraphs);
+                    collectVariableDefaults(subgraph, questFile, processedVars, visitedGraphs, variableBindings);
                 }
             }
         }
@@ -363,14 +381,21 @@ public final class QuestBlueprintCompiler {
         return taskModel == null || taskModel.getUid() == null ? "" : taskModel.getUid().toString();
     }
 
-    // 构建变量端口连线反向映射：输入端口 UUID -> 变量名。
-    private static Map<UUID, String> buildVarWireMap(GraphModel graphModel) {
-        Map<UUID, String> map = new LinkedHashMap<>();
-        buildVarWireMap(graphModel, map, new HashSet<>());
-        return map;
+    private static QuestVariableBindingData buildVariableBindings(GraphModel graphModel) {
+        Map<QuestGraphElementKey, String> portMap = new LinkedHashMap<>();
+        Map<QuestGraphElementKey, String> variableAliases = new LinkedHashMap<>();
+        Map<QuestGraphElementKey, QuestVariableValue> defaultOverrides = new LinkedHashMap<>();
+        Set<QuestGraphElementKey> inheritedVariables = new LinkedHashSet<>();
+        buildVariableBindings(graphModel, portMap, variableAliases, defaultOverrides, inheritedVariables, new HashSet<>());
+        return new QuestVariableBindingData(portMap, variableAliases, defaultOverrides, inheritedVariables);
     }
 
-    private static void buildVarWireMap(GraphModel graphModel, Map<UUID, String> map, Set<UUID> visitedGraphs) {
+    private static void buildVariableBindings(GraphModel graphModel,
+                                              Map<QuestGraphElementKey, String> portMap,
+                                              Map<QuestGraphElementKey, String> variableAliases,
+                                              Map<QuestGraphElementKey, QuestVariableValue> defaultOverrides,
+                                              Set<QuestGraphElementKey> inheritedVariables,
+                                              Set<UUID> visitedGraphs) {
         if (!visitedGraphs.add(graphModel.getUid())) {
             return;
         }
@@ -378,18 +403,28 @@ public final class QuestBlueprintCompiler {
             if (nodeModel instanceof VariableNodeModelImpl varNode) {
                 var decl = varNode.getVariableDeclarationModel();
                 if (decl == null) continue;
-                String varName = decl.getName();
+                String varName = variableNameFor(decl, variableAliases);
                 for (var entry : varNode.getOutputsById().entrySet()) {
                     PortModel outputPort = entry.getValue();
                     for (PortModel connectedPort : outputPort.getConnectedPorts()) {
-                        map.put(connectedPort.getUid(), varName);
+                        portMap.put(QuestGraphElementKey.of(connectedPort), varName);
                     }
+                }
+            }
+            if (nodeModel instanceof QuestSubQuestNodeModel subQuestNode) {
+                GraphModel nested = subQuestNode.getSubgraphModel();
+                if (nested != null) {
+                    collectSubQuestVariableBindings(subQuestNode, nested, variableAliases, defaultOverrides,
+                            inheritedVariables);
+                    buildVariableBindings(nested, portMap, variableAliases, defaultOverrides, inheritedVariables,
+                            visitedGraphs);
                 }
             }
             if (nodeModel instanceof SubgraphNodeModel subgraphNode) {
                 GraphModel nested = subgraphNode.getSubgraphModel();
                 if (nested != null) {
-                    buildVarWireMap(nested, map, visitedGraphs);
+                    buildVariableBindings(nested, portMap, variableAliases, defaultOverrides, inheritedVariables,
+                            visitedGraphs);
                 }
             }
         }
@@ -397,10 +432,109 @@ public final class QuestBlueprintCompiler {
         if (localSubGraphs != null) {
             for (GraphModel subgraph : localSubGraphs) {
                 if (subgraph != null) {
-                    buildVarWireMap(subgraph, map, visitedGraphs);
+                    buildVariableBindings(subgraph, portMap, variableAliases, defaultOverrides, inheritedVariables,
+                            visitedGraphs);
                 }
             }
         }
+    }
+
+    private static void collectSubQuestVariableBindings(QuestSubQuestNodeModel subQuestNode,
+                                                        GraphModel subgraph,
+                                                        Map<QuestGraphElementKey, String> variableAliases,
+                                                        Map<QuestGraphElementKey, QuestVariableValue> defaultOverrides,
+                                                        Set<QuestGraphElementKey> inheritedVariables) {
+        for (VariableDeclarationModelBase variable : subgraph.getGraphVariableModels()) {
+            if (variable == null || variable.getUid() == null) {
+                continue;
+            }
+            QuestGraphElementKey variableKey = QuestGraphElementKey.of(variable);
+            variableAliases.putIfAbsent(variableKey, scopedSubQuestVariableName(subQuestNode, variable));
+            if (!QuestSubQuestNodeModel.hasExposedInput(variable)) {
+                continue;
+            }
+            PortModel inputPort = subQuestNode.getInputsById().get(QuestSubQuestNodeModel.exposedInputPortId(variable));
+            if (inputPort == null) {
+                continue;
+            }
+            String alias = findVariableAlias(inputPort, variableAliases);
+            if (alias != null && !alias.isBlank()) {
+                variableAliases.put(variableKey, alias);
+                defaultOverrides.remove(variableKey);
+                inheritedVariables.add(variableKey);
+                continue;
+            }
+            QuestVariableValue override = findConstantOverride(subQuestNode, inputPort, variable);
+            if (override != null) {
+                defaultOverrides.put(variableKey, override);
+            }
+        }
+    }
+
+    private static String findVariableAlias(PortModel inputPort, Map<QuestGraphElementKey, String> variableAliases) {
+        for (PortModel connectedPort : inputPort.getConnectedPorts()) {
+            if (connectedPort.getNodeModel() instanceof VariableNodeModelImpl varNode) {
+                var declaration = varNode.getVariableDeclarationModel();
+                if (declaration != null) {
+                    return variableNameFor(declaration, variableAliases);
+                }
+            }
+        }
+        return null;
+    }
+
+    private static QuestVariableValue findConstantOverride(QuestSubQuestNodeModel subQuestNode, PortModel inputPort,
+                                                           VariableDeclarationModelBase variable) {
+        for (PortModel connectedPort : inputPort.getConnectedPorts()) {
+            if (connectedPort.getNodeModel() instanceof ConstantNodeModel constantNode) {
+                Constant constant = constantNode.getConstant();
+                if (constant != null) {
+                    return QuestVariableValue.fromConstant(variable.getDataTypeHandle(), constant);
+                }
+            }
+        }
+        if (inputPort.getConnectedPorts().isEmpty()) {
+            Constant embedded = subQuestNode.getInputConstantsById().get(inputPort.getUniqueName());
+            if (embedded != null) {
+                return QuestVariableValue.fromConstant(variable.getDataTypeHandle(), embedded);
+            }
+        }
+        return null;
+    }
+
+    private static String variableNameFor(VariableDeclarationModelBase declaration,
+                                          Map<QuestGraphElementKey, String> variableAliases) {
+        if (declaration.getUid() != null) {
+            String alias = variableAliases.get(QuestGraphElementKey.of(declaration));
+            if (alias != null && !alias.isBlank()) {
+                return alias;
+            }
+        }
+        return declaration.getName();
+    }
+
+    private static String scopedSubQuestVariableName(QuestSubQuestNodeModel subQuestNode,
+                                                     VariableDeclarationModelBase variable) {
+        return subQuestRuntimeId(subQuestNode) + "/" + variable.getName();
+    }
+
+    private static String subQuestRuntimeId(QuestSubQuestNodeModel subQuestNode) {
+        Constant legacyStepId = subQuestNode.getInputConstantsById()
+                .get(NodeOption.PORT_ID_PREFIX + QuestLinkedNode.STEP_ID_OPTION);
+        if (legacyStepId != null && legacyStepId.getValue() instanceof String value && !value.isBlank()) {
+            return value;
+        }
+        return subQuestNode.getUid() == null ? "sub_quest" : subQuestNode.getUid().toString();
+    }
+
+    private static boolean isInheritedVariable(VariableDeclarationModelBase declaration,
+                                               QuestVariableBindingData variableBindings) {
+        return variableBindings.isInherited(declaration);
+    }
+
+    private static QuestVariableValue defaultOverride(VariableDeclarationModelBase declaration,
+                                                      QuestVariableBindingData variableBindings) {
+        return variableBindings.defaultOverrideFor(declaration);
     }
 
     private record SubQuestInfo(String stepId, String title, String subtitle, String[] description) {

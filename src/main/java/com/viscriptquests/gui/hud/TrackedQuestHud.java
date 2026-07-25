@@ -20,6 +20,9 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
+import java.util.ArrayList;
+import java.util.List;
+
 // 当前追踪小任务 HUD。根元素全屏，面板位置和尺寸全部读取客户端百分比配置。
 public class TrackedQuestHud extends UIElement {
     private static final ItemStack DEFAULT_ICON = new ItemStack(Items.PAPER);
@@ -32,7 +35,9 @@ public class TrackedQuestHud extends UIElement {
     private static final float FONT_BODY = 8.0f;
 
     private final UIElement panel = new UIElement();
-    private final QuestGuideMarkerElement guideMarker = new QuestGuideMarkerElement();
+    private final UIElement guideMarkerLayer = new UIElement();
+    private final QuestCompletionToastHud completionToastHud = new QuestCompletionToastHud();
+    private final List<QuestGuideMarkerElement> guideMarkers = new ArrayList<>();
     private final Label taskTitle = label(FONT_TITLE, TEXT_TITLE, false);
     private final UIElement objectivesColumn = new UIElement();
     private float lastX = Float.NaN;
@@ -46,13 +51,21 @@ public class TrackedQuestHud extends UIElement {
             layout.widthPercent(100);
             layout.heightPercent(100);
         });
-        addChildren(panel, guideMarker);
+        addChildren(panel, guideMarkerLayer, completionToastHud);
         panel.style(style -> style.backgroundTexture(IGuiTexture.EMPTY));
         panel.layout(layout -> {
             layout.positionType(TaffyPosition.ABSOLUTE);
             layout.flexDirection(FlexDirection.COLUMN);
             layout.paddingAllPercent(0);
             layout.gapAll(4);
+        });
+        guideMarkerLayer.setAllowHitTest(false);
+        guideMarkerLayer.layout(layout -> {
+            layout.positionType(TaffyPosition.ABSOLUTE);
+            layout.leftPercent(0);
+            layout.topPercent(0);
+            layout.widthPercent(100);
+            layout.heightPercent(100);
         });
 
         taskTitle.layout(layout -> {
@@ -73,8 +86,9 @@ public class TrackedQuestHud extends UIElement {
         super.screenTick();
         updateLayoutFromConfig();
         QuestHudData.ComponentState snapshot = QuestHudData.snapshot();
+        QuestGuideMarkerClientBridge.update(snapshot);
         updateContent(snapshot);
-        guideMarker.update(snapshot);
+        updateGuideMarkers(snapshot);
     }
 
     private void updateLayoutFromConfig() {
@@ -125,6 +139,24 @@ public class TrackedQuestHud extends UIElement {
         }
     }
 
+    private void updateGuideMarkers(QuestHudData.ComponentState snapshot) {
+        List<QuestHudData.MarkerState> markers = snapshot.guideMarkers();
+        while (guideMarkers.size() < markers.size()) {
+            QuestGuideMarkerElement element = new QuestGuideMarkerElement();
+            guideMarkers.add(element);
+            guideMarkerLayer.addChild(element);
+        }
+        for (int i = 0; i < guideMarkers.size(); i++) {
+            QuestGuideMarkerElement element = guideMarkers.get(i);
+            if (i >= markers.size()) {
+                element.setVisible(false);
+                continue;
+            }
+            QuestHudData.MarkerState marker = markers.get(i);
+            element.update(marker.marker(), marker.fallbackLabel());
+        }
+    }
+
     private static UIElement createObjectiveRow(DisplayIcon icon, Component hint, int textColor) {
         UIElement row = new UIElement();
         row.layout(layout -> {
@@ -151,7 +183,7 @@ public class TrackedQuestHud extends UIElement {
         UIElement element;
         if (icon != null && icon.isTexture() && icon.getTexture() != null && !icon.getTexture().isBlank()) {
             ResourceLocation location = ResourceLocation.tryParse(icon.getTexture());
-            element = textureIcon(location == null ? ViScriptQuests.id("textures/gui/quest_book/book_icon.png") : location);
+            element = textureIcon(location == null ? ViScriptQuests.id("textures/gui/icon/icon_task.png") : location);
         } else {
             ItemStack stack = icon == null ? ItemStack.EMPTY : icon.renderItemStack();
             element = itemIcon(stack == null || stack.isEmpty() ? DEFAULT_ICON : stack);
@@ -203,6 +235,8 @@ public class TrackedQuestHud extends UIElement {
                     .append('/').append(objective.requiredAmount)
                     .append('|').append(objective.progressTextOverride)
                     .append('|').append(objective.completed)
+                    .append('|').append(objective.ponderViewAction)
+                    .append('|').append(objective.ponderComponentId)
                     .append('|').append(iconKey(objective.displayIcon))
                     .append(';');
         }

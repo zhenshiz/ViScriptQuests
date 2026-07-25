@@ -8,7 +8,7 @@ import com.viscriptquests.gui.blueprint.node.QuestBlueprintNode;
 import net.minecraft.network.chat.Component;
 
 // 击杀实体目标节点，用于配置目标实体、累计击杀数量和可选的实体命令标签。
-@NodeAttribute(name = "kill_entity_task", group = QuestBlueprintNode.TASK_GROUP, graphTypes = QuestBlueprintGraph.class)
+@NodeAttribute(name = QuestBlueprintNode.ID + "kill_entity_task", group = QuestBlueprintNode.TASK_GROUP, graphTypes = QuestBlueprintGraph.class)
 public class KillEntityTaskNode extends QuestBlueprintNode {
     @Override
     public Component getDisplayName() {
@@ -18,7 +18,6 @@ public class KillEntityTaskNode extends QuestBlueprintNode {
     @Override
     public void onDefineOptions(IOptionDefinitionContext context) {
         entityTypeOption(context, "entity_type", "minecraft:zombie");
-        intOption(context, "kill_count", 1);
         stringOption(context, "tag", "");
         taskCommonOptions(context);
     }
@@ -26,5 +25,6 @@ public class KillEntityTaskNode extends QuestBlueprintNode {
     @Override
     public void onDefinePorts(IPortDefinitionContext context) {
         taskFlowPorts(context);
+        intInput(context, "kill_count", 1);
     }
 }

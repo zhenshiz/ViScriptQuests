@@ -12,7 +12,6 @@ import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import com.viscript_lib.register.ICommand;
 import com.viscriptquests.ViScriptQuests;
-import com.viscriptquests.gui.blueprint.data.QuestBlueprintRegistryCache;
 import com.viscriptquests.gui.editor.QuestEditor;
 import com.viscriptquests.network.s2c.S2CPayload;
 import com.viscriptquests.quest.data.runtime.QuestCategoryConfigData;
@@ -114,7 +113,6 @@ public class QuestCommand implements ICommand {
         if (player == null) {
             throw playerOnlyException();
         }
-        syncBlueprintRegistries(player);
         PlayerUIMenuType.openUI(player, QuestEditor.EDITOR_ID);
         return 1;
     }
@@ -133,7 +131,6 @@ public class QuestCommand implements ICommand {
                     Component.translatable("commands.viscript_quests.quest.editor.not_found", projectId));
             return 0;
         }
-        syncBlueprintRegistries(player);
         PlayerUIMenuType.openUI(player, QuestEditor.EDITOR_ID);
         RPCPacketDistributor.rpcToPlayer(player, S2CPayload.OPEN_EDITOR_WITH_PROJECT, graphTag.get());
         return 1;
@@ -161,11 +158,6 @@ public class QuestCommand implements ICommand {
         RPCPacketDistributor.rpcToPlayer(player, S2CPayload.OPEN_CATEGORY_CONFIG,
                 data.serializeNBT(Platform.getFrozenRegistry()));
         return 1;
-    }
-
-    private static void syncBlueprintRegistries(ServerPlayer player) {
-        RPCPacketDistributor.rpcToPlayer(player, S2CPayload.SYNC_BLUEPRINT_REGISTRIES,
-                QuestBlueprintRegistryCache.createServerPayload(player.getServer()));
     }
 
     @SneakyThrows
@@ -418,7 +410,7 @@ public class QuestCommand implements ICommand {
         if (tasks.isEmpty()) {
             return Component.translatable("commands.viscript_quests.quest.task.definition_missing", stepId, normalizedQuestId);
         }
-        boolean completed = tasks.stream().allMatch(task -> task.checkCompletion(player));
+        boolean completed = tasks.stream().allMatch(task -> task.checkCompletion(player, state.get().questVariables));
         if (!completed) {
             return Component.translatable("commands.viscript_quests.quest.submit.missing_items", stepId);
         }

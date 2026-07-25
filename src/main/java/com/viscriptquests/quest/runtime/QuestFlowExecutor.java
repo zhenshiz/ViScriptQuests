@@ -137,9 +137,16 @@ public class QuestFlowExecutor {
      * @param questFile 运行时任务文件；为 {@code null} 时只修改任务状态，不发放文件内奖励
      */
     public static void completeQuest(ServerPlayer player, PlayerQuestState state, QuestFile questFile) {
+        List<TaskProgress> newlyCompleted = new ArrayList<>();
         for (TaskProgress progress : state.taskProgresses) {
+            if (progress.status != TaskStatus.COMPLETED) {
+                newlyCompleted.add(progress);
+            }
             progress.status = TaskStatus.COMPLETED;
             state.completedFlowNodes.add(progress.stepId);
+        }
+        for (TaskProgress progress : newlyCompleted) {
+            QuestCompletionNotificationService.notifyTaskCompleted(player, progress);
         }
         state.activeFlowNodes.clear();
         if (questFile != null) {
@@ -148,8 +155,12 @@ public class QuestFlowExecutor {
             }
             finish(player, state, questFile, true);
         } else {
+            boolean newlyCompletedQuest = state.status != QuestStatus.COMPLETED;
             state.status = QuestStatus.COMPLETED;
             state.completedGameTime = player.level().getGameTime();
+            if (newlyCompletedQuest) {
+                QuestCompletionNotificationService.notifyQuestCompleted(player, state);
+            }
         }
     }
 
@@ -175,7 +186,7 @@ public class QuestFlowExecutor {
                 state.rewardedSteps.remove(stepId);
                 state.triggeredObjectiveActions.removeIf(actionKey -> actionKey.startsWith(stepId + ":"));
                 TaskProgress refreshed = TaskProgress.fromTasks(stepId, questFile.findTasksForStep(stepId),
-                        questFile.findStep(stepId).orElse(null), player);
+                        questFile.findStep(stepId).orElse(null), player, state.questVariables);
                 progress.title = refreshed.title;
                 progress.subtitle = refreshed.subtitle;
                 progress.description = refreshed.description.clone();
@@ -192,7 +203,7 @@ public class QuestFlowExecutor {
                     || progress.status == TaskStatus.SKIPPED;
             if (activating) {
                 progress.status = TaskStatus.ACTIVE;
-                progress.refreshObjectives(questFile, player);
+                progress.refreshObjectives(questFile, player, state.questVariables);
             }
         });
     }
@@ -393,10 +404,13 @@ public class QuestFlowExecutor {
             joinProgress.resolved = true;
         }
         if (success) {
-            QuestRewardService.grantQuestCompletionRewards(player, questFile);
+            QuestRewardService.grantQuestCompletionRewards(player, questFile, state);
         }
         state.status = success ? QuestStatus.COMPLETED : QuestStatus.FAILED;
         state.completedGameTime = player.level().getGameTime();
+        if (success) {
+            QuestCompletionNotificationService.notifyQuestCompleted(player, state);
+        }
         QuestPlayerData playerData = QuestSavedData.get(player.getServer()).getPlayer(player.getUUID());
         if (playerData.trackedQuestId.equals(state.questId)) {
             playerData.trackedQuestId = "";

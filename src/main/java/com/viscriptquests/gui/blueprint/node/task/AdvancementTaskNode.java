@@ -8,7 +8,7 @@ import com.viscriptquests.gui.blueprint.node.QuestBlueprintNode;
 import net.minecraft.network.chat.Component;
 
 // 进度目标节点，用于选择玩家需要完成的 Minecraft Advancement。
-@NodeAttribute(name = "advancement_task", group = QuestBlueprintNode.TASK_GROUP, graphTypes = QuestBlueprintGraph.class)
+@NodeAttribute(name = QuestBlueprintNode.ID + "advancement_task", group = QuestBlueprintNode.TASK_GROUP, graphTypes = QuestBlueprintGraph.class)
 public class AdvancementTaskNode extends QuestBlueprintNode {
     @Override
     public Component getDisplayName() {

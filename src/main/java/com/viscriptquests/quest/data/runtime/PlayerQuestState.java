@@ -87,7 +87,12 @@ public class PlayerQuestState implements IPersistedSerializable {
         state.status = QuestStatus.ACTIVE;
         state.grantedGameTime = gameTime;
 
-        state.refreshRewardDisplays(file);
+        // 从蓝图黑板变量加载初始值到运行时变量，后续目标/奖励的动态表达式会读取这些默认值。
+        for (var entry : file.variableDefaults.entrySet()) {
+            state.questVariables.put(entry.getKey(), entry.getValue().copy());
+        }
+
+        state.refreshRewardDisplays(file, player);
 
         // 按小任务聚合目标进度：一个 SubQuest 可以包含多个 ITask。
         for (QuestStep step : file.steps) {
@@ -95,7 +100,7 @@ public class PlayerQuestState implements IPersistedSerializable {
             if (tasks.isEmpty()) {
                 continue;
             }
-            TaskProgress progress = TaskProgress.fromTasks(step.stepId, tasks, step, null);
+            TaskProgress progress = TaskProgress.fromTasks(step.stepId, tasks, step, null, state.questVariables);
             progress.status = TaskStatus.LOCKED;
             state.taskProgresses.add(progress);
         }
@@ -104,18 +109,14 @@ public class PlayerQuestState implements IPersistedSerializable {
                 continue;
             }
             QuestStep step = file.findStep(task.stepId).orElse(null);
-            TaskProgress progress = TaskProgress.fromTasks(task.stepId, file.findTasksForStep(task.stepId), step, null);
+            TaskProgress progress = TaskProgress.fromTasks(task.stepId, file.findTasksForStep(task.stepId), step,
+                    null, state.questVariables);
             progress.status = TaskStatus.LOCKED;
             state.taskProgresses.add(progress);
         }
 
         // 初始从 START 流程节点开始，QuestManager 会继续推进到第一个任务/分支/Join。
         state.activeFlowNodes.add("");
-
-        // 从蓝图黑板变量加载初始值到运行时变量
-        for (var entry : file.variableDefaults.entrySet()) {
-            state.questVariables.put(entry.getKey(), entry.getValue().copy());
-        }
 
         for (QuestFlowNode node : file.flowNodes) {
             if (QuestBlueprintFlowTypes.isJoin(node)) {
@@ -151,6 +152,10 @@ public class PlayerQuestState implements IPersistedSerializable {
     }
 
     public void refreshRewardDisplays(QuestFile file) {
+        refreshRewardDisplays(file, null);
+    }
+
+    public void refreshRewardDisplays(QuestFile file, net.minecraft.server.level.ServerPlayer player) {
         rewardDisplays.clear();
         if (file == null) {
             return;
@@ -158,7 +163,7 @@ public class PlayerQuestState implements IPersistedSerializable {
         for (IReward reward : file.rewards) {
             RewardDisplay display = new RewardDisplay();
             display.stepId = reward.stepId == null ? "" : reward.stepId;
-            Component hint = reward.getRewardHint();
+            Component hint = reward.getRewardHint(player, questVariables);
             display.displayText = hint == null ? Component.empty() : hint.copy();
             DisplayIcon icon = reward.getRewardIcon();
             display.icon = icon == null ? new DisplayIcon() : icon.copy();

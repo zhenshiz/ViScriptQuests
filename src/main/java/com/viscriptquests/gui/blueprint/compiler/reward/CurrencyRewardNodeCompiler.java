@@ -19,7 +19,8 @@ public class CurrencyRewardNodeCompiler implements IQuestRewardNodeCompiler {
     public IReward compileReward(QuestCompileContext context, CustomNodeModelImpl node, String stepId) {
         CurrencyReward reward = new CurrencyReward();
         reward.stepId = stepId;
-        reward.currency = Math.max(0, context.getInt(node, "currency"));
+        reward.currency = context.tracePortIntValue(node, "currency", 1, 0);
+        reward.currencyExpression.addAll(context.compileRuntimeIntExpression(node, "currency", 1));
         IQuestRewardNodeCompiler.applyCommonOptions(context, node, reward);
         return reward;
     }

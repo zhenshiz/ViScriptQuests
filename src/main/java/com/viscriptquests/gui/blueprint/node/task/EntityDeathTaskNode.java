@@ -10,7 +10,7 @@ import com.viscriptquests.quest.data.TaskObjectiveType;
 import net.minecraft.network.chat.Component;
 
 // 实体死亡目标节点，不要求死亡来源是玩家，默认作为失败条件使用。
-@NodeAttribute(name = "entity_death_task", group = QuestBlueprintNode.TASK_GROUP, graphTypes = QuestBlueprintGraph.class)
+@NodeAttribute(name = QuestBlueprintNode.ID + "entity_death_task", group = QuestBlueprintNode.TASK_GROUP, graphTypes = QuestBlueprintGraph.class)
 public class EntityDeathTaskNode extends QuestBlueprintNode {
     @Override
     public Component getDisplayName() {
@@ -20,7 +20,6 @@ public class EntityDeathTaskNode extends QuestBlueprintNode {
     @Override
     public void onDefineOptions(IOptionDefinitionContext context) {
         entityTypeOption(context, "entity_type", "minecraft:villager");
-        intOption(context, "death_count", 1);
         stringOption(context, "tag", "");
         enumOption(context, "objective_type", QuestBlueprintTypes.OBJECTIVE_TYPE, TaskObjectiveType.FAILURE);
         taskHintOption(context);
@@ -29,5 +28,6 @@ public class EntityDeathTaskNode extends QuestBlueprintNode {
     @Override
     public void onDefinePorts(IPortDefinitionContext context) {
         taskFlowPorts(context);
+        intInput(context, "death_count", 1);
     }
 }

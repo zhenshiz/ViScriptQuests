@@ -30,7 +30,10 @@ public class QuestBlueprintNodeElement extends CollapsibleInOutNodeElement {
 
     @Override
     protected void onSelectionInspect(GraphInspector inspector) {
-        super.onSelectionInspect(inspector);
+        if (graphView != null) {
+            inspector.setHistoryStack(graphView.getHistoryStack());
+        }
+        inspector.inspect(QuestElementPropertyConfigurableHelper.build(getModel(), graphView));
         inspectQuestParametersInEditorRightWindow();
     }
 

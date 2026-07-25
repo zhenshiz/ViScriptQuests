@@ -7,6 +7,7 @@ import com.lowdragmc.lowdraglib2.nodegraphtookit.api.type.TypeHandle;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.api.type.TypeHandles;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.definition.IOptionDefinitionContext;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.definition.IPortDefinitionContext;
+import com.viscriptquests.ViScriptQuests;
 import com.viscriptquests.compat.team.QuestTeamService;
 import com.viscriptquests.gui.blueprint.QuestBlueprintTypes;
 import com.viscriptquests.gui.blueprint.data.QuestRegistryId;
@@ -18,6 +19,8 @@ import net.minecraft.world.level.block.Block;
 
 // 任务蓝图节点的公共基类，提供端口/选项的便捷方法和翻译键支持
 public abstract class QuestBlueprintNode extends Node {
+    public static final String ID = ViScriptQuests.MOD_ID + ":";
+
     public static final String DEBUG_GROUP = "debug";
     public static final String FLOW_GROUP = "flow";
     public static final String LOGIC_GROUP = "logic";
@@ -88,6 +91,18 @@ public abstract class QuestBlueprintNode extends Node {
         registryIdOption(context, id, id, QuestBlueprintTypes.ADVANCEMENT_ID, defaultValue);
     }
 
+    protected void ponderComponentOption(IOptionDefinitionContext context, String id, String defaultValue) {
+        registryIdOption(context, id, id, QuestBlueprintTypes.PONDER_COMPONENT_ID, defaultValue);
+    }
+
+    protected void biomeOption(IOptionDefinitionContext context, String id, String defaultValue) {
+        registryIdOption(context, id, id, QuestBlueprintTypes.BIOME_ID, defaultValue);
+    }
+
+    protected void structureOption(IOptionDefinitionContext context, String id, String defaultValue) {
+        registryIdOption(context, id, id, QuestBlueprintTypes.STRUCTURE_ID, defaultValue);
+    }
+
     protected void stringArrayOption(IOptionDefinitionContext context, String id) {
         option(context, id, QuestBlueprintTypes.STRING_ARRAY, new String[0]);
     }
@@ -109,7 +124,7 @@ public abstract class QuestBlueprintNode extends Node {
     }
 
     protected void itemStackOption(IOptionDefinitionContext context, String id) {
-        option(context, id, TypeHandles.ITEM_STACK, ItemStack.EMPTY);
+        option(context, id, QuestBlueprintTypes.ITEM_IDENTITY_STACK, ItemStack.EMPTY);
     }
 
     protected void blockOption(IOptionDefinitionContext context, String id, Block defaultValue) {
@@ -135,6 +150,10 @@ public abstract class QuestBlueprintNode extends Node {
 
     protected void stringInput(IPortDefinitionContext context, String id, String defaultValue) {
         input(context, id, TypeHandles.STRING, defaultValue);
+    }
+
+    protected void intInput(IPortDefinitionContext context, String id, int defaultValue) {
+        input(context, id, TypeHandles.INT, defaultValue);
     }
 
     protected void floatInput(IPortDefinitionContext context, String id, float defaultValue) {
@@ -183,10 +202,19 @@ public abstract class QuestBlueprintNode extends Node {
     }
 
     protected Component nodeName(String key) {
-        return Component.translatable("viscript_quests.blueprint.node." + key);
+        return Component.translatable(ViScriptQuests.MOD_ID + ".blueprint.node." + key);
     }
 
     protected Component portName(String key) {
-        return Component.translatable("viscript_quests.blueprint.port." + key);
+        return Component.translatable(ViScriptQuests.MOD_ID + ".blueprint.port." + key);
     }
+
+    public static String pathOf(String nodeId) {
+        if (nodeId == null) {
+            return "";
+        }
+        int namespaceIndex = nodeId.indexOf(':');
+        return namespaceIndex >= 0 ? nodeId.substring(namespaceIndex + 1) : nodeId;
+    }
+
 }

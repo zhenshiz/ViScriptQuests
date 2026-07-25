@@ -12,7 +12,7 @@ import com.viscriptquests.gui.blueprint.node.QuestBlueprintNode;
 import com.viscriptquests.quest.data.CompareOp;
 import net.minecraft.network.chat.Component;
 
-@NodeAttribute(name = "compare", group = QuestBlueprintNode.LOGIC_GROUP, graphTypes = QuestBlueprintGraph.class)
+@NodeAttribute(name = QuestBlueprintNode.ID + "compare", group = QuestBlueprintNode.LOGIC_GROUP, graphTypes = QuestBlueprintGraph.class)
 public class CompareOperationNode extends QuestBlueprintNode {
     public static final String OPERATOR_OPTION = "operator";
 

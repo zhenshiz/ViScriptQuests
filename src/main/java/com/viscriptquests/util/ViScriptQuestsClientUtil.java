@@ -22,7 +22,7 @@ public class ViScriptQuestsClientUtil {
         QuestBookData bookData = new QuestBookData();
         bookData.deserializeNBT(Platform.getFrozenRegistry(), data);
         QuestBookUI questBookUI = new QuestBookUI(bookData);
-        ModularUI modularUI = new ModularUI(UI.of(questBookUI, QuestBookUI::getAutoGuiScaledSize));
+        ModularUI modularUI = new ModularUI(UI.of(questBookUI, QuestBookUI::getViewportSize));
         minecraft.setScreen(new ModularUIScreen(modularUI,
                 Component.translatable("screen.viscript_quests.quest_book")));
     }

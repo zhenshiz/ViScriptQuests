@@ -8,8 +8,8 @@ import com.viscriptquests.gui.blueprint.node.QuestBlueprintNode;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.Level;
 
-// 访问维度目标节点，维度参数复用项目里的资源 ID 补全输入框。
-@NodeAttribute(name = "visit_dimension_task", group = QuestBlueprintNode.TASK_GROUP, graphTypes = QuestBlueprintGraph.class)
+// 访问维度目标节点，维度参数复用 VSL 的维度补全输入框。
+@NodeAttribute(name = QuestBlueprintNode.ID + "visit_dimension_task", group = QuestBlueprintNode.TASK_GROUP, graphTypes = QuestBlueprintGraph.class)
 public class VisitDimensionTaskNode extends QuestBlueprintNode {
     @Override
     public Component getDisplayName() {

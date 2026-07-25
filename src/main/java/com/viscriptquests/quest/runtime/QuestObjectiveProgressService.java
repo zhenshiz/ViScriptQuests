@@ -1,12 +1,14 @@
 package com.viscriptquests.quest.runtime;
 
 import com.viscriptquests.quest.data.QuestFile;
+import com.viscriptquests.quest.data.QuestVariableValue;
 import com.viscriptquests.quest.data.runtime.TaskObjectiveProgress;
 import com.viscriptquests.quest.data.runtime.TaskProgress;
 import com.viscriptquests.quest.data.task.ITask;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 // 维护运行时目标进度的形状和展示数据，不负责小任务结算或流程推进。
@@ -22,10 +24,15 @@ final class QuestObjectiveProgressService {
     }
 
     static boolean syncObjectiveShape(List<ITask> tasks, TaskProgress progress, ServerPlayer player) {
+        return syncObjectiveShape(tasks, progress, player, null);
+    }
+
+    static boolean syncObjectiveShape(List<ITask> tasks, TaskProgress progress, ServerPlayer player,
+                                      Map<String, QuestVariableValue> questVariables) {
         if (tasks.isEmpty()) {
             return false;
         }
-        TaskProgress refreshed = TaskProgress.fromTasks(progress.stepId, tasks, null, player);
+        TaskProgress refreshed = TaskProgress.fromTasks(progress.stepId, tasks, null, player, questVariables);
         for (int i = 0; i < refreshed.objectives.size(); i++) {
             if (i >= progress.objectives.size()) {
                 progress.objectives.add(refreshed.objectives.get(i));
@@ -50,7 +57,7 @@ final class QuestObjectiveProgressService {
             boolean refreshFromPlayerState = i < tasks.size() && tasks.get(i).refreshesProgressFromPlayerState();
             if (!current.completed && !current.manualSubmitRequired && refreshFromPlayerState) {
                 current.progressTextOverride = "";
-                tasks.get(i).refreshObjectiveProgress(player, current);
+                tasks.get(i).refreshObjectiveProgress(player, current, questVariables);
             } else if (!refreshFromPlayerState) {
                 current.currentAmount = Math.min(current.currentAmount, current.requiredAmount);
                 current.completed = current.completed || current.currentAmount >= current.requiredAmount;
@@ -59,6 +66,9 @@ final class QuestObjectiveProgressService {
         while (progress.objectives.size() > refreshed.objectives.size()) {
             progress.objectives.removeLast();
         }
+        progress.taskHint = refreshed.taskHint;
+        progress.displayIcon = refreshed.displayIcon;
+        progress.guideMarker = refreshed.guideMarker;
         progress.manualSubmitRequired = progress.objectives.stream().anyMatch(objective -> objective.manualSubmitRequired);
         return true;
     }

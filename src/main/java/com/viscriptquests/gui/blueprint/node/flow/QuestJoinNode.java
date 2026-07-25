@@ -16,7 +16,7 @@ import net.minecraft.network.chat.Component;
 // - 任选其一（ANY）：完成任意一条分支即可继续
 // - 全部完成（ALL）：所有分支都完成才继续
 // - 至少 N 个（COUNT）：完成指定数量的分支即可继续，此时出现 required_count 配置
-@NodeAttribute(name = "quest_join", group = QuestBlueprintNode.FLOW_GROUP, graphTypes = QuestBlueprintGraph.class)
+@NodeAttribute(name = QuestBlueprintNode.ID + "quest_join", group = QuestBlueprintNode.FLOW_GROUP, graphTypes = QuestBlueprintGraph.class)
 public class QuestJoinNode extends QuestBlueprintNode {
     @Override
     public Component getDisplayName() {

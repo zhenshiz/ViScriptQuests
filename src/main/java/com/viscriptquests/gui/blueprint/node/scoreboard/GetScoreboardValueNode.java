@@ -7,7 +7,7 @@ import com.viscriptquests.gui.blueprint.QuestBlueprintGraph;
 import com.viscriptquests.gui.blueprint.node.QuestBlueprintNode;
 import net.minecraft.network.chat.Component;
 
-@NodeAttribute(name = "get_scoreboard_value", group = QuestBlueprintNode.SCOREBOARD_GROUP, graphTypes = QuestBlueprintGraph.class)
+@NodeAttribute(name = QuestBlueprintNode.ID + "get_scoreboard_value", group = QuestBlueprintNode.SCOREBOARD_GROUP, graphTypes = QuestBlueprintGraph.class)
 public class GetScoreboardValueNode extends QuestBlueprintNode {
     @Override
     public Component getDisplayName() {

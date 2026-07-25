@@ -3,10 +3,13 @@ package com.viscriptquests.quest.data.runtime;
 import com.lowdragmc.lowdraglib2.syncdata.IPersistedSerializable;
 import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
 import com.viscriptquests.quest.data.DisplayIcon;
+import com.viscriptquests.quest.data.QuestVariableValue;
 import com.viscriptquests.quest.data.TaskObjectiveType;
 import com.viscriptquests.quest.data.task.ITask;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+
+import java.util.Map;
 
 // HUD 展示单个目标用的数据。一个小任务可以包含多个目标，所以这里不要再聚合成一条文本。
 public class TaskObjectiveProgress implements IPersistedSerializable {
@@ -34,21 +37,34 @@ public class TaskObjectiveProgress implements IPersistedSerializable {
     // 进度文本覆盖值，用于倒计时这类不适合显示“当前/需求”的目标。
     @Persisted
     public String progressTextOverride = "";
+    // Ponder 查看按钮数据。ponderViewAction 控制是否显示按钮，组件 ID 由按钮点击时校验。
+    @Persisted
+    public String ponderComponentId = "";
+    @Persisted
+    public boolean ponderViewAction = false;
 
     public static TaskObjectiveProgress fromTask(ITask task, ServerPlayer player) {
+        return fromTask(task, player, null);
+    }
+
+    public static TaskObjectiveProgress fromTask(ITask task, ServerPlayer player,
+                                                 Map<String, QuestVariableValue> questVariables) {
         TaskObjectiveProgress progress = new TaskObjectiveProgress();
         if (task == null) {
             return progress;
         }
         progress.objectiveId = task.objectiveId == null ? "" : task.objectiveId;
         progress.objectiveType = task.objectiveType == null ? TaskObjectiveType.REQUIRED : task.objectiveType;
-        Component hint = task.getTaskHint();
+        Component hint = task.getTaskHint(player, questVariables);
         progress.hint = hint == null ? Component.empty() : hint.copy();
         DisplayIcon icon = task.getDisplayIcon();
         progress.displayIcon = icon == null ? new DisplayIcon() : icon.copy();
         progress.manualSubmitRequired = !progress.isFailureCondition() && !task.allowsAutoSubmit();
-        progress.requiredAmount = Math.max(1, task.getRequiredAmount());
-        task.refreshObjectiveProgress(player, progress);
+        progress.requiredAmount = Math.max(1, task.getRequiredAmount(questVariables, player));
+        String ponderComponentId = task.getPonderComponentId();
+        progress.ponderComponentId = ponderComponentId == null ? "" : ponderComponentId.trim();
+        progress.ponderViewAction = task.hasPonderViewAction();
+        task.refreshObjectiveProgress(player, progress, questVariables);
         QuestGuideMarker marker = task.getGuideMarker(player);
         progress.guideMarker = marker == null ? QuestGuideMarker.disabled() : marker.copy();
         return progress;
@@ -98,5 +114,9 @@ public class TaskObjectiveProgress implements IPersistedSerializable {
 
     public int displayTextColor() {
         return (objectiveType == null ? TaskObjectiveType.REQUIRED : objectiveType).getDisplayTextColor();
+    }
+
+    public boolean hasPonderView() {
+        return ponderViewAction;
     }
 }

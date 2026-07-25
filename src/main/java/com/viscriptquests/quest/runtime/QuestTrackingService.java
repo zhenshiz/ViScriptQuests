@@ -141,7 +141,7 @@ public class QuestTrackingService {
         }
         QuestFile questFile = QuestFileHelper.getQuest(playerData.trackedQuestId, player.registryAccess()).orElse(null);
         if (questFile != null) {
-            progress.refreshObjectives(questFile, player);
+            progress.refreshObjectives(questFile, player, state.questVariables);
         }
     }
 

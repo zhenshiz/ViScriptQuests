@@ -8,7 +8,7 @@ import com.viscriptquests.gui.blueprint.node.QuestBlueprintNode;
 import net.minecraft.network.chat.Component;
 
 // 调试打印节点默认写入日志；需要玩家聊天栏反馈时可显式勾选。
-@NodeAttribute(name = "debug_print", group = QuestBlueprintNode.DEBUG_GROUP, graphTypes = QuestBlueprintGraph.class)
+@NodeAttribute(name = QuestBlueprintNode.ID + "debug_print", group = QuestBlueprintNode.DEBUG_GROUP, graphTypes = QuestBlueprintGraph.class)
 public class DebugPrintNode extends QuestBlueprintNode {
     @Override
     public Component getDisplayName() {

@@ -9,7 +9,7 @@ import com.viscriptquests.gui.blueprint.node.QuestBlueprintNode;
 import net.minecraft.network.chat.Component;
 
 // 战利品表奖励节点。数据包模式读取 loot table id，自定义模式读取简单概率掉落列表。
-@NodeAttribute(name = "loot_table_reward", group = QuestBlueprintNode.REWARD_GROUP, graphTypes = QuestBlueprintGraph.class)
+@NodeAttribute(name = QuestBlueprintNode.ID + "loot_table_reward", group = QuestBlueprintNode.REWARD_GROUP, graphTypes = QuestBlueprintGraph.class)
 public class LootTableRewardNode extends QuestBlueprintNode {
     @Override
     public Component getDisplayName() {

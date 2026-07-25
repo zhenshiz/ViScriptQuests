@@ -20,7 +20,8 @@ public class BreakBlockTaskNodeCompiler implements IQuestTaskNodeCompiler {
         BreakBlockTask task = new BreakBlockTask();
         task.stepId = stepId;
         task.block = context.getBlock(node, "block");
-        task.breakCount = Math.max(1, context.getInt(node, "break_count"));
+        task.breakCount = context.tracePortIntValue(node, "break_count", 1, 1);
+        task.breakCountExpression.addAll(context.compileRuntimeIntExpression(node, "break_count", 1));
         return task;
     }
 }

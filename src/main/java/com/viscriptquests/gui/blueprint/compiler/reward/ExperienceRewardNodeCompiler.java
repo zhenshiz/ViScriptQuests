@@ -19,7 +19,8 @@ public class ExperienceRewardNodeCompiler implements IQuestRewardNodeCompiler {
     public IReward compileReward(QuestCompileContext context, CustomNodeModelImpl node, String stepId) {
         ExperienceReward reward = new ExperienceReward();
         reward.stepId = stepId;
-        reward.experience = Math.max(0, context.getInt(node, "experience"));
+        reward.experience = context.tracePortIntValue(node, "experience", 1, 0);
+        reward.experienceExpression.addAll(context.compileRuntimeIntExpression(node, "experience", 1));
         IQuestRewardNodeCompiler.applyCommonOptions(context, node, reward);
         return reward;
     }

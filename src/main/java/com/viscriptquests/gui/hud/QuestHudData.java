@@ -3,9 +3,13 @@ package com.viscriptquests.gui.hud;
 import com.lowdragmc.lowdraglib2.Platform;
 import com.viscriptquests.quest.data.runtime.PlayerQuestState;
 import com.viscriptquests.quest.data.runtime.QuestPlayerData;
+import com.viscriptquests.quest.data.runtime.QuestGuideMarker;
+import com.viscriptquests.quest.data.runtime.TaskObjectiveProgress;
 import com.viscriptquests.quest.data.runtime.TaskProgress;
 import net.minecraft.nbt.CompoundTag;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 // 客户端 HUD 使用的任务数据快照，由服务端在追踪状态变化时同步。
@@ -15,6 +19,7 @@ public final class QuestHudData {
     public static void update(CompoundTag data) {
         PLAYER_DATA.beforeDeserialize();
         PLAYER_DATA.deserializeNBT(Platform.getFrozenRegistry(), data);
+        QuestGuideMarkerClientBridge.update(snapshot());
     }
 
     public static boolean hasTrackedTask() {
@@ -54,5 +59,28 @@ public final class QuestHudData {
         public boolean isEmpty() {
             return quest == null || task == null;
         }
+
+        public List<MarkerState> guideMarkers() {
+            if (isEmpty()) {
+                return List.of();
+            }
+            List<MarkerState> markers = new ArrayList<>();
+            if (!task.objectives.isEmpty()) {
+                for (TaskObjectiveProgress objective : task.objectives) {
+                    if (objective == null || objective.completed || objective.guideMarker == null
+                            || !objective.guideMarker.isEnabled()) {
+                        continue;
+                    }
+                    markers.add(new MarkerState(objective.guideMarker, objective.displayHint().getString()));
+                }
+            }
+            if (markers.isEmpty() && task.guideMarker != null && task.guideMarker.isEnabled()) {
+                markers.add(new MarkerState(task.guideMarker, task.title));
+            }
+            return markers;
+        }
+    }
+
+    public record MarkerState(QuestGuideMarker marker, String fallbackLabel) {
     }
 }

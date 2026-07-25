@@ -4,6 +4,7 @@ import com.lowdragmc.lowdraglib2.nodegraphtookit.api.type.TypeHandles;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.constant.Constant;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.graph.GraphModel;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.*;
+import com.lowdragmc.lowdraglib2.nodegraphtookit.model.variable.VariableDeclarationModelBase;
 import com.viscriptquests.ViScriptQuestsRegistries;
 import com.viscriptquests.gui.blueprint.data.QuestRegistryId;
 import com.viscriptquests.gui.blueprint.node.QuestLinkedNode;
@@ -28,12 +29,16 @@ import java.util.*;
 public class QuestCompileContext {
     @Getter
     private final GraphModel graphModel;
-    private final Map<UUID, String> portUuidToVarName;
+    private final QuestVariableBindingData variableBindings;
     private final Map<String, QuestVariableValue> variableInitialValues = new LinkedHashMap<>();
 
     public QuestCompileContext(GraphModel graphModel, Map<UUID, String> portUuidToVarName) {
+        this(graphModel, QuestVariableBindingData.fromLegacyPortMap(portUuidToVarName));
+    }
+
+    public QuestCompileContext(GraphModel graphModel, QuestVariableBindingData variableBindings) {
         this.graphModel = graphModel;
-        this.portUuidToVarName = portUuidToVarName;
+        this.variableBindings = variableBindings == null ? QuestVariableBindingData.empty() : variableBindings;
         indexVariableInitialValues();
     }
 
@@ -299,6 +304,10 @@ public class QuestCompileContext {
     }
 
     public int getPortInt(NodeModel nodeModel, String portId) {
+        return getPortInt(nodeModel, portId, 0);
+    }
+
+    public int getPortInt(NodeModel nodeModel, String portId, int fallback) {
         Constant constant = nodeModel.getInputConstantsById().get(portId);
         if (constant != null && constant.getValue() instanceof Integer value) {
             return value;
@@ -306,7 +315,7 @@ public class QuestCompileContext {
         if (constant != null && constant.getValue() instanceof Number number) {
             return number.intValue();
         }
-        return 0;
+        return fallback;
     }
 
     public float getPortFloat(NodeModel nodeModel, String portId) {
@@ -329,7 +338,7 @@ public class QuestCompileContext {
             return null;
         }
 
-        String varName = portUuidToVarName.get(port.getUid());
+        String varName = variableBindings.variableNameForPort(port);
         if (varName != null && !varName.isEmpty()) {
             return new ArrayList<>(List.of(QuestValueToken.variable(varName)));
         }
@@ -351,6 +360,14 @@ public class QuestCompileContext {
         return null;
     }
 
+    public List<QuestValueToken> compileRuntimeIntExpression(CustomNodeModelImpl node, String portId, int fallback) {
+        List<QuestValueToken> expression = compileRuntimeValueExpression(node, portId, 12);
+        if (expression != null && !expression.isEmpty()) {
+            return new ArrayList<>(expression);
+        }
+        return new ArrayList<>(List.of(QuestValueToken.constant(getPortInt(node, portId, fallback))));
+    }
+
     public List<QuestValueToken> compileRuntimeValueExpressionFromPort(PortModel sourcePort, int depth) {
         if (depth <= 0) {
             return null;
@@ -359,7 +376,7 @@ public class QuestCompileContext {
         if (sourceNode instanceof VariableNodeModelImpl varNode) {
             var declaration = varNode.getVariableDeclarationModel();
             if (declaration != null) {
-                return new ArrayList<>(List.of(QuestValueToken.variable(declaration.getName())));
+                return new ArrayList<>(List.of(QuestValueToken.variable(variableNameForDeclaration(declaration))));
             }
         }
         if (sourceNode instanceof ConstantNodeModel constantNode) {
@@ -383,7 +400,7 @@ public class QuestCompileContext {
             return "";
         }
 
-        String fromMap = portUuidToVarName.get(port.getUid());
+        String fromMap = variableBindings.variableNameForPort(port);
         if (fromMap != null) {
             return fromMap;
         }
@@ -419,6 +436,12 @@ public class QuestCompileContext {
         return value == null ? getPortFloat(node, inputPortId) : value;
     }
 
+    public int tracePortIntValue(CustomNodeModelImpl node, String inputPortId, int fallback, int minValue) {
+        Float value = tryEvaluateCompileTimeValue(node, inputPortId);
+        int resolved = value == null ? getPortInt(node, inputPortId, fallback) : Math.round(value);
+        return Math.max(minValue, resolved);
+    }
+
     public static String formatFloatValue(float value) {
         if (value == (long) value) {
             return String.valueOf((long) value);
@@ -438,11 +461,17 @@ public class QuestCompileContext {
         for (var nodeModel : graphModel.getNodeModels()) {
             if (nodeModel instanceof VariableNodeModelImpl varNode) {
                 var declaration = varNode.getVariableDeclarationModel();
-                if (declaration == null || variableInitialValues.containsKey(declaration.getName())) {
+                if (declaration == null || isInheritedDeclaration(declaration)) {
                     continue;
                 }
-                variableInitialValues.put(declaration.getName(),
-                        QuestVariableValue.fromConstant(declaration.getDataTypeHandle(), declaration.getInitializationModel()));
+                String runtimeName = variableNameForDeclaration(declaration);
+                if (variableInitialValues.containsKey(runtimeName)) {
+                    continue;
+                }
+                QuestVariableValue override = defaultOverrideForDeclaration(declaration);
+                variableInitialValues.put(runtimeName, override == null
+                        ? QuestVariableValue.fromConstant(declaration.getDataTypeHandle(), declaration.getInitializationModel())
+                        : override.copy());
             }
             if (nodeModel instanceof SubgraphNodeModel subgraphNode) {
                 GraphModel nested = subgraphNode.getSubgraphModel();
@@ -466,7 +495,7 @@ public class QuestCompileContext {
         if (nodeModel instanceof VariableNodeModelImpl varNode) {
             var declaration = varNode.getVariableDeclarationModel();
             if (declaration != null) {
-                return declaration.getName();
+                return variableNameForDeclaration(declaration);
             }
         }
         return null;
@@ -474,7 +503,8 @@ public class QuestCompileContext {
 
     private String scanWiresDirectly(PortModel targetPort) {
         UUID targetUid = targetPort.getUid();
-        for (var wire : graphModel.getWireModels()) {
+        GraphModel ownerGraph = targetPort.getGraphModel() == null ? graphModel : targetPort.getGraphModel();
+        for (var wire : ownerGraph.getWireModels()) {
             var fromPort = wire.getFromPort();
             var toPort = wire.getToPort();
             if (fromPort == null || toPort == null) {
@@ -486,7 +516,7 @@ public class QuestCompileContext {
                 if (sourceNode instanceof VariableNodeModelImpl varNode) {
                     var declaration = varNode.getVariableDeclarationModel();
                     if (declaration != null) {
-                        return declaration.getName();
+                        return variableNameForDeclaration(declaration);
                     }
                 }
             }
@@ -504,7 +534,7 @@ public class QuestCompileContext {
                 continue;
             }
 
-            String fromMap = portUuidToVarName.get(inputPort.getUid());
+            String fromMap = variableBindings.variableNameForPort(inputPort);
             if (fromMap != null) {
                 return fromMap;
             }
@@ -513,7 +543,7 @@ public class QuestCompileContext {
                 if (connectedPort.getNodeModel() instanceof VariableNodeModelImpl varNode) {
                     var declaration = varNode.getVariableDeclarationModel();
                     if (declaration != null) {
-                        return declaration.getName();
+                        return variableNameForDeclaration(declaration);
                     }
                 }
                 if (connectedPort.getNodeModel() instanceof CustomNodeModelImpl customSource) {
@@ -525,6 +555,23 @@ public class QuestCompileContext {
             }
         }
         return null;
+    }
+
+    private String variableNameForDeclaration(VariableDeclarationModelBase declaration) {
+        String alias = aliasForDeclaration(declaration);
+        return alias == null || alias.isEmpty() ? declaration.getName() : alias;
+    }
+
+    private String aliasForDeclaration(VariableDeclarationModelBase declaration) {
+        return variableBindings.aliasFor(declaration);
+    }
+
+    private QuestVariableValue defaultOverrideForDeclaration(VariableDeclarationModelBase declaration) {
+        return variableBindings.defaultOverrideFor(declaration);
+    }
+
+    private boolean isInheritedDeclaration(VariableDeclarationModelBase declaration) {
+        return variableBindings.isInherited(declaration);
     }
 
     private Float evaluateCompileTimeExpression(List<QuestValueToken> expression) {
