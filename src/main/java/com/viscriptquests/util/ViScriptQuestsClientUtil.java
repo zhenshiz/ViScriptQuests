@@ -4,7 +4,6 @@ import com.lowdragmc.lowdraglib2.Platform;
 import com.lowdragmc.lowdraglib2.gui.holder.ModularUIScreen;
 import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
 import com.lowdragmc.lowdraglib2.gui.ui.UI;
-import com.lowdragmc.lowdraglib2.integration.kjs.KJSBindings;
 import com.viscriptquests.gui.QuestBookUI;
 import com.viscriptquests.gui.QuestCategoryConfigUI;
 import com.viscriptquests.quest.data.runtime.QuestBookData;
@@ -13,7 +12,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 
-@KJSBindings(value = "ViScriptQuestsUtil", clientOnly = true)
 public class ViScriptQuestsClientUtil {
     private static final Minecraft minecraft = Minecraft.getInstance();
 

@@ -1,11 +1,13 @@
 package com.viscriptquests.quest.runtime;
 
 import com.viscriptquests.ViScriptQuests;
+import com.viscriptquests.event.neoforge.QuestEvent;
 import com.viscriptquests.gui.blueprint.QuestBlueprintFlowTypes;
 import com.viscriptquests.quest.data.*;
 import com.viscriptquests.quest.data.runtime.*;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.neoforged.neoforge.common.NeoForge;
 
 import java.util.*;
 
@@ -54,7 +56,7 @@ public class QuestFlowExecutor {
                 }
 
                 if (QuestBlueprintFlowTypes.isJoin(node)) {
-                    if (tryResolveJoin(state, questFile, node)) {
+                    if (tryResolveJoin(player, state, questFile, node)) {
                         applyOutgoingEdges(player, state, questFile, nodeId);
                         changed = true;
                     }
@@ -64,7 +66,7 @@ public class QuestFlowExecutor {
                 state.activeFlowNodes.remove(nodeId);
                 state.completedFlowNodes.add(nodeId);
                 if (QuestBlueprintFlowTypes.isEnd(node)) {
-                    finish(player, state, questFile, node.success);
+                    finish(player, state, questFile, node.success, false, "");
                     return;
                 }
                 applyOutgoingEdges(player, state, questFile, nodeId);
@@ -73,7 +75,7 @@ public class QuestFlowExecutor {
         } while (changed && guard-- > 0 && state.status == QuestStatus.ACTIVE);
 
         if (state.activeFlowNodes.isEmpty() && !state.completedFlowNodes.isEmpty() && state.status == QuestStatus.ACTIVE) {
-            finish(player, state, questFile, true);
+            finish(player, state, questFile, true, false, "");
         }
     }
 
@@ -103,12 +105,18 @@ public class QuestFlowExecutor {
      * 这样限时、实体死亡等失败条件既能做真正失败，也能做补救分支或不同奖励。
      */
     public static void failStepNode(ServerPlayer player, PlayerQuestState state, QuestFile questFile, String failedStepId) {
-        state.findStepProgress(failedStepId)
-                .ifPresent(progress -> progress.status = TaskStatus.FAILED);
+        state.findStepProgress(failedStepId).ifPresent(progress -> {
+            progress.status = TaskStatus.FAILED;
+            TaskObjectiveProgress failedObjective = progress.objectives.stream()
+                    .filter(objective -> objective != null && objective.isFailureCondition() && objective.completed)
+                    .findFirst()
+                    .orElse(null);
+            NeoForge.EVENT_BUS.post(new QuestEvent.TaskFailed(player, state, progress, failedObjective));
+        });
         state.activeFlowNodes.remove(failedStepId);
         state.completedFlowNodes.add(failedStepId);
         if (!applyOutgoingEdges(player, state, questFile, failedStepId, QuestStepResult.FAILURE)) {
-            finish(player, state, questFile, false);
+            finish(player, state, questFile, false, false, failedStepId);
             return;
         }
         advance(player, state, questFile);
@@ -121,9 +129,15 @@ public class QuestFlowExecutor {
      * {@link #failStepNode(ServerPlayer, PlayerQuestState, QuestFile, String)}，让蓝图失败出口有机会接管流程。
      */
     public static void failQuest(ServerPlayer player, PlayerQuestState state, QuestFile questFile, String failedStepId) {
-        state.findStepProgress(failedStepId)
-                .ifPresent(progress -> progress.status = TaskStatus.FAILED);
-        finish(player, state, questFile, false);
+        state.findStepProgress(failedStepId).ifPresent(progress -> {
+            progress.status = TaskStatus.FAILED;
+            TaskObjectiveProgress failedObjective = progress.objectives.stream()
+                    .filter(objective -> objective != null && objective.isFailureCondition() && objective.completed)
+                    .findFirst()
+                    .orElse(null);
+            NeoForge.EVENT_BUS.post(new QuestEvent.TaskFailed(player, state, progress, failedObjective));
+        });
+        finish(player, state, questFile, false, false, failedStepId);
     }
 
     /**
@@ -146,6 +160,7 @@ public class QuestFlowExecutor {
             state.completedFlowNodes.add(progress.stepId);
         }
         for (TaskProgress progress : newlyCompleted) {
+            NeoForge.EVENT_BUS.post(new QuestEvent.TaskCompleted(player, state, progress, true));
             QuestCompletionNotificationService.notifyTaskCompleted(player, progress);
         }
         state.activeFlowNodes.clear();
@@ -153,12 +168,13 @@ public class QuestFlowExecutor {
             for (TaskProgress progress : state.taskProgresses) {
                 QuestRewardService.grantStepRewards(player, questFile, state, progress.stepId);
             }
-            finish(player, state, questFile, true);
+            finish(player, state, questFile, true, true, "");
         } else {
             boolean newlyCompletedQuest = state.status != QuestStatus.COMPLETED;
             state.status = QuestStatus.COMPLETED;
             state.completedGameTime = player.level().getGameTime();
             if (newlyCompletedQuest) {
+                NeoForge.EVENT_BUS.post(new QuestEvent.QuestCompleted(player, state, true));
                 QuestCompletionNotificationService.notifyQuestCompleted(player, state);
             }
         }
@@ -179,6 +195,9 @@ public class QuestFlowExecutor {
         }
         state.activeFlowNodes.add(stepId);
         state.findStepProgress(stepId).ifPresent(progress -> {
+            boolean reentered = progress.status == TaskStatus.COMPLETED
+                    || progress.status == TaskStatus.FAILED
+                    || progress.status == TaskStatus.SKIPPED;
             if (progress.status == TaskStatus.COMPLETED
                     || progress.status == TaskStatus.FAILED
                     || progress.status == TaskStatus.SKIPPED) {
@@ -204,6 +223,7 @@ public class QuestFlowExecutor {
             if (activating) {
                 progress.status = TaskStatus.ACTIVE;
                 progress.refreshObjectives(questFile, player, state.questVariables);
+                NeoForge.EVENT_BUS.post(new QuestEvent.TaskStarted(player, state, progress, reentered));
             }
         });
     }
@@ -220,7 +240,8 @@ public class QuestFlowExecutor {
      * @param node Join 流程节点
      * @return 是否成功解析并放行该 Join 节点
      */
-    private static boolean tryResolveJoin(PlayerQuestState state, QuestFile questFile, QuestFlowNode node) {
+    private static boolean tryResolveJoin(ServerPlayer player, PlayerQuestState state, QuestFile questFile,
+                                          QuestFlowNode node) {
         JoinProgress progress = state.findFlowJoinProgress(node.nodeId).orElseGet(() -> {
             JoinProgress created = new JoinProgress();
             created.joinNodeId = node.nodeId;
@@ -246,7 +267,7 @@ public class QuestFlowExecutor {
         progress.resolved = true;
         state.activeFlowNodes.remove(node.nodeId);
         state.completedFlowNodes.add(node.nodeId);
-        skipUnchosenBranches(state, questFile, node.nodeId, progress.arrivedFromNodeIds);
+        skipUnchosenBranches(player, state, questFile, node.nodeId, progress.arrivedFromNodeIds);
         return true;
     }
 
@@ -313,14 +334,15 @@ public class QuestFlowExecutor {
      * @param joinNodeId Join 节点标识
      * @param arrivedFromNodeIds 已经到达该 Join 的前置节点集合
      */
-    private static void skipUnchosenBranches(PlayerQuestState state, QuestFile questFile, String joinNodeId,
+    private static void skipUnchosenBranches(ServerPlayer player, PlayerQuestState state, QuestFile questFile,
+                                             String joinNodeId,
                                              Set<String> arrivedFromNodeIds) {
         for (QuestFlowEdge edge : questFile.flowEdges) {
             if (!edge.toNodeId.equals(joinNodeId) || arrivedFromNodeIds.contains(edge.fromNodeId)) {
                 continue;
             }
-            markFlowBranchSkipped(state, questFile, edge.fromNodeId);
-            markIncomingBranchSkipped(state, questFile, edge.fromNodeId, new HashSet<>());
+            markFlowBranchSkipped(player, state, questFile, edge.fromNodeId);
+            markIncomingBranchSkipped(player, state, questFile, edge.fromNodeId, new HashSet<>());
         }
     }
 
@@ -332,7 +354,8 @@ public class QuestFlowExecutor {
      * @param nodeId 当前要向上检查的流程节点标识
      * @param visited 已访问节点集合，用于阻止循环图导致递归重复
      */
-    private static void markIncomingBranchSkipped(PlayerQuestState state, QuestFile questFile, String nodeId,
+    private static void markIncomingBranchSkipped(ServerPlayer player, PlayerQuestState state, QuestFile questFile,
+                                                  String nodeId,
                                                   Set<String> visited) {
         if (!visited.add(nodeId)) {
             return;
@@ -341,8 +364,8 @@ public class QuestFlowExecutor {
             if (!edge.toNodeId.equals(nodeId) || state.completedFlowNodes.contains(edge.fromNodeId)) {
                 continue;
             }
-            markFlowBranchSkipped(state, questFile, edge.fromNodeId);
-            markIncomingBranchSkipped(state, questFile, edge.fromNodeId, visited);
+            markFlowBranchSkipped(player, state, questFile, edge.fromNodeId);
+            markIncomingBranchSkipped(player, state, questFile, edge.fromNodeId, visited);
         }
     }
 
@@ -356,7 +379,8 @@ public class QuestFlowExecutor {
      * @param questFile 运行时任务文件，提供流程节点和出边结构
      * @param nodeId 要跳过的流程节点标识
      */
-    private static void markFlowBranchSkipped(PlayerQuestState state, QuestFile questFile, String nodeId) {
+    private static void markFlowBranchSkipped(ServerPlayer player, PlayerQuestState state, QuestFile questFile,
+                                              String nodeId) {
         if (nodeId == null || nodeId.isEmpty() || state.completedFlowNodes.contains(nodeId)) {
             return;
         }
@@ -370,11 +394,14 @@ public class QuestFlowExecutor {
         if (QuestBlueprintFlowTypes.isSubQuest(node)) {
             state.findStepProgress(node.stepId)
                     .filter(progress -> progress.status == TaskStatus.ACTIVE || progress.status == TaskStatus.LOCKED)
-                    .ifPresent(progress -> progress.status = TaskStatus.SKIPPED);
+                    .ifPresent(progress -> {
+                        progress.status = TaskStatus.SKIPPED;
+                        NeoForge.EVENT_BUS.post(new QuestEvent.TaskSkipped(player, state, progress, "branch"));
+                    });
         }
         for (QuestFlowEdge outgoing : questFile.findFlowEdgesFrom(nodeId)) {
             if (!outgoing.toNodeId.equals(nodeId)) {
-                markFlowBranchSkipped(state, questFile, outgoing.toNodeId);
+                markFlowBranchSkipped(player, state, questFile, outgoing.toNodeId);
             }
         }
     }
@@ -390,7 +417,8 @@ public class QuestFlowExecutor {
      * @param questFile 运行时任务文件，提供任务完成奖励
      * @param success 是否按成功完成任务处理；为 {@code false} 时任务进入失败状态
      */
-    private static void finish(ServerPlayer player, PlayerQuestState state, QuestFile questFile, boolean success) {
+    private static void finish(ServerPlayer player, PlayerQuestState state, QuestFile questFile,
+                               boolean success, boolean forced, String failedStepId) {
         if (state.status == QuestStatus.COMPLETED || state.status == QuestStatus.FAILED) {
             return;
         }
@@ -398,6 +426,7 @@ public class QuestFlowExecutor {
         for (TaskProgress progress : state.taskProgresses) {
             if (progress.status == TaskStatus.ACTIVE || progress.status == TaskStatus.LOCKED) {
                 progress.status = TaskStatus.SKIPPED;
+                NeoForge.EVENT_BUS.post(new QuestEvent.TaskSkipped(player, state, progress, "quest_finished"));
             }
         }
         for (JoinProgress joinProgress : state.flowJoinProgresses) {
@@ -409,7 +438,10 @@ public class QuestFlowExecutor {
         state.status = success ? QuestStatus.COMPLETED : QuestStatus.FAILED;
         state.completedGameTime = player.level().getGameTime();
         if (success) {
+            NeoForge.EVENT_BUS.post(new QuestEvent.QuestCompleted(player, state, forced));
             QuestCompletionNotificationService.notifyQuestCompleted(player, state);
+        } else {
+            NeoForge.EVENT_BUS.post(new QuestEvent.QuestFailed(player, state, failedStepId));
         }
         QuestPlayerData playerData = QuestSavedData.get(player.getServer()).getPlayer(player.getUUID());
         if (playerData.trackedQuestId.equals(state.questId)) {

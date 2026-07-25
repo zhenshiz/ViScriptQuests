@@ -65,6 +65,7 @@ public class QuestBookUI extends UIElement {
     private static final int QUEST_LIST_WIDTH = 167;
     private static final int QUEST_LIST_HEIGHT = 274;
     private static final int QUEST_SUMMARY_HEIGHT = 40;
+    private static final int QUEST_GROUP_GAP = 4;
     private static final int SUB_TASK_SPRITE_HEIGHT = 12;
     private static final int SUB_TASK_HEIGHT = 16;
 
@@ -300,7 +301,7 @@ public class QuestBookUI extends UIElement {
             tab.setOnClick(event -> selectCategory(category.id));
 
             UIElement icon = createDisplayIcon(category.displayIcon, Component.empty());
-            place(icon, 2, 2, 14, 14);
+            place(icon, 5, 2, 14, 14);
             icon.setAllowHitTest(false);
             tab.addChild(icon);
             categoryListPanel.addChild(tab);
@@ -316,7 +317,12 @@ public class QuestBookUI extends UIElement {
 
     private void reloadQuestList() {
         questListView.clearAllScrollViewChildren();
+        boolean firstGroup = true;
         for (QuestListGroup group : getQuestListGroups()) {
+            if (!firstGroup) {
+                questListView.addScrollViewChild(createQuestGroupSpacer());
+            }
+            firstGroup = false;
             questListView.addScrollViewChild(createQuestSummary(group.quest));
             if (!collapsedQuestIds.contains(group.quest.questId)) {
                 for (TaskProgress task : group.tasks) {
@@ -324,6 +330,16 @@ public class QuestBookUI extends UIElement {
                 }
             }
         }
+    }
+
+    private UIElement createQuestGroupSpacer() {
+        UIElement spacer = new UIElement();
+        spacer.layout(layout -> {
+            layout.width(QUEST_LIST_WIDTH);
+            layout.height(QUEST_GROUP_GAP);
+        });
+        spacer.setAllowHitTest(false);
+        return spacer;
     }
 
     private UIElement createQuestSummary(PlayerQuestState quest) {
@@ -418,7 +434,7 @@ public class QuestBookUI extends UIElement {
     }
 
     private void addTaskDetail(PlayerQuestState quest, TaskProgress task) {
-        addDetailTitle(richText(taskTitle(task)));
+        addDetailTitle(richText(taskTitle(task)), richText(task.subtitle));
 
         List<Component> description = new ArrayList<>();
         if (task.description != null) {
@@ -440,7 +456,7 @@ public class QuestBookUI extends UIElement {
         addTrackButton(quest, task);
     }
 
-    private void addDetailTitle(Component titleText) {
+    private void addDetailTitle(Component titleText, Component subtitleText) {
         UIElement decoration = place(texturedPanel(QUEST_TITLE_DECORATION), 15, 10, 159, 16);
         decoration.setAllowHitTest(false);
         detailPanel.addChild(decoration);
@@ -448,6 +464,12 @@ public class QuestBookUI extends UIElement {
         Label title = place(centeredLabel(titleText, FONT_TITLE, TEXT_DARK), 25, 12, 139, 12);
         title.textStyle(style -> style.textWrap(TextWrap.HOVER_ROLL));
         detailPanel.addChild(title);
+
+        if (hasTooltipText(subtitleText)) {
+            Label subtitle = place(centeredLabel(subtitleText, FONT_SMALL, TEXT_MUTED), 25, 27, 139, 9);
+            subtitle.textStyle(style -> style.textWrap(TextWrap.HOVER_ROLL));
+            detailPanel.addChild(subtitle);
+        }
     }
 
     private void addDescription(List<Component> lines) {

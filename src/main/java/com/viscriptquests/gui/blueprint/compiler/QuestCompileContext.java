@@ -9,6 +9,7 @@ import com.viscriptquests.ViScriptQuestsRegistries;
 import com.viscriptquests.gui.blueprint.data.QuestRegistryId;
 import com.viscriptquests.gui.blueprint.node.QuestLinkedNode;
 import com.viscriptquests.quest.data.DisplayIcon;
+import com.viscriptquests.quest.data.ItemMatchRule;
 import com.viscriptquests.quest.data.QuestJoinMode;
 import com.viscriptquests.quest.data.QuestSubmitMode;
 import com.viscriptquests.quest.data.TaskObjectiveType;
@@ -237,6 +238,14 @@ public class QuestCompileContext {
             return stack.copy();
         }
         return ItemStack.EMPTY;
+    }
+
+    public ItemMatchRule getItemMatchRule(NodeModel nodeModel, String optionId) {
+        Constant constant = nodeModel.getInputConstantsById().get(NodeOption.PORT_ID_PREFIX + optionId);
+        if (constant != null && constant.getValue() instanceof ItemMatchRule rule) {
+            return rule.copy();
+        }
+        return null;
     }
 
     public Block getBlock(NodeModel nodeModel, String optionId) {

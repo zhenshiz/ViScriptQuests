@@ -31,6 +31,7 @@ import com.lowdragmc.lowdraglib2.nodegraphtookit.api.IFieldValueConfigurable;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.api.type.TypeHandle;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.api.type.TypeHandleHelpers;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.api.type.TypeHandles;
+import com.viscript_lib.util.item.ItemStackCompareMode;
 import com.viscriptquests.ViScriptQuests;
 import com.viscriptquests.gui.blueprint.data.LocationMarkerConfig;
 import com.viscriptquests.gui.blueprint.data.LocationTargetConfig;
@@ -39,6 +40,7 @@ import com.viscriptquests.gui.blueprint.data.MathOperation;
 import com.viscriptquests.quest.data.CompareOp;
 import com.viscriptquests.quest.data.DisplayIcon;
 import com.viscriptquests.quest.data.DisplayIcon.IconType;
+import com.viscriptquests.quest.data.ItemMatchRule;
 import com.viscriptquests.quest.data.LocationGuideMarkerProvider;
 import com.viscriptquests.quest.data.LocationTargetType;
 import com.viscriptquests.quest.data.LocationWaypointColor;
@@ -61,6 +63,9 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 public final class QuestBlueprintTypes {
+    private static final int ITEM_MATCH_RULE_WIDTH = 180;
+    private static final int ITEM_MATCH_SELECTOR_WIDTH = 150;
+
     // 多行文本
     public static final TypeHandle STRING_ARRAY = TypeHandleHelpers.customType(String[].class, namespacedType("string_array"), "String[]");
     // 任务提交模式枚举
@@ -94,6 +99,9 @@ public final class QuestBlueprintTypes {
     // 只配置物品身份和组件，不配置数量；任务/奖励数量由单独的动态输入端口决定。
     public static final TypeHandle ITEM_IDENTITY_STACK = TypeHandleHelpers.customType(ItemStack.class,
             namespacedType("item_identity_stack"), "ItemStack");
+    // 物品目标的组件匹配规则，支持全量比较、指定组件比较和排除组件比较。
+    public static final TypeHandle ITEM_MATCH_RULE = TypeHandleHelpers.customType(ItemMatchRule.class,
+            namespacedType("item_match_rule"), "ItemMatchRule");
     // 战利品奖励本体，蓝图里只把战利品相关字段当作一个复合配置来编辑。
     public static final TypeHandle LOOT_TABLE_REWARD = TypeHandleHelpers.customType(LootTableReward.class, namespacedType("loot_table_reward"), "LootTableReward");
     // 维度 ID，底层保存为字符串包装，编辑器展示搜索补全框
@@ -117,6 +125,7 @@ public final class QuestBlueprintTypes {
         registerObjectType(OBJECT);
         registerDisplayIconType(DISPLAY_ICON);
         registerItemIdentityStackType(ITEM_IDENTITY_STACK);
+        registerItemMatchRuleType(ITEM_MATCH_RULE);
         registerLootTableRewardType(LOOT_TABLE_REWARD);
         registerLocationTargetConfigType(LOCATION_TARGET_CONFIG);
         registerLocationMarkerConfigType(LOCATION_MARKER_CONFIG);
@@ -161,6 +170,21 @@ public final class QuestBlueprintTypes {
         TypeHandleHelpers.setCustomDefaultValue(typeHandle, () -> ItemStack.EMPTY);
         TypeHandleHelpers.setCustomConfigurable(typeHandle, (valueConfigurable, ignored) ->
                 IConfigurable.create(father -> father.addConfigurator(createItemIdentityStackConfigurator(valueConfigurable))));
+    }
+
+    private static void registerItemMatchRuleType(TypeHandle typeHandle) {
+        TypeHandleHelpers.setCustomColorAndIcon(typeHandle, 0xFFFFD166, Icons.RESOURCE.copy().setColor(0xFFFFD166));
+        TypeHandleHelpers.setCustomDefaultValue(typeHandle, ItemMatchRule::new);
+        TypeHandleHelpers.setCustomConfigurable(typeHandle, (valueConfigurable, ignored) ->
+                IConfigurable.create(father -> {
+                    ItemMatchRule rule = valueConfigurable.getValue();
+                    if (rule == null) {
+                        rule = copyOrDefaultItemMatchRule(valueConfigurable.getDefaultValue());
+                        valueConfigurable.setValue(rule);
+                    }
+                    rule.ensureDefaults();
+                    father.addConfigurator(createItemMatchRuleConfigurator(rule, valueConfigurable::notifyValueChanged));
+                }));
     }
 
     private static void registerLootTableRewardType(TypeHandle typeHandle) {
@@ -281,6 +305,13 @@ public final class QuestBlueprintTypes {
             return marker.copy();
         }
         return LocationMarkerConfig.defaults();
+    }
+
+    private static ItemMatchRule copyOrDefaultItemMatchRule(Object defaultValue) {
+        if (defaultValue instanceof ItemMatchRule rule) {
+            return rule.copy();
+        }
+        return new ItemMatchRule();
     }
 
     private static Configurator createLocationTargetConfigConfigurator(LocationTargetConfig target, Runnable onChanged) {
@@ -679,6 +710,98 @@ public final class QuestBlueprintTypes {
         textureConfigurator.inlineContainer.layout(layout -> layout.widthPercent(100));
         textureConfigurator.textField.layout(layout -> layout.widthPercent(100));
         return textureConfigurator;
+    }
+
+    private static Configurator createItemMatchRuleConfigurator(ItemMatchRule rule, Runnable onChanged) {
+        rule.ensureDefaults();
+        var selector = new ConfiguratorSelectorConfigurator<>(
+                "",
+                rule::resolvedCompareMode,
+                mode -> {
+                    rule.setCompareMode(mode == null ? ItemStackCompareMode.ALL_COMPONENTS : mode);
+                    onChanged.run();
+                },
+                ItemStackCompareMode.ALL_COMPONENTS,
+                true,
+                List.of(ItemStackCompareMode.values()),
+                EnumAccessor::getEnumName,
+                (mode, group) -> {
+                    if (mode != ItemStackCompareMode.ALL_COMPONENTS) {
+                        Configurator configurator = ItemMatchRule.createComponentsConfigurator(rule, onChanged);
+                        configureItemMatchComponentsLayout(configurator);
+                        group.addConfigurator(configurator);
+                    }
+                }
+        );
+        configureItemMatchRuleLayout(selector);
+        return selector;
+    }
+
+    private static void configureItemMatchRuleLayout(ConfiguratorSelectorConfigurator<?> selector) {
+        selector.layout(layout -> {
+            layout.widthPercent(100);
+            layout.maxWidth(ITEM_MATCH_RULE_WIDTH);
+        });
+        selector.lineContainer.layout(layout -> {
+            layout.widthPercent(100);
+            layout.maxWidth(ITEM_MATCH_RULE_WIDTH);
+        });
+        selector.inlineContainer.layout(layout -> {
+            layout.widthPercent(100);
+            layout.maxWidth(ITEM_MATCH_SELECTOR_WIDTH);
+        });
+        selector.selector.layout(layout -> {
+            layout.widthPercent(100);
+            layout.maxWidth(ITEM_MATCH_SELECTOR_WIDTH);
+        });
+        selector.container.layout(layout -> {
+            layout.widthPercent(100);
+            layout.maxWidth(ITEM_MATCH_RULE_WIDTH);
+        });
+        selector.container.configuratorContainer.layout(layout -> {
+            layout.widthPercent(100);
+            layout.maxWidth(ITEM_MATCH_RULE_WIDTH);
+            layout.paddingAll(2);
+            layout.marginLeft(0);
+        });
+    }
+
+    private static void configureItemMatchComponentsLayout(Configurator configurator) {
+        configurator.layout(layout -> {
+            layout.widthPercent(100);
+            layout.maxWidth(ITEM_MATCH_RULE_WIDTH);
+        });
+        configurator.lineContainer.layout(layout -> {
+            layout.widthPercent(100);
+            layout.maxWidth(ITEM_MATCH_RULE_WIDTH);
+        });
+        configurator.inlineContainer.layout(layout -> {
+            layout.widthPercent(100);
+            layout.maxWidth(ITEM_MATCH_RULE_WIDTH);
+        });
+        if (configurator instanceof ConfiguratorGroup group) {
+            group.configuratorContainer.layout(layout -> {
+                layout.widthPercent(100);
+                layout.maxWidth(ITEM_MATCH_RULE_WIDTH - 8);
+                layout.paddingAll(2);
+                layout.marginLeft(0);
+            });
+        }
+        if (configurator instanceof ArrayConfiguratorGroup<?> arrayGroup) {
+            dockArrayButtonsToHeader(arrayGroup);
+        }
+    }
+
+    private static void dockArrayButtonsToHeader(ArrayConfiguratorGroup<?> group) {
+        group.buttonGroup.removeSelf();
+        group.buttonGroup.layout(layout -> {
+            layout.flexDirection(FlexDirection.ROW);
+            layout.alignItems(AlignItems.CENTER);
+            layout.alignSelf(AlignItems.CENTER);
+            layout.paddingAll(0);
+            layout.marginLeft(2);
+        }).style(style -> style.backgroundTexture(IGuiTexture.EMPTY));
+        group.lineContainer.addChildAt(group.buttonGroup, Math.max(0, group.lineContainer.getChildren().size() - 1));
     }
 
     private static Configurator createItemIdentityStackConfigurator(IFieldValueConfigurable valueConfigurable) {

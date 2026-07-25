@@ -12,6 +12,7 @@ import com.viscriptquests.compat.team.QuestTeamService;
 import com.viscriptquests.gui.blueprint.QuestBlueprintTypes;
 import com.viscriptquests.gui.blueprint.data.QuestRegistryId;
 import com.viscriptquests.quest.data.DisplayIcon;
+import com.viscriptquests.quest.data.ItemMatchRule;
 import com.viscriptquests.quest.data.TaskObjectiveType;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
@@ -125,6 +126,10 @@ public abstract class QuestBlueprintNode extends Node {
 
     protected void itemStackOption(IOptionDefinitionContext context, String id) {
         option(context, id, QuestBlueprintTypes.ITEM_IDENTITY_STACK, ItemStack.EMPTY);
+    }
+
+    protected void itemMatchRuleOption(IOptionDefinitionContext context, String id) {
+        option(context, id, QuestBlueprintTypes.ITEM_MATCH_RULE, new ItemMatchRule());
     }
 
     protected void blockOption(IOptionDefinitionContext context, String id, Block defaultValue) {

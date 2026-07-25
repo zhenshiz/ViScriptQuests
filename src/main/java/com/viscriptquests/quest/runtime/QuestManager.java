@@ -2,6 +2,7 @@ package com.viscriptquests.quest.runtime;
 
 import com.lowdragmc.lowdraglib2.Platform;
 import com.lowdragmc.lowdraglib2.networking.rpc.RPCPacketDistributor;
+import com.viscriptquests.event.neoforge.QuestEvent;
 import com.viscriptquests.network.s2c.S2CPayload;
 import com.viscriptquests.quest.data.QuestFile;
 import com.viscriptquests.quest.data.QuestSavedData;
@@ -15,6 +16,7 @@ import com.viscriptquests.util.QuestCategoryFileHelper;
 import com.viscriptquests.util.QuestFileHelper;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.neoforged.neoforge.common.NeoForge;
 
 import java.util.List;
 import java.util.Optional;
@@ -90,8 +92,9 @@ public class QuestManager {
 
         PlayerQuestState state = PlayerQuestState.fromQuestFile(questFile.get(), player.level().getGameTime(), player);
         state.categoryId = normalizedCategoryId;
-        QuestFlowExecutor.advance(player, state, questFile.get());
         playerData.putQuest(state);
+        NeoForge.EVENT_BUS.post(new QuestEvent.QuestStarted(player, state));
+        QuestFlowExecutor.advance(player, state, questFile.get());
         QuestTrackingService.trackFirstActiveStep(player, playerData, state);
         savedData.setDirty();
         QuestTeamProgressService.syncQuestState(player, state);

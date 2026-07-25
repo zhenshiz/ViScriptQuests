@@ -1,5 +1,6 @@
 package com.viscriptquests.quest.runtime;
 
+import com.viscriptquests.event.neoforge.QuestEvent;
 import com.viscriptquests.quest.data.QuestFile;
 import com.viscriptquests.quest.data.QuestSavedData;
 import com.viscriptquests.quest.data.ObjectiveAction;
@@ -24,6 +25,7 @@ import net.minecraft.server.players.PlayerList;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.neoforged.neoforge.common.NeoForge;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -90,13 +92,26 @@ public class QuestSubmissionService {
         }
 
         List<ITask> tasks = questFile.findTasksForStep(stepId);
+        List<ObjectiveSnapshot> objectiveSnapshots = snapshotObjectives(progress.get());
         if (!QuestObjectiveProgressService.syncObjectiveShape(tasks, progress.get(), player, questState.questVariables)) {
             return false;
         }
         boolean changed = false;
         for (int i = 0; i < tasks.size(); i++) {
             TaskObjectiveProgress objective = progress.get().objectives.get(i);
+            ObjectiveSnapshot snapshot = objectiveSnapshot(objectiveSnapshots, i, objective);
             if (objective.completed) {
+                if (snapshot.differsFrom(objective)) {
+                    changed = true;
+                    postObjectiveEvents(player, questState, progress.get(), objective, i, snapshot, automatic);
+                    if (!snapshot.completed) {
+                        triggerObjectiveActions(player, questState, questFile, stepId, objective);
+                    }
+                    if (objective.isFailureCondition()) {
+                        return failQuestFromObjective(player, savedData, playerData, questState, questFile,
+                                progress.get(), stepId);
+                    }
+                }
                 continue;
             }
             ITask task = tasks.get(i);
@@ -105,8 +120,12 @@ public class QuestSubmissionService {
                     : (task.allowsAutoSubmit()
                     ? task.autoCompleteObjective(player, objective, questState.questVariables)
                     : !automatic && task.submitObjective(player, objective, questState.questVariables));
-            if (submitted) {
+            boolean objectiveChanged = snapshot.differsFrom(objective);
+            if (submitted || objectiveChanged) {
                 changed = true;
+                postObjectiveEvents(player, questState, progress.get(), objective, i, snapshot, automatic);
+            }
+            if (submitted) {
                 triggerObjectiveActions(player, questState, questFile, stepId, objective);
                 if (objective.isFailureCondition() && objective.completed) {
                     return failQuestFromObjective(player, savedData, playerData, questState, questFile,
@@ -145,6 +164,7 @@ public class QuestSubmissionService {
             return false;
         }
         List<ITask> tasks = questFile.findTasksForStep(stepId);
+        List<ObjectiveSnapshot> objectiveSnapshots = snapshotObjectives(progress.get());
         if (!QuestObjectiveProgressService.syncObjectiveShape(tasks, progress.get(), player, questState.questVariables)
                 || objectiveIndex < 0
                 || objectiveIndex >= tasks.size()
@@ -155,9 +175,17 @@ public class QuestSubmissionService {
         if (objective.isFailureCondition()) {
             return false;
         }
+        ObjectiveSnapshot snapshot = objectiveSnapshot(objectiveSnapshots, objectiveIndex, objective);
         if (!tasks.get(objectiveIndex).submitObjective(player, objective, questState.questVariables)) {
+            if (snapshot.differsFrom(objective)) {
+                postObjectiveEvents(player, questState, progress.get(), objective, objectiveIndex, snapshot, false);
+                savedData.setDirty();
+                QuestTrackingService.refresh(player);
+                QuestTeamProgressService.syncQuestState(player, questState);
+            }
             return false;
         }
+        postObjectiveEvents(player, questState, progress.get(), objective, objectiveIndex, snapshot, false);
         triggerObjectiveActions(player, questState, questFile, stepId, objective);
         return completeStepIfReady(player, savedData, playerData, questState, questFile, progress.get(), stepId);
     }
@@ -363,6 +391,7 @@ public class QuestSubmissionService {
                                                                        Class<T> taskType,
                                                                        TaskProgressRecorder<T> recorder) {
         List<ITask> tasks = questFile.findTasksForStep(progress.stepId);
+        List<ObjectiveSnapshot> objectiveSnapshots = snapshotObjectives(progress);
         if (!QuestObjectiveProgressService.syncObjectiveShape(tasks, progress, player, questState.questVariables)) {
             return false;
         }
@@ -373,10 +402,12 @@ public class QuestSubmissionService {
                 continue;
             }
             TaskObjectiveProgress objective = progress.objectives.get(i);
-            boolean wasCompleted = objective.completed;
-            if (recorder.record(player, taskType.cast(task), objective, questState)) {
+            ObjectiveSnapshot snapshot = objectiveSnapshot(objectiveSnapshots, i, objective);
+            boolean recorded = recorder.record(player, taskType.cast(task), objective, questState);
+            if (recorded || snapshot.differsFrom(objective)) {
                 changed = true;
-                if (!wasCompleted && objective.completed) {
+                postObjectiveEvents(player, questState, progress, objective, i, snapshot, true);
+                if (recorded && !snapshot.completed && objective.completed) {
                     triggerObjectiveActions(player, questState, questFile, progress.stepId, objective);
                 }
                 if (objective.isFailureCondition() && objective.completed) {
@@ -408,6 +439,7 @@ public class QuestSubmissionService {
         Set<String> activeStepIdsBeforeSubmit = activeStepIds(questState);
         // 到这里才真正提交成功：写进度、发奖励、推进蓝图流程，并刷新任务追踪。
         progress.status = TaskStatus.COMPLETED;
+        NeoForge.EVENT_BUS.post(new QuestEvent.TaskCompleted(player, questState, progress, false));
         QuestCompletionNotificationService.notifyTaskCompleted(player, progress);
         QuestRewardService.grantStepRewards(player, questFile, questState, stepId);
         QuestFlowExecutor.completeStepNode(player, questState, questFile, stepId);
@@ -436,7 +468,7 @@ public class QuestSubmissionService {
             action.edge.applyMutations(questState.questVariables, player.registryAccess(), player);
             QuestFlowExecutor.printDebugMessages(player, questState, action.edge);
             for (var reward : action.rewards) {
-                QuestRewardService.grantDynamicReward(player, reward, questState);
+                QuestRewardService.grantDynamicReward(player, reward, questState, stepId);
             }
         }
     }
@@ -454,7 +486,6 @@ public class QuestSubmissionService {
                                                   QuestPlayerData playerData, PlayerQuestState questState,
                                                   QuestFile questFile, TaskProgress progress, String stepId) {
         Set<String> activeStepIdsBeforeSubmit = activeStepIds(questState);
-        progress.status = TaskStatus.FAILED;
         QuestFlowExecutor.failStepNode(player, questState, questFile, stepId);
         savedData.setDirty();
         if (questState.status != QuestStatus.ACTIVE && playerData.trackedQuestId.equals(questState.questId)) {
@@ -466,6 +497,45 @@ public class QuestSubmissionService {
         }
         QuestTeamProgressService.syncQuestState(player, questState);
         return true;
+    }
+
+    private static void postObjectiveEvents(ServerPlayer player, PlayerQuestState questState,
+                                            TaskProgress progress, TaskObjectiveProgress objective,
+                                            int objectiveIndex, ObjectiveSnapshot snapshot,
+                                            boolean automatic) {
+        if (snapshot.differsFrom(objective)) {
+            NeoForge.EVENT_BUS.post(new QuestEvent.ObjectiveProgress(player, questState, progress, objective,
+                    objectiveIndex, snapshot.amount, snapshot.requiredAmount, snapshot.completed, automatic));
+        }
+        if (!snapshot.completed && objective.completed) {
+            NeoForge.EVENT_BUS.post(new QuestEvent.ObjectiveCompleted(player, questState, progress, objective,
+                    objectiveIndex, snapshot.amount, snapshot.requiredAmount, false, automatic));
+        }
+    }
+
+    private static List<ObjectiveSnapshot> snapshotObjectives(TaskProgress progress) {
+        List<ObjectiveSnapshot> snapshots = new ArrayList<>(progress.objectives.size());
+        for (TaskObjectiveProgress objective : progress.objectives) {
+            snapshots.add(ObjectiveSnapshot.of(objective));
+        }
+        return snapshots;
+    }
+
+    private static ObjectiveSnapshot objectiveSnapshot(List<ObjectiveSnapshot> snapshots, int index,
+                                                       TaskObjectiveProgress objective) {
+        return index >= 0 && index < snapshots.size() ? snapshots.get(index) : ObjectiveSnapshot.of(objective);
+    }
+
+    private record ObjectiveSnapshot(int amount, int requiredAmount, boolean completed) {
+        private static ObjectiveSnapshot of(TaskObjectiveProgress objective) {
+            return new ObjectiveSnapshot(objective.currentAmount, objective.requiredAmount, objective.completed);
+        }
+
+        private boolean differsFrom(TaskObjectiveProgress objective) {
+            return amount != objective.currentAmount
+                    || requiredAmount != objective.requiredAmount
+                    || completed != objective.completed;
+        }
     }
 
     private static Set<String> activeStepIds(PlayerQuestState questState) {

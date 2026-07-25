@@ -20,7 +20,7 @@ public class ItemTaskNode extends QuestBlueprintNode {
     @Override
     public void onDefineOptions(IOptionDefinitionContext context) {
         itemStackOption(context, "item_stack");
-        boolOption(context, "strict_components", false);
+        itemMatchRuleOption(context, "item_match_rule");
         boolOption(context, "consume_item", true);
         enumOption(context, "submit_mode", QuestBlueprintTypes.SUBMIT_MODE, QuestSubmitMode.AUTO);
         taskCommonOptions(context);

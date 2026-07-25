@@ -5,6 +5,7 @@ import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
 import com.viscript_lib.util.item.ItemStackCompareMode;
 import com.viscript_lib.util.item.ItemUtil;
 import com.viscriptquests.quest.data.DisplayIcon;
+import com.viscriptquests.quest.data.ItemMatchRule;
 import com.viscriptquests.quest.data.QuestSubmitMode;
 import com.viscriptquests.quest.data.QuestValueToken;
 import com.viscriptquests.quest.data.QuestVariableValue;
@@ -29,6 +30,10 @@ public class ItemTask extends ITask {
     public final List<QuestValueToken> itemCountExpression = new ArrayList<>();
     @Persisted
     public boolean strictComponents = false;
+    @Persisted
+    public boolean useItemMatchRule = false;
+    @Persisted
+    public ItemMatchRule itemMatchRule = new ItemMatchRule();
     @Persisted
     public boolean consumeItem = true;
     @Persisted
@@ -158,14 +163,21 @@ public class ItemTask extends ITask {
         if (itemIdentityStack().isEmpty()) {
             return 0;
         }
-        return ItemUtil.getItemForPlayerCount(player, itemIdentityStack(), itemCompareMode(), List.of());
+        ItemStack identity = itemIdentityStack();
+        if (useItemMatchRule && itemMatchRule != null) {
+            return itemMatchRule.getItemForPlayerCount(player, identity);
+        }
+        return ItemUtil.getItemForPlayerCount(player, identity, legacyItemCompareMode(), List.of());
     }
 
     private boolean removePlayerItems(ServerPlayer player, int count) {
         if (player == null || itemIdentityStack().isEmpty() || count <= 0) {
             return true;
         }
-        int remaining = ItemUtil.removeItemForPlayer(player, itemIdentityStack(), count, itemCompareMode(), List.of());
+        ItemStack identity = itemIdentityStack();
+        int remaining = useItemMatchRule && itemMatchRule != null
+                ? itemMatchRule.removeItemForPlayer(player, identity, count)
+                : ItemUtil.removeItemForPlayer(player, identity, count, legacyItemCompareMode(), List.of());
         player.containerMenu.broadcastChanges();
         return remaining <= 0;
     }
@@ -174,7 +186,7 @@ public class ItemTask extends ITask {
         return itemStack == null || itemStack.isEmpty() ? ItemStack.EMPTY : itemStack.copyWithCount(1);
     }
 
-    private ItemStackCompareMode itemCompareMode() {
+    private ItemStackCompareMode legacyItemCompareMode() {
         return strictComponents ? ItemStackCompareMode.ALL_COMPONENTS : ItemStackCompareMode.INCLUDE_COMPONENTS;
     }
 }

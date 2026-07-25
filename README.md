@@ -110,8 +110,13 @@ ViScriptQuests 是一个面向 NeoForge 1.21.1 的 RPG 任务系统模组。它�
 - ViScriptShop：货币奖励。
 - Sophisticated Backpacks：物品目标可以统计和扣除玩家背包模组中的物品。
 - Beyond Dimensions：物品目标可以读取超越维度的统一存储。
+- KubeJS：监听大任务、小任务、目标和奖励事件，并通过脚本主动操作任务状态。
 
 这些联动通过独立的兼容层接入，任务运行时会尽量避免把可选模组变成硬前置。
+
+KubeJS 与 NeoForge 任务事件的目标格式、过滤方法和完整示例见：
+
+- `docs/kubejs-events.md`
 
 ## 开发者扩展
 

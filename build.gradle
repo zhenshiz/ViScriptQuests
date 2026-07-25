@@ -207,6 +207,8 @@ dependencies {
     implementation("com.zhenshiz:ViScriptTeam-neoforge-1.21.1:${viscriptteam_version}") {
         transitive = false
     }
+    //chatbox
+    implementation "curse.maven:chatbox-for-mc-1276866:8363433"
 
     //must
     implementation "maven.modrinth:sodium:${sodium_version}"

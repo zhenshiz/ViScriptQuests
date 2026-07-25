@@ -173,7 +173,7 @@ public class QuestCompletionToastHud extends UIElement {
             layout.flexDirection(FlexDirection.COLUMN);
         });
 
-        Label title = label(data.titleComponent(), 7.0f, TEXT_TITLE, 10);
+        Label title = label(Component.literal(data.title == null ? "" : data.title), 7.0f, TEXT_TITLE, 10);
         Label completed = label(Component.translatable(data.questCompletion
                 ? "viscript_quests.completion_toast.quest_completed"
                 : "viscript_quests.completion_toast.task_completed"), 6.6f, TEXT_COMPLETED, 9);
