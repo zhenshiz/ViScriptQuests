@@ -8,6 +8,8 @@ public class ClientConfig {
     public static final ModConfigSpec.BooleanValue SHOW_COMPLETED_TASKS_IN_BOOK;
     public static final ModConfigSpec.BooleanValue REGISTER_OPEN_QUEST_BOOK_KEY;
     public static final ModConfigSpec.BooleanValue SHOW_QUEST_COMPLETION_TOAST;
+    public static final ModConfigSpec.DoubleValue QUEST_COMPLETION_TOAST_X_PERCENT;
+    public static final ModConfigSpec.DoubleValue QUEST_COMPLETION_TOAST_Y_PERCENT;
     public static final ModConfigSpec.BooleanValue SHOW_TRACKED_QUEST_HUD;
     public static final ModConfigSpec.DoubleValue TRACKED_QUEST_HUD_X_PERCENT;
     public static final ModConfigSpec.DoubleValue TRACKED_QUEST_HUD_Y_PERCENT;
@@ -48,6 +50,16 @@ public class ClientConfig {
         SHOW_QUEST_COMPLETION_TOAST = builder
                 .translation("viscript_quests.configuration.completion_toast.show")
                 .define("showCompletionToast", true);
+
+        // 第一条任务完成提示的左上角横向位置，占屏幕宽度百分比。
+        QUEST_COMPLETION_TOAST_X_PERCENT = builder
+                .translation("viscript_quests.configuration.completion_toast.x_percent")
+                .defineInRange("xPercent", 1.0, 0.0, 100.0);
+
+        // 第一条任务完成提示的左上角纵向位置，占屏幕高度百分比。
+        QUEST_COMPLETION_TOAST_Y_PERCENT = builder
+                .translation("viscript_quests.configuration.completion_toast.y_percent")
+                .defineInRange("yPercent", 8.0, 0.0, 100.0);
 
         builder.pop();
 

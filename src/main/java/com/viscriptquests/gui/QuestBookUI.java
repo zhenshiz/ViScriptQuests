@@ -15,6 +15,7 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.ScrollerView;
 import com.lowdragmc.lowdraglib2.math.Size;
 import com.lowdragmc.lowdraglib2.networking.rpc.RPCPacketDistributor;
+import com.viscript_lib.util.RichTextUtil;
 import com.viscriptquests.ViScriptQuests;
 import com.viscriptquests.compat.ponder.PonderCompat;
 import com.viscriptquests.config.ClientConfig;
@@ -295,7 +296,7 @@ public class QuestBookUI extends UIElement {
                 layout.height(CATEGORY_HEIGHT);
             });
             String categoryTitle = category.title == null || category.title.isBlank() ? category.id : category.title;
-            tab.style(style -> style.tooltips(Component.literal(categoryTitle)));
+            tab.style(style -> style.tooltips(richText(categoryTitle)));
             tab.setOnClick(event -> selectCategory(category.id));
 
             UIElement icon = createDisplayIcon(category.displayIcon, Component.empty());
@@ -342,13 +343,13 @@ public class QuestBookUI extends UIElement {
         row.addChild(iconFrame);
 
         String questTitle = quest.title == null || quest.title.isBlank() ? quest.questId : quest.title;
-        Label title = place(label(Component.literal(questTitle), FONT_NORMAL, TEXT_DARK), 39, 5, 116, 10);
+        Label title = place(label(richText(questTitle), FONT_NORMAL, TEXT_DARK), 39, 5, 116, 10);
         title.textStyle(style -> style.textWrap(TextWrap.HIDE));
         title.setAllowHitTest(false);
         row.addChild(title);
 
         String subtitleText = quest.subtitle == null ? "" : quest.subtitle;
-        Label subtitle = place(label(Component.literal(subtitleText), FONT_SMALL, TEXT_MUTED), 39, 16, 116, 9);
+        Label subtitle = place(label(richText(subtitleText), FONT_SMALL, TEXT_MUTED), 39, 16, 116, 9);
         subtitle.textStyle(style -> style.textWrap(TextWrap.HIDE));
         subtitle.setAllowHitTest(false);
         row.addChild(subtitle);
@@ -417,18 +418,18 @@ public class QuestBookUI extends UIElement {
     }
 
     private void addTaskDetail(PlayerQuestState quest, TaskProgress task) {
-        addDetailTitle(Component.literal(taskTitle(task)));
+        addDetailTitle(richText(taskTitle(task)));
 
         List<Component> description = new ArrayList<>();
         if (task.description != null) {
             for (String line : task.description) {
                 if (line != null && !line.isBlank()) {
-                    description.add(Component.literal(line));
+                    description.add(richText(line));
                 }
             }
         }
         if (description.isEmpty() && task.subtitle != null && !task.subtitle.isBlank()) {
-            description.add(Component.literal(task.subtitle));
+            description.add(richText(task.subtitle));
         }
         if (description.isEmpty()) {
             description.add(taskHint(task));
@@ -497,7 +498,7 @@ public class QuestBookUI extends UIElement {
         iconFrame.addChild(icon);
         row.addChild(iconFrame);
 
-        Label objectiveText = label(objective.progressHintWithType(), FONT_SMALL, objectiveTextColor(objective));
+        Label objectiveText = label(richText(objective.progressHintWithType()), FONT_SMALL, objectiveTextColor(objective));
         objectiveText.layout(layout -> {
             layout.width(0);
             layout.flex(1);
@@ -529,7 +530,7 @@ public class QuestBookUI extends UIElement {
     }
 
     private UIElement createRewardSlot(RewardDisplay reward) {
-        Component tooltip = reward == null ? Component.empty() : reward.displayText();
+        Component tooltip = reward == null ? Component.empty() : richText(reward.displayText());
         UIElement frame = texturedPanel(REWARD_ICON_FRAME);
         frame.layout(layout -> layout.width(24).height(24));
         if (hasTooltipText(tooltip)) {
@@ -784,18 +785,18 @@ public class QuestBookUI extends UIElement {
     }
 
     private Component taskHint(TaskProgress task) {
-        Component hint = task.displayTaskHint();
+        Component hint = richText(task.displayTaskHint());
         if (hasTooltipText(hint)) {
             return hint;
         }
-        return Component.literal(taskTitle(task));
+        return richText(taskTitle(task));
     }
 
     private Component objectiveTooltip(TaskObjectiveProgress objective) {
         if (objective == null) {
             return Component.empty();
         }
-        Component hint = objective.displayHint();
+        Component hint = richText(objective.displayHint());
         if (objective.isRequired()) {
             return hint;
         }
@@ -843,6 +844,18 @@ public class QuestBookUI extends UIElement {
 
     private boolean hasTooltipText(Component text) {
         return text != null && !text.getString().isBlank();
+    }
+
+    private Component richText(String text) {
+        return RichTextUtil.parse(text == null ? "" : text);
+    }
+
+    private Component richText(Component text) {
+        if (text == null) {
+            return Component.empty();
+        }
+        String value = text.getString();
+        return value.indexOf(RichTextUtil.AMPERSAND_FORMAT_PREFIX) >= 0 ? RichTextUtil.parse(value) : text;
     }
 
     private Label label(Component text, float fontSize, int color) {
@@ -929,7 +942,7 @@ public class QuestBookUI extends UIElement {
 
         Component title() {
             String value = task.title == null || task.title.isBlank() ? task.stepId : task.title;
-            return Component.literal(value);
+            return RichTextUtil.parse(value);
         }
 
         Component statusName() {

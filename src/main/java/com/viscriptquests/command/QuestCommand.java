@@ -14,8 +14,10 @@ import com.viscript_lib.register.ICommand;
 import com.viscriptquests.ViScriptQuests;
 import com.viscriptquests.gui.editor.QuestEditor;
 import com.viscriptquests.network.s2c.S2CPayload;
+import com.viscriptquests.quest.data.DisplayIcon;
 import com.viscriptquests.quest.data.runtime.QuestCategoryConfigData;
 import com.viscriptquests.quest.data.runtime.QuestCategoryListData;
+import com.viscriptquests.quest.data.runtime.QuestCompletionToastData;
 import com.viscriptquests.quest.data.runtime.PlayerQuestState;
 import com.viscriptquests.quest.data.runtime.QuestStatus;
 import com.viscriptquests.quest.data.runtime.TaskStatus;
@@ -47,6 +49,17 @@ import java.util.function.Function;
 
 @LDLRegister(name = "quest", registry = ICommand.COMMAND_ID)
 public class QuestCommand implements ICommand {
+    private static final String[] TEST_COMPLETION_TOAST_TITLES = {
+            "测试完成弹窗一",
+            "测试完成弹窗二",
+            "测试完成弹窗三"
+    };
+    private static final String[] TEST_COMPLETION_TOAST_ITEMS = {
+            "minecraft:paper",
+            "minecraft:emerald",
+            "minecraft:writable_book"
+    };
+
     private static final SuggestionProvider<CommandSourceStack> QUEST_SUGGESTIONS = (context, builder) -> {
         return suggestMatching(getServerQuestFiles(), builder);
     };
@@ -76,6 +89,9 @@ public class QuestCommand implements ICommand {
                 .then(Commands.literal("category")
                         .then(Commands.literal("config")
                                 .executes(this::openCategoryConfig)))
+                .then(Commands.literal("completion_toast")
+                        .then(Commands.literal("test")
+                                .executes(this::showTestCompletionToasts)))
                 .then(Commands.literal("reload")
                         .then(Commands.argument("target", EntityArgument.players())
                                 .executes(this::reloadPlayers)))
@@ -158,6 +174,26 @@ public class QuestCommand implements ICommand {
         RPCPacketDistributor.rpcToPlayer(player, S2CPayload.OPEN_CATEGORY_CONFIG,
                 data.serializeNBT(Platform.getFrozenRegistry()));
         return 1;
+    }
+
+    @SneakyThrows
+    private int showTestCompletionToasts(CommandContext<CommandSourceStack> context) {
+        ServerPlayer player = context.getSource().getPlayer();
+        if (player == null) {
+            throw playerOnlyException();
+        }
+        for (int i = 0; i < TEST_COMPLETION_TOAST_TITLES.length; i++) {
+            QuestCompletionToastData data = new QuestCompletionToastData();
+            data.questCompletion = i == TEST_COMPLETION_TOAST_TITLES.length - 1;
+            data.title = TEST_COMPLETION_TOAST_TITLES[i];
+            data.icon = DisplayIcon.item(TEST_COMPLETION_TOAST_ITEMS[i]);
+            RPCPacketDistributor.rpcToPlayer(player, S2CPayload.SHOW_QUEST_COMPLETION_TOAST, data);
+        }
+        context.getSource().sendSuccess(
+                () -> Component.translatable("commands.viscript_quests.quest.completion_toast.test.success",
+                        TEST_COMPLETION_TOAST_TITLES.length),
+                false);
+        return TEST_COMPLETION_TOAST_TITLES.length;
     }
 
     @SneakyThrows

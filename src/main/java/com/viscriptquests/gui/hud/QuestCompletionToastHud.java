@@ -30,11 +30,11 @@ import java.util.Deque;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedDeque;
 
-/** 在屏幕左上角排队展示大任务和小任务完成提示。 */
+/** 在屏幕上按配置位置排队展示大任务和小任务完成提示。 */
 public class QuestCompletionToastHud extends UIElement {
-    private static final int TOAST_WIDTH = 170;
-    private static final int TOAST_HEIGHT = 30;
-    private static final int ICON_SIZE = 20;
+    private static final int TOAST_WIDTH = 148;
+    private static final int TOAST_HEIGHT = 25;
+    private static final int ICON_SIZE = 16;
     private static final int MAX_VISIBLE = 3;
     private static final int MAX_PENDING = 16;
     private static final long DISPLAY_MILLIS = 5_000L;
@@ -48,6 +48,8 @@ public class QuestCompletionToastHud extends UIElement {
 
     private final UIElement toastStack = new UIElement();
     private final List<ActiveToast> activeToasts = new ArrayList<>();
+    private float lastX = Float.NaN;
+    private float lastY = Float.NaN;
 
     public QuestCompletionToastHud() {
         setAllowHitTest(false);
@@ -63,8 +65,8 @@ public class QuestCompletionToastHud extends UIElement {
         toastStack.setVisible(false);
         toastStack.layout(layout -> {
             layout.positionType(TaffyPosition.ABSOLUTE);
-            layout.left(8);
-            layout.top(8);
+            layout.leftPercent(0);
+            layout.topPercent(0);
             layout.width(TOAST_WIDTH);
             layout.flexDirection(FlexDirection.COLUMN);
             layout.gapAll(2);
@@ -92,6 +94,7 @@ public class QuestCompletionToastHud extends UIElement {
     @Override
     public void screenTick() {
         super.screenTick();
+        updateLayoutFromConfig();
         if (!ClientConfig.SHOW_QUEST_COMPLETION_TOAST.get() || Minecraft.getInstance().player == null) {
             clearToasts();
             return;
@@ -107,6 +110,20 @@ public class QuestCompletionToastHud extends UIElement {
         if (changed) {
             rebuildToasts();
         }
+    }
+
+    private void updateLayoutFromConfig() {
+        float x = ClientConfig.QUEST_COMPLETION_TOAST_X_PERCENT.get().floatValue();
+        float y = ClientConfig.QUEST_COMPLETION_TOAST_Y_PERCENT.get().floatValue();
+        if (x == lastX && y == lastY) {
+            return;
+        }
+        lastX = x;
+        lastY = y;
+        toastStack.layout(layout -> {
+            layout.leftPercent(x);
+            layout.topPercent(y);
+        });
     }
 
     private void clearToasts() {
@@ -136,8 +153,8 @@ public class QuestCompletionToastHud extends UIElement {
             layout.height(TOAST_HEIGHT);
             layout.flexDirection(FlexDirection.ROW);
             layout.alignItems(AlignItems.CENTER);
-            layout.paddingHorizontal(5);
-            layout.gapAll(5);
+            layout.paddingHorizontal(4);
+            layout.gapAll(4);
         });
 
         UIElement icon = createIcon(data.icon, data.questCompletion);
@@ -152,14 +169,14 @@ public class QuestCompletionToastHud extends UIElement {
         textColumn.layout(layout -> {
             layout.width(0);
             layout.flex(1);
-            layout.height(22);
+            layout.height(19);
             layout.flexDirection(FlexDirection.COLUMN);
         });
 
-        Label title = label(Component.literal(data.title == null ? "" : data.title), 7.5f, TEXT_TITLE, 11);
+        Label title = label(data.titleComponent(), 7.0f, TEXT_TITLE, 10);
         Label completed = label(Component.translatable(data.questCompletion
                 ? "viscript_quests.completion_toast.quest_completed"
-                : "viscript_quests.completion_toast.task_completed"), 7.0f, TEXT_COMPLETED, 10);
+                : "viscript_quests.completion_toast.task_completed"), 6.6f, TEXT_COMPLETED, 9);
         textColumn.addChildren(title, completed);
         card.addChildren(icon, textColumn);
         return card;
