@@ -26,12 +26,7 @@ public class ItemTaskNodeCompiler implements IQuestTaskNodeCompiler {
         task.itemCount = context.tracePortIntValue(node, "item_count", 1, 1);
         task.itemCountExpression.addAll(context.compileRuntimeIntExpression(node, "item_count", 1));
         ItemMatchRule itemMatchRule = context.getItemMatchRule(node, "item_match_rule");
-        if (itemMatchRule == null) {
-            task.strictComponents = context.getBool(node, "strict_components");
-        } else {
-            task.useItemMatchRule = true;
-            task.itemMatchRule = itemMatchRule;
-        }
+        task.itemMatchRule = itemMatchRule == null ? new ItemMatchRule() : itemMatchRule;
         task.consumeItem = context.getBool(node, "consume_item");
         task.submitMode = context.getSubmitMode(node, "submit_mode");
         return task;

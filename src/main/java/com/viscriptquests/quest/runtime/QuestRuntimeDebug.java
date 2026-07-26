@@ -15,17 +15,6 @@ import java.util.List;
 // Debug调试用
 public class QuestRuntimeDebug {
 
-    public static List<String> getStepIds(ServerPlayer player, String questId) {
-        String normalizedQuestId = QuestFileHelper.normalizeQuestId(questId);
-        return QuestSavedData.get(player.getServer())
-                .getPlayer(player.getUUID())
-                .findQuest(normalizedQuestId)
-                .stream()
-                .flatMap(state -> state.taskProgresses.stream())
-                .map(progress -> progress.stepId)
-                .toList();
-    }
-
     public static boolean setVariable(ServerPlayer player, String questId, String varName, float value) {
         String normalizedQuestId = QuestFileHelper.normalizeQuestId(questId);
         QuestSavedData savedData = QuestSavedData.get(player.getServer());

@@ -3,6 +3,7 @@ package com.viscriptquests.event.neoforge;
 import com.viscriptquests.compat.team.QuestTeamService;
 import com.viscriptquests.quest.data.reward.IReward;
 import com.viscriptquests.quest.data.runtime.PlayerQuestState;
+import com.viscriptquests.quest.data.runtime.ObjectiveStatus;
 import com.viscriptquests.quest.data.runtime.TaskObjectiveProgress;
 import com.viscriptquests.quest.data.runtime.TaskProgress;
 import com.viscriptquests.util.QuestFileHelper;
@@ -189,7 +190,11 @@ public abstract class QuestEvent extends Event {
         }
 
         public boolean isCompleted() {
-            return objective.completed;
+            return objective.isCompleted();
+        }
+
+        public ObjectiveStatus getStatus() {
+            return objective.status;
         }
 
         public boolean matchesObjective(String questId, String stepId, String objectiveId) {

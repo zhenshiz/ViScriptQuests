@@ -11,7 +11,6 @@ import com.lowdragmc.lowdraglib2.networking.rpc.RPCPacketDistributor;
 import com.viscript_lib.gui.editor.EditorFileNames;
 import com.viscript_lib.gui.editor.EditorUploadAction;
 import com.viscript_lib.gui.editor.ProjectFileEditor;
-import com.viscript_lib.gui.editor.ViScriptEditorWindow;
 import com.viscriptquests.ViScriptQuests;
 import com.viscriptquests.network.c2s.C2SPayload;
 import com.viscriptquests.quest.data.QuestFile;
@@ -38,8 +37,7 @@ public class QuestEditor extends ProjectFileEditor {
     }
 
     public static EditorWindow openWindow() {
-        return new ViScriptEditorWindow(EDITOR_ID, QuestEditor::new)
-                .setMinimizedBoundsPercent(0f, 0f, 79f, 100f);
+        return EditorWindow.open(EDITOR_ID, QuestEditor::new);
     }
 
     @Override

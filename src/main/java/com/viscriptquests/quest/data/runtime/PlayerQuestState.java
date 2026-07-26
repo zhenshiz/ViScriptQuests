@@ -102,6 +102,7 @@ public class PlayerQuestState implements IPersistedSerializable {
             }
             TaskProgress progress = TaskProgress.fromTasks(step.stepId, tasks, step, null, state.questVariables);
             progress.status = TaskStatus.LOCKED;
+            progress.lockObjectives();
             state.taskProgresses.add(progress);
         }
         for (ITask task : file.tasks) {
@@ -112,6 +113,7 @@ public class PlayerQuestState implements IPersistedSerializable {
             TaskProgress progress = TaskProgress.fromTasks(task.stepId, file.findTasksForStep(task.stepId), step,
                     null, state.questVariables);
             progress.status = TaskStatus.LOCKED;
+            progress.lockObjectives();
             state.taskProgresses.add(progress);
         }
 
@@ -161,6 +163,9 @@ public class PlayerQuestState implements IPersistedSerializable {
             return;
         }
         for (IReward reward : file.rewards) {
+            if (reward == null || !reward.showInRewardList) {
+                continue;
+            }
             RewardDisplay display = new RewardDisplay();
             display.stepId = reward.stepId == null ? "" : reward.stepId;
             Component hint = reward.getRewardHint(player, questVariables);

@@ -2,8 +2,6 @@ package com.viscriptquests.quest.data.task;
 
 import com.lowdragmc.lowdraglib2.registry.annotation.LDLRegister;
 import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
-import com.viscript_lib.util.item.ItemStackCompareMode;
-import com.viscript_lib.util.item.ItemUtil;
 import com.viscriptquests.quest.data.DisplayIcon;
 import com.viscriptquests.quest.data.ItemMatchRule;
 import com.viscriptquests.quest.data.QuestSubmitMode;
@@ -28,10 +26,6 @@ public class ItemTask extends ITask {
     public int itemCount = 1;
     @Persisted
     public final List<QuestValueToken> itemCountExpression = new ArrayList<>();
-    @Persisted
-    public boolean strictComponents = false;
-    @Persisted
-    public boolean useItemMatchRule = false;
     @Persisted
     public ItemMatchRule itemMatchRule = new ItemMatchRule();
     @Persisted
@@ -88,10 +82,10 @@ public class ItemTask extends ITask {
         int required = getRequiredAmount(questVariables, player);
         progress.requiredAmount = required;
         if (progress.manualSubmitRequired) {
-            progress.currentAmount = progress.completed ? required : Math.min(progress.currentAmount, required);
+            progress.currentAmount = progress.isCompleted() ? required : Math.min(progress.currentAmount, required);
             return;
         }
-        progress.currentAmount = progress.completed
+        progress.currentAmount = progress.isCompleted()
                 ? required
                 : Math.min(required, getPlayerItemCount(player));
     }
@@ -104,13 +98,13 @@ public class ItemTask extends ITask {
     @Override
     public boolean submitObjective(ServerPlayer player, TaskObjectiveProgress progress,
                                    Map<String, QuestVariableValue> questVariables) {
-        if (submitMode.isAutoSubmit() || progress.completed || itemIdentityStack().isEmpty()) {
+        if (submitMode.isAutoSubmit() || !progress.isActive() || itemIdentityStack().isEmpty()) {
             return false;
         }
         int required = getRequiredAmount(questVariables, player);
         int remaining = Math.max(0, required - progress.currentAmount);
         if (remaining == 0) {
-            progress.completed = true;
+            progress.complete();
             progress.currentAmount = required;
             return true;
         }
@@ -120,12 +114,14 @@ public class ItemTask extends ITask {
         }
         if (!consumeItem) {
             int newAmount = Math.min(required, Math.max(progress.currentAmount, available));
-            if (newAmount <= progress.currentAmount && !progress.completed) {
+            if (newAmount <= progress.currentAmount) {
                 return false;
             }
             progress.currentAmount = newAmount;
             progress.requiredAmount = required;
-            progress.completed = progress.currentAmount >= required;
+            if (progress.currentAmount >= required) {
+                progress.complete();
+            }
             return true;
         }
         int toSubmit = Math.min(available, remaining);
@@ -134,7 +130,9 @@ public class ItemTask extends ITask {
         }
         progress.currentAmount = Math.min(required, progress.currentAmount + toSubmit);
         progress.requiredAmount = required;
-        progress.completed = progress.currentAmount >= required;
+        if (progress.currentAmount >= required) {
+            progress.complete();
+        }
         return true;
     }
 
@@ -164,10 +162,7 @@ public class ItemTask extends ITask {
             return 0;
         }
         ItemStack identity = itemIdentityStack();
-        if (useItemMatchRule && itemMatchRule != null) {
-            return itemMatchRule.getItemForPlayerCount(player, identity);
-        }
-        return ItemUtil.getItemForPlayerCount(player, identity, legacyItemCompareMode(), List.of());
+        return itemMatchRule.getItemForPlayerCount(player, identity);
     }
 
     private boolean removePlayerItems(ServerPlayer player, int count) {
@@ -175,18 +170,12 @@ public class ItemTask extends ITask {
             return true;
         }
         ItemStack identity = itemIdentityStack();
-        int remaining = useItemMatchRule && itemMatchRule != null
-                ? itemMatchRule.removeItemForPlayer(player, identity, count)
-                : ItemUtil.removeItemForPlayer(player, identity, count, legacyItemCompareMode(), List.of());
+        int remaining = itemMatchRule.removeItemForPlayer(player, identity, count);
         player.containerMenu.broadcastChanges();
         return remaining <= 0;
     }
 
     private ItemStack itemIdentityStack() {
         return itemStack == null || itemStack.isEmpty() ? ItemStack.EMPTY : itemStack.copyWithCount(1);
-    }
-
-    private ItemStackCompareMode legacyItemCompareMode() {
-        return strictComponents ? ItemStackCompareMode.ALL_COMPONENTS : ItemStackCompareMode.INCLUDE_COMPONENTS;
     }
 }

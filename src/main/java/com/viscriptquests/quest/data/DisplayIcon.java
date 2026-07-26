@@ -71,9 +71,7 @@ public class DisplayIcon implements IPersistedSerializable, IConfigurable {
         if (itemStack == null || itemStack.isEmpty()) {
             return ItemStack.EMPTY;
         }
-        ItemStack stack = itemStack.copy();
-        stack.setCount(1);
-        return stack;
+        return itemStack.copy();
     }
 
     public boolean isTexture() {

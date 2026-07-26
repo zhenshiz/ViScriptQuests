@@ -26,11 +26,14 @@ public class TaskObjectiveProgress implements IPersistedSerializable {
     @Persisted
     public boolean manualSubmitRequired = false;
     @Persisted
-    public boolean completed = false;
+    public ObjectiveStatus status = ObjectiveStatus.ACTIVE;
     @Persisted
     public QuestGuideMarker guideMarker = new QuestGuideMarker();
     @Persisted
     public TaskObjectiveType objectiveType = TaskObjectiveType.REQUIRED;
+    // 是否在任务书和追踪 HUD 的目标栏中展示；不影响目标完成判定。
+    @Persisted
+    public boolean showInObjectiveList = true;
     // 目标激活后的起始游戏时间。倒计时类目标用它避免刷新 HUD 时重置计时。
     @Persisted
     public long startedGameTime = -1L;
@@ -54,17 +57,21 @@ public class TaskObjectiveProgress implements IPersistedSerializable {
             return progress;
         }
         progress.objectiveId = task.objectiveId == null ? "" : task.objectiveId;
+        progress.status = task.initiallyActive ? ObjectiveStatus.ACTIVE : ObjectiveStatus.LOCKED;
         progress.objectiveType = task.objectiveType == null ? TaskObjectiveType.REQUIRED : task.objectiveType;
+        progress.showInObjectiveList = task.showInObjectiveList;
         Component hint = task.getTaskHint(player, questVariables);
         progress.hint = hint == null ? Component.empty() : hint.copy();
-        DisplayIcon icon = task.getDisplayIcon();
+        DisplayIcon icon = task.getObjectiveIcon();
         progress.displayIcon = icon == null ? new DisplayIcon() : icon.copy();
         progress.manualSubmitRequired = !progress.isFailureCondition() && !task.allowsAutoSubmit();
         progress.requiredAmount = Math.max(1, task.getRequiredAmount(questVariables, player));
         String ponderComponentId = task.getPonderComponentId();
         progress.ponderComponentId = ponderComponentId == null ? "" : ponderComponentId.trim();
         progress.ponderViewAction = task.hasPonderViewAction();
-        task.refreshObjectiveProgress(player, progress, questVariables);
+        if (progress.isActive()) {
+            task.refreshObjectiveProgress(player, progress, questVariables);
+        }
         QuestGuideMarker marker = task.getGuideMarker(player);
         progress.guideMarker = marker == null ? QuestGuideMarker.disabled() : marker.copy();
         return progress;
@@ -118,5 +125,50 @@ public class TaskObjectiveProgress implements IPersistedSerializable {
 
     public boolean hasPonderView() {
         return ponderViewAction;
+    }
+
+    public boolean isLocked() {
+        return status == ObjectiveStatus.LOCKED;
+    }
+
+    public boolean isActive() {
+        return status == ObjectiveStatus.ACTIVE;
+    }
+
+    public boolean isCompleted() {
+        return status == ObjectiveStatus.COMPLETED;
+    }
+
+    public boolean isSkipped() {
+        return status == ObjectiveStatus.SKIPPED;
+    }
+
+    public boolean activate() {
+        if (!isLocked()) {
+            return false;
+        }
+        status = ObjectiveStatus.ACTIVE;
+        currentAmount = 0;
+        startedGameTime = -1L;
+        progressTextOverride = "";
+        return true;
+    }
+
+    public void complete() {
+        status = ObjectiveStatus.COMPLETED;
+    }
+
+    public void skip() {
+        if (!isCompleted()) {
+            status = ObjectiveStatus.SKIPPED;
+        }
+    }
+
+    public boolean isVisibleInTaskBook() {
+        return showInObjectiveList && (isActive() || isCompleted());
+    }
+
+    public boolean isVisibleInHud() {
+        return showInObjectiveList && isActive();
     }
 }

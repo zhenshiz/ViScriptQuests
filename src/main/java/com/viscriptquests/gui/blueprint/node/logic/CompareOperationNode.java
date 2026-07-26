@@ -39,23 +39,6 @@ public class CompareOperationNode extends QuestBlueprintNode {
     }
 
     public static CompareOp fromValue(Object value) {
-        if (value instanceof CompareOp op) {
-            return op;
-        }
-        if (value instanceof String serializedName) {
-            for (CompareOp op : CompareOp.values()) {
-                if (op.name().equalsIgnoreCase(serializedName) || op.getSerializedName().equals(serializedName)) {
-                    return op;
-                }
-            }
-        }
-        if (value instanceof Number index) {
-            CompareOp[] ops = CompareOp.values();
-            int ordinal = index.intValue();
-            if (ordinal >= 0 && ordinal < ops.length) {
-                return ops[ordinal];
-            }
-        }
-        return CompareOp.EQ;
+        return value instanceof CompareOp op ? op : CompareOp.EQ;
     }
 }

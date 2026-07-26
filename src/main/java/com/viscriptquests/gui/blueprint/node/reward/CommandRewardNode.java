@@ -1,6 +1,8 @@
 package com.viscriptquests.gui.blueprint.node.reward;
 
+import com.lowdragmc.lowdraglib2.gui.ui.data.Tooltips;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.api.node.NodeAttribute;
+import com.lowdragmc.lowdraglib2.nodegraphtookit.api.type.TypeHandles;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.definition.IOptionDefinitionContext;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.definition.IPortDefinitionContext;
 import com.viscriptquests.gui.blueprint.QuestBlueprintGraph;
@@ -17,7 +19,11 @@ public class CommandRewardNode extends QuestBlueprintNode {
 
     @Override
     public void onDefineOptions(IOptionDefinitionContext context) {
-        stringOption(context, "command", "");
+        context.addOption("command", TypeHandles.STRING)
+                .withDisplayName(portName("command"))
+                .withTooltips(Tooltips.of("viscript_quests.blueprint.port.command.tips"))
+                .withDefaultValue("")
+                .build();
         rewardCommonOptions(context);
     }
 

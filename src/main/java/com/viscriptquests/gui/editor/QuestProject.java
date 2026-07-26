@@ -1,7 +1,6 @@
 package com.viscriptquests.gui.editor;
 
 import com.lowdragmc.lowdraglib2.Platform;
-import com.lowdragmc.lowdraglib2.editor.project.IProject;
 import com.lowdragmc.lowdraglib2.editor.resource.Resources;
 import com.lowdragmc.lowdraglib2.editor.ui.Editor;
 import com.lowdragmc.lowdraglib2.gui.texture.Icons;
@@ -17,14 +16,10 @@ import com.viscriptquests.util.QuestFileHelper;
 import lombok.Getter;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtIo;
 import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.File;
-import java.nio.file.Files;
-import java.util.Objects;
 import java.util.function.Supplier;
 
 public class QuestProject implements IRuntimeFileProject {
@@ -38,9 +33,9 @@ public class QuestProject implements IRuntimeFileProject {
     @Nullable
     private transient Supplier<CompoundTag> graphSnapshotSupplier;
 
-    public static QuestProject createProject(CompoundTag projectOrGraphTag) {
+    public static QuestProject createProject(CompoundTag graphTag) {
         QuestProject project = new QuestProject();
-        project.deserializeProject(Platform.getFrozenRegistry(), projectOrGraphTag);
+        project.graphTag = graphTag.copy();
         return project;
     }
 
@@ -69,7 +64,7 @@ public class QuestProject implements IRuntimeFileProject {
 
     @Override
     public void deserializeProject(@NotNull HolderLookup.Provider provider, @NotNull CompoundTag nbt) {
-        graphTag = QuestFileHelper.extractProjectGraph(nbt);
+        graphTag = nbt.getCompound("graph").copy();
     }
 
     @Override
@@ -120,32 +115,6 @@ public class QuestProject implements IRuntimeFileProject {
     private static class QuestProjectType extends ProjectFileProjectType {
         private QuestProjectType() {
             super(Icons.NODE, "viscript_quests.editor.quest.add", QuestFileHelper.FORMAT, QuestProject::new);
-        }
-
-        @Override
-        public IProject loadProjectFromFile(File file) throws Exception {
-            QuestProject project = new QuestProject();
-            project.deserializeProject(Platform.getFrozenRegistry(), QuestFileHelper.readProjectFileTag(file.toPath()));
-            return project;
-        }
-
-        @Override
-        public void saveProjectToFile(IProject project, File file) throws Exception {
-            if (file.getParentFile() != null) {
-                Files.createDirectories(file.getParentFile().toPath());
-            }
-            NbtIo.write(project.serializeNBT(Platform.getFrozenRegistry()), file.toPath());
-        }
-
-        @Override
-        public boolean isProjectDirty(IProject project, File file) throws Exception {
-            if (!Files.exists(file.toPath())) {
-                return true;
-            }
-            return !Objects.equals(
-                    project.serializeNBT(Platform.getFrozenRegistry()),
-                    NbtIo.read(file.toPath())
-            );
         }
     }
 }

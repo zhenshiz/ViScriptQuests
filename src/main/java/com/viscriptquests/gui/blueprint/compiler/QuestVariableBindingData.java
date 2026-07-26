@@ -6,7 +6,6 @@ import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.PortModel;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.variable.VariableDeclarationModelBase;
 import com.viscriptquests.quest.data.QuestVariableValue;
 
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -22,23 +21,11 @@ record QuestVariableBindingData(
         return new QuestVariableBindingData(Map.of(), Map.of(), Map.of(), Set.of());
     }
 
-    static QuestVariableBindingData fromLegacyPortMap(Map<UUID, String> portUuidToVarName) {
-        if (portUuidToVarName == null || portUuidToVarName.isEmpty()) {
-            return empty();
-        }
-        Map<QuestGraphElementKey, String> portMap = new LinkedHashMap<>();
-        for (var entry : portUuidToVarName.entrySet()) {
-            portMap.put(QuestGraphElementKey.legacy(entry.getKey()), entry.getValue());
-        }
-        return new QuestVariableBindingData(portMap, Map.of(), Map.of(), Set.of());
-    }
-
     String variableNameForPort(PortModel port) {
         if (port == null) {
             return null;
         }
-        String scoped = portToVarName.get(QuestGraphElementKey.of(port));
-        return scoped == null ? portToVarName.get(QuestGraphElementKey.legacy(port.getUid())) : scoped;
+        return portToVarName.get(QuestGraphElementKey.of(port));
     }
 
     String aliasFor(VariableDeclarationModelBase declaration) {
@@ -67,9 +54,5 @@ record QuestGraphElementKey(UUID graphUid, UUID elementUid) {
         }
         GraphModel graphModel = model.getGraphModel();
         return new QuestGraphElementKey(graphModel == null ? null : graphModel.getUid(), model.getUid());
-    }
-
-    static QuestGraphElementKey legacy(UUID elementUid) {
-        return new QuestGraphElementKey(null, elementUid);
     }
 }

@@ -3,18 +3,24 @@ package com.viscriptquests.gui.blueprint.model;
 import com.lowdragmc.lowdraglib2.configurator.IConfigurable;
 import com.lowdragmc.lowdraglib2.configurator.annotation.ConfigNumber;
 import com.lowdragmc.lowdraglib2.configurator.ui.ColorConfigurator;
+import com.lowdragmc.lowdraglib2.configurator.ui.Configurator;
 import com.lowdragmc.lowdraglib2.configurator.ui.NumberConfigurator;
 import com.lowdragmc.lowdraglib2.configurator.ui.StringConfigurator;
 import com.lowdragmc.lowdraglib2.gui.texture.Icons;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
+import com.lowdragmc.lowdraglib2.gui.ui.data.TextWrap;
+import com.lowdragmc.lowdraglib2.gui.ui.data.Vertical;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
+import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.api.node.IResizeWidth;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.gui.GraphView;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.gui.command.ElementRenameColorCommands;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.GraphElementModel;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.IHasElementColor;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.IHasName;
+import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.AbstractNodeModel;
 import dev.vfyjxf.taffy.style.FlexDirection;
+import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.Nullable;
 
 final class QuestElementPropertyConfigurableHelper {
@@ -23,6 +29,10 @@ final class QuestElementPropertyConfigurableHelper {
 
     public static IConfigurable build(GraphElementModel model, @Nullable GraphView view) {
         return IConfigurable.create(group -> {
+            if (model instanceof AbstractNodeModel nodeModel) {
+                group.addConfigurator(createNodeUuidConfigurator(nodeModel));
+            }
+
             if (model.isRenamable() && model instanceof IHasName named) {
                 group.addConfigurator(new StringConfigurator(
                         "graph.name",
@@ -71,6 +81,27 @@ final class QuestElementPropertyConfigurableHelper {
                         .setType(ConfigNumber.Type.FLOAT));
             }
         });
+    }
+
+    private static Configurator createNodeUuidConfigurator(AbstractNodeModel nodeModel) {
+        String uuid = nodeModel.getUid() == null ? "" : nodeModel.getUid().toString();
+        var uuidLabel = new Label();
+        uuidLabel.setText(Component.literal(uuid));
+        uuidLabel.textStyle(style -> {
+            style.textWrap(TextWrap.HOVER_ROLL);
+            style.textAlignVertical(Vertical.CENTER);
+        });
+        uuidLabel.layout(layout -> {
+            layout.height(14);
+            layout.flex(1);
+        });
+        uuidLabel.setOverflowVisible(false);
+        uuidLabel.style(style -> style.tooltips(Component.literal(uuid)));
+
+        var configurator = new Configurator("viscript_quests.editor.node_uuid");
+        configurator.setCopiableDirect(uuid);
+        configurator.addInlineChild(uuidLabel);
+        return configurator;
     }
 
     private static UIElement createResetColorButton(GraphElementModel model,

@@ -62,8 +62,10 @@ public class BreakBlockTask extends ITask {
                                          Map<String, QuestVariableValue> questVariables) {
         int required = getRequiredAmount(questVariables, player);
         progress.requiredAmount = required;
-        progress.currentAmount = progress.completed ? required : Math.min(required, Math.max(0, progress.currentAmount));
-        progress.completed = progress.completed || progress.currentAmount >= required;
+        progress.currentAmount = progress.isCompleted() ? required : Math.min(required, Math.max(0, progress.currentAmount));
+        if (progress.isActive() && progress.currentAmount >= required) {
+            progress.complete();
+        }
     }
 
     @Override
@@ -79,11 +81,11 @@ public class BreakBlockTask extends ITask {
     @Override
     public boolean autoCompleteObjective(ServerPlayer player, TaskObjectiveProgress progress,
                                          Map<String, QuestVariableValue> questVariables) {
-        if (progress.completed) {
+        if (!progress.isActive()) {
             return false;
         }
         refreshObjectiveProgress(player, progress, questVariables);
-        return progress.completed;
+        return progress.isCompleted();
     }
 
     @Override

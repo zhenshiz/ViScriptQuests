@@ -41,12 +41,12 @@ public class PonderTask extends ITask {
     @Override
     public boolean submitObjective(ServerPlayer player, TaskObjectiveProgress progress,
                                    Map<String, QuestVariableValue> questVariables) {
-        if (progress == null || progress.completed || normalizedComponentId().isBlank()) {
+        if (progress == null || !progress.isActive() || normalizedComponentId().isBlank()) {
             return false;
         }
         progress.requiredAmount = 1;
         progress.currentAmount = 1;
-        progress.completed = true;
+        progress.complete();
         progress.ponderComponentId = normalizedComponentId();
         progress.ponderViewAction = true;
         return true;
@@ -56,7 +56,7 @@ public class PonderTask extends ITask {
     public void refreshObjectiveProgress(ServerPlayer player, TaskObjectiveProgress progress,
                                          Map<String, QuestVariableValue> questVariables) {
         progress.requiredAmount = 1;
-        progress.currentAmount = progress.completed ? 1 : 0;
+        progress.currentAmount = progress.isCompleted() ? 1 : 0;
         progress.ponderComponentId = normalizedComponentId();
         progress.ponderViewAction = true;
     }

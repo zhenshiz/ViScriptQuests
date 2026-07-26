@@ -5,6 +5,7 @@ import com.lowdragmc.lowdraglib2.nodegraphtookit.api.type.TypeHandle;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.api.type.TypeHandles;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.gui.GraphElement;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.ChangeHint;
+import com.lowdragmc.lowdraglib2.nodegraphtookit.model.graph.CustomGraphModelImpl;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.graph.GraphModel;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.NodeModel;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.PortModel;
@@ -14,11 +15,13 @@ import com.lowdragmc.lowdraglib2.nodegraphtookit.model.variable.ModifierFlags;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.variable.VariableDeclarationModelBase;
 import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
 import com.viscriptquests.gui.blueprint.QuestBlueprintNodeLibrary;
+import com.viscriptquests.gui.blueprint.node.flow.SubQuestStartNode;
 import lombok.Getter;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
+import org.joml.Vector2f;
 import org.jetbrains.annotations.Nullable;
 
 import java.nio.charset.StandardCharsets;
@@ -99,8 +102,15 @@ public class QuestSubQuestNodeModel extends QuestBlueprintNodeModel {
         }
         graphModel.addLocalSubgraph(subgraph);
         localGraphId = subgraph.getUid();
+        initializeNewSubgraph(subgraph);
         graphModel.getCurrentGraphChangeDescription().addChangedModel(this, ChangeHint.DATA);
         return subgraph;
+    }
+
+    private static void initializeNewSubgraph(GraphModel subgraph) {
+        if (subgraph instanceof CustomGraphModelImpl customGraph) {
+            customGraph.createNodeModel(new SubQuestStartNode(), new Vector2f(0, 0));
+        }
     }
 
     public void setLocalSubgraph(@Nullable GraphModel subgraph) {

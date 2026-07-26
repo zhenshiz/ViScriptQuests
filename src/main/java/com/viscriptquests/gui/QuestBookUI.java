@@ -75,6 +75,7 @@ public class QuestBookUI extends UIElement {
     private static final int DETAIL_HEIGHT = 314;
 
     private static final int TEXT_DARK = 0xFF61382F;
+    private static final int TEXT_BLACK = 0xFF000000;
     private static final int TEXT_MUTED = 0xFF8A6657;
     private static final int TEXT_GREEN = 0xFF4D702F;
     private static final int TEXT_RED = 0xFF9A352E;
@@ -407,7 +408,7 @@ public class QuestBookUI extends UIElement {
         title.setAllowHitTest(false);
         content.addChild(title);
 
-        Label status = label(entry.statusName(), FONT_SMALL, entry.statusColor());
+        Label status = label(entry.statusName(), FONT_SMALL, TEXT_BLACK);
         status.layout(layout -> {
             layout.height(12);
             layout.paddingHorizontal(5);
@@ -495,7 +496,11 @@ public class QuestBookUI extends UIElement {
             scroller.addScrollViewChild(wrappedLabel(taskHint(task), TEXT_DARK));
         } else {
             for (int i = 0; i < task.objectives.size(); i++) {
-                scroller.addScrollViewChild(createObjectiveRow(quest, task, i, task.objectives.get(i)));
+                TaskObjectiveProgress objective = task.objectives.get(i);
+                if (objective == null || !objective.isVisibleInTaskBook()) {
+                    continue;
+                }
+                scroller.addScrollViewChild(createObjectiveRow(quest, task, i, objective));
             }
         }
         card.addChild(scroller);
@@ -535,7 +540,7 @@ public class QuestBookUI extends UIElement {
 
         if (objective.hasPonderView()) {
             row.addChild(createPonderButton(quest, task, objectiveIndex, objective));
-        } else if (task.status == TaskStatus.ACTIVE && objective.manualSubmitRequired && !objective.completed) {
+        } else if (task.status == TaskStatus.ACTIVE && objective.manualSubmitRequired && objective.isActive()) {
             row.addChild(createSubmitButton(quest, task, objectiveIndex));
         }
         return row;
@@ -565,6 +570,9 @@ public class QuestBookUI extends UIElement {
     }
 
     private void addTrackButton(PlayerQuestState quest, TaskProgress task) {
+        if (task.status != TaskStatus.ACTIVE) {
+            return;
+        }
         boolean tracked = isTrackedTask(quest, task);
         Button button = actionButton(Component.translatable(tracked
                 ? "viscript_quests.quest_book.untrack_task_button"
@@ -737,6 +745,9 @@ public class QuestBookUI extends UIElement {
 
     private void toggleTrackedTask(PlayerQuestState quest, TaskProgress task) {
         boolean tracked = isTrackedTask(quest, task);
+        if (!tracked && task.status != TaskStatus.ACTIVE) {
+            return;
+        }
         playerData.trackedQuestId = tracked ? "" : quest.questId;
         playerData.trackedStepId = tracked ? "" : task.stepId;
         CompoundTag tag = new CompoundTag();
@@ -760,15 +771,7 @@ public class QuestBookUI extends UIElement {
         if (objective == null || !PonderCompat.open(objective.ponderComponentId)) {
             return;
         }
-        if (task.status == TaskStatus.ACTIVE && !objective.completed && !objective.isFailureCondition()) {
-            objective.requiredAmount = Math.max(1, objective.requiredAmount);
-            objective.currentAmount = objective.requiredAmount;
-            objective.completed = true;
-            if (task.areAllObjectivesCompleted()) {
-                task.status = TaskStatus.COMPLETED;
-            }
-            reloadQuestList();
-            reloadDetail();
+        if (task.status == TaskStatus.ACTIVE && objective.isActive() && !objective.isFailureCondition()) {
             submitObjective(quest, task, objectiveIndex);
         }
     }
@@ -828,7 +831,7 @@ public class QuestBookUI extends UIElement {
     }
 
     private int objectiveTextColor(TaskObjectiveProgress objective) {
-        if (objective.completed) {
+        if (objective.isCompleted()) {
             return TEXT_GREEN;
         }
         if (objective.isFailureCondition()) {
@@ -945,15 +948,6 @@ public class QuestBookUI extends UIElement {
         return element;
     }
 
-    private static int statusColor(TaskStatus status) {
-        return switch (status) {
-            case ACTIVE -> TEXT_DARK;
-            case COMPLETED -> TEXT_GREEN;
-            case FAILED -> TEXT_RED;
-            case LOCKED, SKIPPED, HIDDEN -> TEXT_MUTED;
-        };
-    }
-
     private record QuestListGroup(PlayerQuestState quest, List<TaskProgress> tasks) {
     }
 
@@ -969,10 +963,6 @@ public class QuestBookUI extends UIElement {
 
         Component statusName() {
             return task.status.displayName();
-        }
-
-        int statusColor() {
-            return QuestBookUI.statusColor(task.status);
         }
 
     }

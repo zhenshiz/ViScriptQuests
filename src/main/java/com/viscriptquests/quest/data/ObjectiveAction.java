@@ -21,6 +21,9 @@ public class ObjectiveAction implements IPersistedSerializable {
     public QuestFlowEdge edge = new QuestFlowEdge();
     @Persisted
     public final List<IReward> rewards = new ArrayList<>();
+    // 当前目标完成并通过动作条件后要激活的后继目标 ID。
+    @Persisted
+    public final List<String> activateObjectiveIds = new ArrayList<>();
 
     public boolean isFor(String stepId, String objectiveId) {
         return this.stepId.equals(stepId == null ? "" : stepId)

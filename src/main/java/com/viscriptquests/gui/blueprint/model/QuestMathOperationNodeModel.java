@@ -1,20 +1,13 @@
 package com.viscriptquests.gui.blueprint.model;
 
-import com.lowdragmc.lowdraglib2.nodegraphtookit.gui.GraphElement;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.constant.Constant;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.NodeOption;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.PortModel;
 import com.viscriptquests.gui.blueprint.data.MathOperation;
 import com.viscriptquests.gui.blueprint.node.math.MathOperationNode;
-import org.jetbrains.annotations.Nullable;
 
 public class QuestMathOperationNodeModel extends QuestBlueprintNodeModel {
     private boolean growingInputs;
-
-    @Override
-    public @Nullable GraphElement<?> createElementUI() {
-        return new QuestBlueprintNodeElement(this);
-    }
 
     @Override
     public void onConnection(PortModel selfConnectedPortModel, PortModel otherConnectedPortModel) {

@@ -32,12 +32,19 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 
 /** 在屏幕上按配置位置排队展示大任务和小任务完成提示。 */
 public class QuestCompletionToastHud extends UIElement {
-    private static final int TOAST_WIDTH = 148;
-    private static final int TOAST_HEIGHT = 25;
-    private static final int ICON_SIZE = 16;
+    private static final float TOAST_WIDTH_PERCENT = 25.0f;
+    private static final float TOAST_HEIGHT_PERCENT = 10.0f;
+    private static final int ICON_SIZE = 36;
+    private static final float FONT_TITLE = 24.0f;
+    private static final float FONT_COMPLETED = 22.0f;
+    private static final int TITLE_HEIGHT = 34;
+    private static final int COMPLETED_HEIGHT = 30;
+    private static final int TEXT_COLUMN_HEIGHT = TITLE_HEIGHT + COMPLETED_HEIGHT;
     private static final int MAX_VISIBLE = 3;
     private static final int MAX_PENDING = 16;
     private static final long DISPLAY_MILLIS = 5_000L;
+    /** 内容按 GUI Scale 2 设计；运行时只缩放内容层，外框仍使用配置的屏幕百分比尺寸。 */
+    private static final float DESIGN_GUI_SCALE = 2.0f;
     private static final int TEXT_TITLE = 0xFFF1F1F1;
     private static final int TEXT_COMPLETED = 0xFFFFD84B;
     private static final IGuiTexture BACKGROUND = GuiTextureGroup.of(
@@ -50,6 +57,8 @@ public class QuestCompletionToastHud extends UIElement {
     private final List<ActiveToast> activeToasts = new ArrayList<>();
     private float lastX = Float.NaN;
     private float lastY = Float.NaN;
+    private double lastGuiScale = Double.NaN;
+    private float contentScale = 1.0f;
 
     public QuestCompletionToastHud() {
         setAllowHitTest(false);
@@ -67,7 +76,8 @@ public class QuestCompletionToastHud extends UIElement {
             layout.positionType(TaffyPosition.ABSOLUTE);
             layout.leftPercent(0);
             layout.topPercent(0);
-            layout.width(TOAST_WIDTH);
+            layout.widthPercent(TOAST_WIDTH_PERCENT);
+            layout.heightPercent(100);
             layout.flexDirection(FlexDirection.COLUMN);
             layout.gapAll(2);
         });
@@ -95,6 +105,7 @@ public class QuestCompletionToastHud extends UIElement {
     public void screenTick() {
         super.screenTick();
         updateLayoutFromConfig();
+        boolean scaleChanged = updateContentScale();
         if (!ClientConfig.SHOW_QUEST_COMPLETION_TOAST.get() || Minecraft.getInstance().player == null) {
             clearToasts();
             return;
@@ -107,7 +118,7 @@ public class QuestCompletionToastHud extends UIElement {
             activeToasts.add(new ActiveToast(pending, now + DISPLAY_MILLIS));
             changed = true;
         }
-        if (changed) {
+        if (changed || scaleChanged) {
             rebuildToasts();
         }
     }
@@ -126,6 +137,16 @@ public class QuestCompletionToastHud extends UIElement {
         });
     }
 
+    private boolean updateContentScale() {
+        double guiScale = Minecraft.getInstance().getWindow().getGuiScale();
+        if (guiScale <= 0.0d || Double.compare(guiScale, lastGuiScale) == 0) {
+            return false;
+        }
+        lastGuiScale = guiScale;
+        contentScale = (float) (DESIGN_GUI_SCALE / guiScale);
+        return true;
+    }
+
     private void clearToasts() {
         if (activeToasts.isEmpty() && PENDING.isEmpty()) {
             return;
@@ -139,23 +160,37 @@ public class QuestCompletionToastHud extends UIElement {
     private void rebuildToasts() {
         toastStack.clearAllChildren();
         for (ActiveToast toast : activeToasts) {
-            toastStack.addChild(createToast(toast.data));
+            toastStack.addChild(createToast(toast.data, contentScale));
         }
         toastStack.setVisible(!activeToasts.isEmpty());
     }
 
-    private static UIElement createToast(QuestCompletionToastData data) {
+    private static UIElement createToast(QuestCompletionToastData data, float contentScale) {
         UIElement card = new UIElement();
         card.setAllowHitTest(false);
         card.style(style -> style.backgroundTexture(BACKGROUND));
         card.layout(layout -> {
-            layout.width(TOAST_WIDTH);
-            layout.height(TOAST_HEIGHT);
+            layout.widthPercent(100);
+            layout.heightPercent(TOAST_HEIGHT_PERCENT);
+        });
+
+        UIElement content = new UIElement();
+        content.setAllowHitTest(false);
+        content.layout(layout -> {
+            layout.positionType(TaffyPosition.ABSOLUTE);
+            layout.left(0);
+            layout.top(0);
+            layout.widthPercent(100.0f / contentScale);
+            layout.heightPercent(100.0f / contentScale);
             layout.flexDirection(FlexDirection.ROW);
             layout.alignItems(AlignItems.CENTER);
             layout.paddingHorizontal(4);
-            layout.gapAll(4);
+            layout.paddingLeft(6);
+            layout.gapAll(6);
         });
+        content.transform(transform -> transform
+                .pivot(0.0f, 0.0f)
+                .scale(contentScale));
 
         UIElement icon = createIcon(data.icon, data.questCompletion);
         icon.setAllowHitTest(false);
@@ -169,16 +204,19 @@ public class QuestCompletionToastHud extends UIElement {
         textColumn.layout(layout -> {
             layout.width(0);
             layout.flex(1);
-            layout.height(19);
+            layout.height(TEXT_COLUMN_HEIGHT);
             layout.flexDirection(FlexDirection.COLUMN);
         });
 
-        Label title = label(Component.literal(data.title == null ? "" : data.title), 7.0f, TEXT_TITLE, 10);
+        Label title = label(Component.literal(data.title == null ? "" : data.title),
+                FONT_TITLE, TEXT_TITLE, TITLE_HEIGHT);
         Label completed = label(Component.translatable(data.questCompletion
                 ? "viscript_quests.completion_toast.quest_completed"
-                : "viscript_quests.completion_toast.task_completed"), 6.6f, TEXT_COMPLETED, 9);
+                : "viscript_quests.completion_toast.task_completed"),
+                FONT_COMPLETED, TEXT_COMPLETED, COMPLETED_HEIGHT);
         textColumn.addChildren(title, completed);
-        card.addChildren(icon, textColumn);
+        content.addChildren(icon, textColumn);
+        card.addChild(content);
         return card;
     }
 

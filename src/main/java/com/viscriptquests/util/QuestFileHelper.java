@@ -8,7 +8,6 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtAccounter;
 import net.minecraft.nbt.NbtIo;
-import net.minecraft.nbt.Tag;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -183,7 +182,12 @@ public final class QuestFileHelper {
 
     public static CompoundTag createProjectFileTag(CompoundTag graphTag) {
         CompoundTag root = new CompoundTag();
-        root.putString("version", "1.0");
+
+        CompoundTag meta = new CompoundTag();
+        meta.putString("version", "1.0");
+        meta.putString("suffix", PROJECT_SUFFIX);
+        meta.putString("name", PROJECT_NAME);
+        root.put("meta", meta);
 
         CompoundTag data = new CompoundTag();
         data.put("graph", graphTag.copy());
@@ -191,29 +195,16 @@ public final class QuestFileHelper {
         return root;
     }
 
-    public static CompoundTag extractProjectGraph(CompoundTag projectOrGraphTag) {
-        if (projectOrGraphTag.contains("data", Tag.TAG_COMPOUND)) {
-            CompoundTag data = projectOrGraphTag.getCompound("data");
-            if (data.contains("graph", Tag.TAG_COMPOUND)) {
-                return data.getCompound("graph").copy();
-            }
-        }
-        if (projectOrGraphTag.contains("graph", Tag.TAG_COMPOUND)) {
-            return projectOrGraphTag.getCompound("graph").copy();
-        }
-        return projectOrGraphTag.copy();
+    public static CompoundTag extractProjectGraph(CompoundTag projectTag) {
+        return projectTag.getCompound("data").getCompound("graph").copy();
     }
 
     public static CompoundTag readProjectFileTag(Path path) throws IOException {
-        try {
-            CompoundTag tag = NbtIo.read(path);
-            if (tag != null) {
-                return tag;
-            }
-        } catch (IOException | RuntimeException ignored) {
-            // 兼容旧版上传项目：旧文件是压缩的裸 graphTag，而 LDLib2 项目文件是不压缩的包装 NBT。
+        CompoundTag tag = NbtIo.read(path);
+        if (tag == null) {
+            throw new IOException("Empty quest project file: " + path);
         }
-        return NbtIo.readCompressed(path, NbtAccounter.unlimitedHeap());
+        return tag;
     }
 
     // 扫描项目目录下的所有 .questproj 文件，返回不带引号的项目 ID 用于命令补全。

@@ -43,33 +43,32 @@ final class QuestObjectiveProgressService {
             boolean sameObjective = Objects.equals(current.objectiveId, fresh.objectiveId);
             if (!sameObjective) {
                 current.currentAmount = 0;
-                current.completed = false;
+                current.status = fresh.status;
                 current.startedGameTime = -1L;
             }
             current.objectiveId = fresh.objectiveId;
             current.hint = fresh.displayHint();
             current.displayIcon = fresh.displayIcon;
             current.objectiveType = fresh.objectiveType;
+            current.showInObjectiveList = fresh.showInObjectiveList;
             current.requiredAmount = fresh.requiredAmount;
             current.manualSubmitRequired = fresh.manualSubmitRequired;
             current.guideMarker = fresh.guideMarker;
             current.progressTextOverride = fresh.progressTextOverride == null ? "" : fresh.progressTextOverride;
+            current.ponderComponentId = fresh.ponderComponentId == null ? "" : fresh.ponderComponentId;
+            current.ponderViewAction = fresh.ponderViewAction;
             boolean refreshFromPlayerState = i < tasks.size() && tasks.get(i).refreshesProgressFromPlayerState();
-            if (!current.completed && !current.manualSubmitRequired && refreshFromPlayerState) {
+            if (current.isActive() && !current.manualSubmitRequired && refreshFromPlayerState) {
                 current.progressTextOverride = "";
                 tasks.get(i).refreshObjectiveProgress(player, current, questVariables);
-            } else if (!refreshFromPlayerState) {
+            } else if (current.isActive() && !refreshFromPlayerState) {
                 current.currentAmount = Math.min(current.currentAmount, current.requiredAmount);
-                current.completed = current.completed || current.currentAmount >= current.requiredAmount;
             }
         }
         while (progress.objectives.size() > refreshed.objectives.size()) {
             progress.objectives.removeLast();
         }
-        progress.taskHint = refreshed.taskHint;
-        progress.displayIcon = refreshed.displayIcon;
-        progress.guideMarker = refreshed.guideMarker;
-        progress.manualSubmitRequired = progress.objectives.stream().anyMatch(objective -> objective.manualSubmitRequired);
+        progress.refreshSummary();
         return true;
     }
 }

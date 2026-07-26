@@ -7,7 +7,6 @@ import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.*;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.variable.VariableDeclarationModelBase;
 import com.viscriptquests.ViScriptQuestsRegistries;
 import com.viscriptquests.gui.blueprint.data.QuestRegistryId;
-import com.viscriptquests.gui.blueprint.node.QuestLinkedNode;
 import com.viscriptquests.quest.data.DisplayIcon;
 import com.viscriptquests.quest.data.ItemMatchRule;
 import com.viscriptquests.quest.data.QuestJoinMode;
@@ -15,7 +14,6 @@ import com.viscriptquests.quest.data.QuestSubmitMode;
 import com.viscriptquests.quest.data.TaskObjectiveType;
 import com.viscriptquests.quest.data.QuestValueToken;
 import com.viscriptquests.quest.data.QuestVariableValue;
-import com.viscriptquests.quest.data.LootTableConfig;
 import com.viscriptquests.quest.data.reward.LootTableReward;
 import lombok.Getter;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -32,10 +30,6 @@ public class QuestCompileContext {
     private final GraphModel graphModel;
     private final QuestVariableBindingData variableBindings;
     private final Map<String, QuestVariableValue> variableInitialValues = new LinkedHashMap<>();
-
-    public QuestCompileContext(GraphModel graphModel, Map<UUID, String> portUuidToVarName) {
-        this(graphModel, QuestVariableBindingData.fromLegacyPortMap(portUuidToVarName));
-    }
 
     public QuestCompileContext(GraphModel graphModel, QuestVariableBindingData variableBindings) {
         this.graphModel = graphModel;
@@ -84,7 +78,7 @@ public class QuestCompileContext {
     }
 
     public String getString(NodeModel nodeModel, String optionId) {
-        Constant constant = nodeModel.getInputConstantsById().get(NodeOption.PORT_ID_PREFIX + optionId);
+        Constant constant = getOptionConstant(nodeModel, optionId);
         if (constant != null && constant.getValue() instanceof String value) {
             return value;
         }
@@ -111,26 +105,34 @@ public class QuestCompileContext {
     }
 
     public boolean getBool(NodeModel nodeModel, String optionId) {
-        Constant constant = nodeModel.getInputConstantsById().get(NodeOption.PORT_ID_PREFIX + optionId);
+        return getBool(nodeModel, optionId, false);
+    }
+
+    public boolean getBool(NodeModel nodeModel, String optionId, boolean fallback) {
+        Constant constant = getOptionConstant(nodeModel, optionId);
         if (constant != null && constant.getValue() instanceof Boolean value) {
             return value;
         }
-        return false;
+        return fallback;
     }
 
     public int getInt(NodeModel nodeModel, String optionId) {
-        Constant constant = nodeModel.getInputConstantsById().get(NodeOption.PORT_ID_PREFIX + optionId);
+        return getInt(nodeModel, optionId, 0);
+    }
+
+    public int getInt(NodeModel nodeModel, String optionId, int fallback) {
+        Constant constant = getOptionConstant(nodeModel, optionId);
         if (constant != null && constant.getValue() instanceof Integer value) {
             return value;
         }
         if (constant != null && constant.getValue() instanceof Number number) {
             return number.intValue();
         }
-        return 0;
+        return fallback;
     }
 
     public float getFloat(NodeModel nodeModel, String optionId) {
-        Constant constant = nodeModel.getInputConstantsById().get(NodeOption.PORT_ID_PREFIX + optionId);
+        Constant constant = getOptionConstant(nodeModel, optionId);
         if (constant != null && constant.getValue() instanceof Float value) {
             return value;
         }
@@ -140,95 +142,38 @@ public class QuestCompileContext {
         return 0.0f;
     }
 
+    public double getDouble(NodeModel nodeModel, String optionId, double fallback) {
+        Constant constant = getOptionConstant(nodeModel, optionId);
+        if (constant != null && constant.getValue() instanceof Number number) {
+            return number.doubleValue();
+        }
+        return fallback;
+    }
+
+    public Object getOptionValue(NodeModel nodeModel, String optionId) {
+        Constant constant = getOptionConstant(nodeModel, optionId);
+        return constant == null ? null : constant.getValue();
+    }
+
+    private Constant getOptionConstant(NodeModel nodeModel, String optionId) {
+        return nodeModel.getInputConstantsById().get(NodeOption.PORT_ID_PREFIX + optionId);
+    }
+
     public QuestSubmitMode getSubmitMode(NodeModel nodeModel, String optionId) {
         Constant constant = nodeModel.getInputConstantsById().get(NodeOption.PORT_ID_PREFIX + optionId);
-        if (constant == null) {
-            return QuestSubmitMode.AUTO;
-        }
-        Object value = constant.getValue();
-        if (value instanceof QuestSubmitMode mode) {
-            return mode;
-        }
-        if (value instanceof String serializedName) {
-            for (QuestSubmitMode mode : QuestSubmitMode.values()) {
-                if (mode.name().equalsIgnoreCase(serializedName)
-                        || mode.getSerializedName().equals(serializedName)
-                        || mode.getName().equals(serializedName)) {
-                    return mode;
-                }
-            }
-        }
-        if (value instanceof Number index) {
-            QuestSubmitMode[] modes = QuestSubmitMode.values();
-            int ordinal = index.intValue();
-            if (ordinal >= 0 && ordinal < modes.length) {
-                return modes[ordinal];
-            }
-        }
-        return QuestSubmitMode.AUTO;
+        return constant != null && constant.getValue() instanceof QuestSubmitMode mode
+                ? mode
+                : QuestSubmitMode.AUTO;
     }
 
     public TaskObjectiveType getObjectiveType(NodeModel nodeModel, String optionId) {
         Constant constant = nodeModel.getInputConstantsById().get(NodeOption.PORT_ID_PREFIX + optionId);
-        if (constant == null) {
-            return TaskObjectiveType.REQUIRED;
-        }
-        Object value = constant.getValue();
-        if (value instanceof TaskObjectiveType type) {
-            return type;
-        }
-        if (value instanceof String serializedName) {
-            for (TaskObjectiveType type : TaskObjectiveType.values()) {
-                if (type.name().equalsIgnoreCase(serializedName)
-                        || type.getSerializedName().equals(serializedName)
-                        || type.getName().equals(serializedName)) {
-                    return type;
-                }
-            }
-        }
-        if (value instanceof Number index) {
-            TaskObjectiveType[] types = TaskObjectiveType.values();
-            int ordinal = index.intValue();
-            if (ordinal >= 0 && ordinal < types.length) {
-                return types[ordinal];
-            }
-        }
-        return TaskObjectiveType.REQUIRED;
+        return constant != null && constant.getValue() instanceof TaskObjectiveType type
+                ? type
+                : TaskObjectiveType.REQUIRED;
     }
 
-    public LootTableReward.LootTableType getLootTableType(NodeModel nodeModel, String optionId) {
-        Constant constant = nodeModel.getInputConstantsById().get(NodeOption.PORT_ID_PREFIX + optionId);
-        if (constant == null) {
-            return LootTableReward.LootTableType.DATA_PACK;
-        }
-        Object value = constant.getValue();
-        if (value instanceof LootTableReward.LootTableType type) {
-            return type;
-        }
-        if (value instanceof String serializedName) {
-            for (LootTableReward.LootTableType type : LootTableReward.LootTableType.values()) {
-                if (type.name().equalsIgnoreCase(serializedName)
-                        || type.getSerializedName().equals(serializedName)) {
-                    return type;
-                }
-            }
-        }
-        if (value instanceof Number index) {
-            LootTableReward.LootTableType[] types = LootTableReward.LootTableType.values();
-            int ordinal = index.intValue();
-            if (ordinal >= 0 && ordinal < types.length) {
-                return types[ordinal];
-            }
-        }
-        return LootTableReward.LootTableType.DATA_PACK;
-    }
-
-    // 读取流程小任务节点的 ID；旧项目可继续使用已保存的 step_id，新项目直接用节点 UUID。
     public String resolveStepId(NodeModel nodeModel) {
-        String legacyStepId = getString(nodeModel, QuestLinkedNode.STEP_ID_OPTION);
-        if (legacyStepId != null && !legacyStepId.isBlank()) {
-            return legacyStepId;
-        }
         return nodeModel == null || nodeModel.getUid() == null ? "" : nodeModel.getUid().toString();
     }
 
@@ -280,20 +225,6 @@ public class QuestCompileContext {
             return reward.copyLootOptions();
         }
         return null;
-    }
-
-    public List<LootTableConfig> getLootTableConfigs(NodeModel nodeModel, String optionId) {
-        Constant constant = nodeModel.getInputConstantsById().get(NodeOption.PORT_ID_PREFIX + optionId);
-        if (constant != null && constant.getValue() instanceof Collection<?> collection) {
-            List<LootTableConfig> configs = new ArrayList<>();
-            for (Object value : collection) {
-                if (value instanceof LootTableConfig config) {
-                    configs.add(config.copy());
-                }
-            }
-            return configs;
-        }
-        return List.of();
     }
 
     public QuestJoinMode getJoinMode(NodeModel nodeModel) {

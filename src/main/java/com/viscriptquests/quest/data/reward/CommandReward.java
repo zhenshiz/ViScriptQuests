@@ -7,7 +7,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.Items;
 
-// 指令奖励，以领奖玩家作为命令源执行服务端指令，方便指令中的 @s 指向该玩家。
+// 指令奖励，以领奖玩家作为命令源依次执行服务端指令，方便指令中的 @s 指向该玩家。
 @LDLRegister(name = "command_reward", registry = IReward.ID)
 public class CommandReward extends IReward {
     @Persisted
@@ -22,9 +22,14 @@ public class CommandReward extends IReward {
         if (commandText.isEmpty()) {
             return;
         }
-        player.getServer().getCommands().performPrefixedCommand(
-                player.createCommandSourceStack().withPermission(2).withSuppressedOutput(),
-                commandText);
+        var commandSource = player.createCommandSourceStack().withPermission(2).withSuppressedOutput();
+        for (String entry : commandText.split(";")) {
+            String currentCommand = entry.trim();
+            if (currentCommand.isEmpty()) {
+                continue;
+            }
+            player.getServer().getCommands().performPrefixedCommand(commandSource, currentCommand);
+        }
     }
 
     @Override

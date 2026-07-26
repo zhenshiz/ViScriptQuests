@@ -5,6 +5,7 @@ import com.viscriptquests.quest.data.QuestFile;
 import com.viscriptquests.quest.data.QuestFlowEdge;
 import com.viscriptquests.quest.data.QuestFlowNode;
 import com.viscriptquests.quest.data.QuestJoinMode;
+import com.viscriptquests.quest.data.ObjectiveAction;
 import com.viscriptquests.quest.data.QuestStep;
 import com.viscriptquests.quest.data.task.ITask;
 
@@ -27,6 +28,7 @@ public final class QuestBlueprintValidator {
         validateReachableFlow(nodes, reachable);
         validateEdges(questFile, nodes, reachable);
         validateSubQuestTargets(questFile, nodes, reachable);
+        validateObjectiveFlow(questFile);
         validateSubQuestResultOutputs(questFile, nodes, reachable);
         validateBranchNodes(questFile, nodes, reachable);
         validateJoinNodes(questFile, nodes, reachable);
@@ -137,6 +139,79 @@ public final class QuestBlueprintValidator {
                         displayNode(node.stepId));
             }
         }
+    }
+
+    private static void validateObjectiveFlow(QuestFile questFile) {
+        Map<String, Map<String, ITask>> tasksByStep = new LinkedHashMap<>();
+        for (ITask task : questFile.tasks) {
+            if (task == null || task.stepId == null || task.stepId.isBlank()
+                    || task.objectiveId == null || task.objectiveId.isBlank()) {
+                continue;
+            }
+            Map<String, ITask> tasks = tasksByStep.computeIfAbsent(task.stepId, ignored -> new LinkedHashMap<>());
+            if (tasks.putIfAbsent(task.objectiveId, task) != null) {
+                throw QuestBlueprintValidationException.create(
+                        "viscript_quests.editor.quest.export.validation.objective_duplicate",
+                        displayNode(task.objectiveId));
+            }
+        }
+
+        for (var stepEntry : tasksByStep.entrySet()) {
+            String stepId = stepEntry.getKey();
+            Map<String, ITask> tasks = stepEntry.getValue();
+            if (tasks.values().stream().noneMatch(task -> task.initiallyActive)) {
+                throw QuestBlueprintValidationException.create(
+                        "viscript_quests.editor.quest.export.validation.objective_flow_no_start",
+                        displayNode(stepId));
+            }
+
+            Map<String, Set<String>> edges = new LinkedHashMap<>();
+            for (ObjectiveAction action : questFile.objectiveActions) {
+                if (action == null || !stepId.equals(action.stepId) || action.activateObjectiveIds.isEmpty()) {
+                    continue;
+                }
+                if (!tasks.containsKey(action.objectiveId)) {
+                    throw QuestBlueprintValidationException.create(
+                            "viscript_quests.editor.quest.export.validation.objective_activation_source_missing",
+                            displayNode(action.objectiveId), displayNode(stepId));
+                }
+                for (String targetId : action.activateObjectiveIds) {
+                    if (!tasks.containsKey(targetId)) {
+                        throw QuestBlueprintValidationException.create(
+                                "viscript_quests.editor.quest.export.validation.objective_activation_target_missing",
+                                displayNode(targetId), displayNode(stepId));
+                    }
+                    edges.computeIfAbsent(action.objectiveId, ignored -> new LinkedHashSet<>()).add(targetId);
+                }
+            }
+            Set<String> visiting = new LinkedHashSet<>();
+            Set<String> visited = new LinkedHashSet<>();
+            for (String objectiveId : tasks.keySet()) {
+                if (hasObjectiveCycle(objectiveId, edges, visiting, visited)) {
+                    throw QuestBlueprintValidationException.create(
+                            "viscript_quests.editor.quest.export.validation.objective_flow_cycle",
+                            displayNode(objectiveId));
+                }
+            }
+        }
+    }
+
+    private static boolean hasObjectiveCycle(String objectiveId, Map<String, Set<String>> edges,
+                                             Set<String> visiting, Set<String> visited) {
+        if (visited.contains(objectiveId)) {
+            return false;
+        }
+        if (!visiting.add(objectiveId)) {
+            return true;
+        }
+        for (String targetId : edges.getOrDefault(objectiveId, Set.of())) {
+            if (hasObjectiveCycle(targetId, edges, visiting, visited)) {
+                return true;
+            }
+        }
+        visiting.remove(objectiveId);
+        visited.add(objectiveId);
+        return false;
     }
 
     private static void validateEdges(QuestFile questFile, Map<String, QuestFlowNode> nodes, Set<String> reachable) {

@@ -135,6 +135,9 @@ public class TrackedQuestHud extends UIElement {
             return;
         }
         for (TaskObjectiveProgress objective : snapshot.task().objectives) {
+            if (objective == null || !objective.isVisibleInHud()) {
+                continue;
+            }
             objectivesColumn.addChild(createObjectiveRow(objective.displayIcon, objective.progressHint(), objective.displayTextColor()));
         }
     }
@@ -229,12 +232,21 @@ public class TrackedQuestHud extends UIElement {
         }
         StringBuilder key = new StringBuilder();
         for (TaskObjectiveProgress objective : snapshot.task().objectives) {
+            if (objective == null) {
+                key.append("null;");
+                continue;
+            }
+            key.append(objective.isVisibleInHud() ? "visible|" : "hidden|")
+                    .append(objective.status).append(';');
+            if (!objective.isVisibleInHud()) {
+                continue;
+            }
             key.append(objective.displayHint().getString())
                     .append('|').append(objective.objectiveType)
                     .append('|').append(objective.currentAmount)
                     .append('/').append(objective.requiredAmount)
                     .append('|').append(objective.progressTextOverride)
-                    .append('|').append(objective.completed)
+                    .append('|').append(objective.status)
                     .append('|').append(objective.ponderViewAction)
                     .append('|').append(objective.ponderComponentId)
                     .append('|').append(iconKey(objective.displayIcon))

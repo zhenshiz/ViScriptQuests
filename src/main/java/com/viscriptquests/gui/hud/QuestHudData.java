@@ -67,7 +67,7 @@ public final class QuestHudData {
             List<MarkerState> markers = new ArrayList<>();
             if (!task.objectives.isEmpty()) {
                 for (TaskObjectiveProgress objective : task.objectives) {
-                    if (objective == null || objective.completed || objective.guideMarker == null
+                    if (objective == null || !objective.isActive() || objective.guideMarker == null
                             || !objective.guideMarker.isEnabled()) {
                         continue;
                     }

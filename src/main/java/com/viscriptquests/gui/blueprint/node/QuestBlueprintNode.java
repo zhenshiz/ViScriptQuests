@@ -5,6 +5,8 @@ import com.lowdragmc.lowdraglib2.nodegraphtookit.api.node.Node;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.api.port.IPortBuilder;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.api.type.TypeHandle;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.api.type.TypeHandles;
+import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.NodeModel;
+import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.NodeOption;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.definition.IOptionDefinitionContext;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.definition.IPortDefinitionContext;
 import com.viscriptquests.ViScriptQuests;
@@ -21,6 +23,12 @@ import net.minecraft.world.level.block.Block;
 // 任务蓝图节点的公共基类，提供端口/选项的便捷方法和翻译键支持
 public abstract class QuestBlueprintNode extends Node {
     public static final String ID = ViScriptQuests.MOD_ID + ":";
+    public static final String SHOW_IN_OBJECTIVE_LIST_OPTION = "show_in_objective_list";
+    public static final String OBJECTIVE_ICON_OPTION = "objective_icon";
+    public static final String TASK_HINT_OPTION = "task_hint";
+    public static final String SHOW_IN_REWARD_LIST_OPTION = "show_in_reward_list";
+    public static final String REWARD_ICON_OPTION = "reward_icon";
+    public static final String REWARD_TOOLTIP_OPTION = "reward_tooltip";
 
     public static final String DEBUG_GROUP = "debug";
     public static final String FLOW_GROUP = "flow";
@@ -50,7 +58,11 @@ public abstract class QuestBlueprintNode extends Node {
     }
 
     protected void taskHintOption(IOptionDefinitionContext context) {
-        stringOption(context, "task_hint", "");
+        boolOption(context, SHOW_IN_OBJECTIVE_LIST_OPTION, true);
+        if (getBoolOptionValue(SHOW_IN_OBJECTIVE_LIST_OPTION, true)) {
+            displayIconOption(context, OBJECTIVE_ICON_OPTION);
+            stringOption(context, TASK_HINT_OPTION, "");
+        }
     }
 
     protected void taskCommonOptions(IOptionDefinitionContext context) {
@@ -64,8 +76,11 @@ public abstract class QuestBlueprintNode extends Node {
     }
 
     protected void rewardCommonOptions(IOptionDefinitionContext context) {
-        displayIconOption(context, "reward_icon");
-        stringOption(context, "reward_tooltip", "");
+        boolOption(context, SHOW_IN_REWARD_LIST_OPTION, true);
+        if (getBoolOptionValue(SHOW_IN_REWARD_LIST_OPTION, true)) {
+            displayIconOption(context, REWARD_ICON_OPTION);
+            stringOption(context, REWARD_TOOLTIP_OPTION, "");
+        }
         if (QuestTeamService.isLoaded()) {
             boolOption(context, "team_leader_only", false);
         }
@@ -120,8 +135,33 @@ public abstract class QuestBlueprintNode extends Node {
         option(context, id, TypeHandles.FLOAT, defaultValue);
     }
 
+    protected void doubleOption(IOptionDefinitionContext context, String id, double defaultValue) {
+        option(context, id, TypeHandles.DOUBLE, defaultValue);
+    }
+
     protected void boolOption(IOptionDefinitionContext context, String id, boolean defaultValue) {
         option(context, id, TypeHandles.BOOL, defaultValue);
+    }
+
+    private boolean getBoolOptionValue(String id, boolean fallback) {
+        Object value = getOptionValue(id);
+        return value instanceof Boolean booleanValue ? booleanValue : fallback;
+    }
+
+    protected Object getOptionValue(String id) {
+        if (!(getNodeModel() instanceof NodeModel model)) {
+            return null;
+        }
+        var constant = model.getInputConstantsById().get(NodeOption.PORT_ID_PREFIX + id);
+        return constant == null ? null : constant.getValue();
+    }
+
+    // 动态表单暂时省略这些选项时保留其值，重新显示后继续使用作者原先填写的内容。
+    public boolean retainsOptionValue(String optionId) {
+        return TASK_HINT_OPTION.equals(optionId)
+                || OBJECTIVE_ICON_OPTION.equals(optionId)
+                || REWARD_ICON_OPTION.equals(optionId)
+                || REWARD_TOOLTIP_OPTION.equals(optionId);
     }
 
     protected void itemStackOption(IOptionDefinitionContext context, String id) {

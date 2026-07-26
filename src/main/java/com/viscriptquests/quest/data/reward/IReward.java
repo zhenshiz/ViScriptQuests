@@ -35,6 +35,9 @@ public abstract class IReward implements ILDLRegister<IReward, Supplier<IReward>
     // ViScriptTeam 联动：开启后队伍任务奖励只发给队长；未安装 VST 或玩家无队伍时仍发给当前玩家。
     @Persisted
     public boolean teamLeaderOnly = false;
+    // 是否在任务书奖励栏中展示；不影响奖励实际发放。
+    @Persisted
+    public boolean showInRewardList = true;
     // 任务书中的奖励展示图标；未配置时由具体奖励类型提供默认图标。
     @Persisted
     public DisplayIcon rewardIcon = new DisplayIcon();

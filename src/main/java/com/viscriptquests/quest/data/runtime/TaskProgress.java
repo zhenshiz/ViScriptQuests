@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 // 任务目标的运行时进度追踪
 public class TaskProgress implements IPersistedSerializable {
@@ -56,10 +57,7 @@ public class TaskProgress implements IPersistedSerializable {
         }
         TaskObjectiveProgress objective = TaskObjectiveProgress.fromTask(task, player, questVariables);
         progress.objectives.add(objective);
-        progress.manualSubmitRequired = objective.manualSubmitRequired;
-        progress.taskHint = objective.displayHint();
-        progress.displayIcon = objective.displayIcon;
-        progress.guideMarker = objective.guideMarker.copy();
+        progress.refreshSummary();
         progress.status = TaskStatus.ACTIVE;
         return progress;
     }
@@ -87,13 +85,7 @@ public class TaskProgress implements IPersistedSerializable {
         for (ITask task : tasks) {
             progress.objectives.add(TaskObjectiveProgress.fromTask(task, player, questVariables));
         }
-        progress.manualSubmitRequired = progress.objectives.stream().anyMatch(objective -> objective.manualSubmitRequired);
-        progress.taskHint = joinObjectiveHints(progress.objectives);
-        TaskObjectiveProgress displayObjective = selectDisplayObjective(progress.objectives);
-        progress.displayIcon = displayObjective.displayIcon;
-        progress.guideMarker = displayObjective.guideMarker == null
-                ? QuestGuideMarker.disabled()
-                : displayObjective.guideMarker.copy();
+        progress.refreshSummary();
         progress.status = TaskStatus.ACTIVE;
         return progress;
     }
@@ -104,7 +96,7 @@ public class TaskProgress implements IPersistedSerializable {
 
     public void refreshObjectives(QuestFile questFile, net.minecraft.server.level.ServerPlayer player,
                                   Map<String, QuestVariableValue> questVariables) {
-        if (questFile == null || stepId == null || stepId.isBlank()) {
+        if (status != TaskStatus.ACTIVE || questFile == null || stepId == null || stepId.isBlank()) {
             return;
         }
         List<ITask> tasks = questFile.findTasksForStep(stepId);
@@ -114,10 +106,6 @@ public class TaskProgress implements IPersistedSerializable {
         net.minecraft.server.level.ServerPlayer refreshPlayer = status == TaskStatus.ACTIVE ? player : null;
         TaskProgress refreshed = fromTasks(stepId, tasks, questFile.findStep(stepId).orElse(null), refreshPlayer,
                 questVariables);
-        taskHint = refreshed.taskHint;
-        manualSubmitRequired = refreshed.manualSubmitRequired;
-        displayIcon = refreshed.displayIcon;
-        guideMarker = refreshed.guideMarker;
         for (int i = 0; i < refreshed.objectives.size(); i++) {
             TaskObjectiveProgress refreshedObjective = refreshed.objectives.get(i);
             if (i >= objectives.size()) {
@@ -128,13 +116,14 @@ public class TaskProgress implements IPersistedSerializable {
             boolean sameObjective = Objects.equals(current.objectiveId, refreshedObjective.objectiveId);
             if (!sameObjective) {
                 current.currentAmount = 0;
-                current.completed = false;
+                current.status = refreshedObjective.status;
                 current.startedGameTime = -1L;
             }
             current.objectiveId = refreshedObjective.objectiveId;
             current.hint = refreshedObjective.displayHint();
             current.displayIcon = refreshedObjective.displayIcon;
             current.objectiveType = refreshedObjective.objectiveType;
+            current.showInObjectiveList = refreshedObjective.showInObjectiveList;
             current.requiredAmount = refreshedObjective.requiredAmount;
             current.manualSubmitRequired = refreshedObjective.manualSubmitRequired;
             current.guideMarker = refreshedObjective.guideMarker;
@@ -146,46 +135,96 @@ public class TaskProgress implements IPersistedSerializable {
                     : refreshedObjective.ponderComponentId;
             current.ponderViewAction = refreshedObjective.ponderViewAction;
             boolean refreshFromPlayerState = i < tasks.size() && tasks.get(i).refreshesProgressFromPlayerState();
-            if (!current.completed && !current.manualSubmitRequired && refreshFromPlayerState && refreshPlayer != null) {
+            if (current.isActive() && !current.manualSubmitRequired
+                    && refreshFromPlayerState && refreshPlayer != null) {
                 current.progressTextOverride = "";
                 tasks.get(i).refreshObjectiveProgress(refreshPlayer, current, questVariables);
-            } else if (!refreshFromPlayerState) {
+            } else if (current.isActive() && !refreshFromPlayerState) {
                 current.currentAmount = Math.min(current.currentAmount, current.requiredAmount);
-                current.completed = current.completed || current.currentAmount >= current.requiredAmount;
-            } else if (current.manualSubmitRequired) {
+            } else if (current.isActive() && current.manualSubmitRequired) {
                 current.currentAmount = Math.min(current.currentAmount, current.requiredAmount);
-                current.completed = current.completed || current.currentAmount >= current.requiredAmount;
             }
         }
         while (objectives.size() > refreshed.objectives.size()) {
             objectives.removeLast();
         }
+        refreshSummary();
     }
 
     public boolean areAllObjectivesCompleted() {
         if (objectives.isEmpty() || hasTriggeredFailureObjective()) {
             return false;
         }
-        boolean hasRequired = objectives.stream()
-                .anyMatch(objective -> objective != null && objective.isRequired());
+        boolean hasRequired = objectives.stream().anyMatch(objective -> objective != null
+                && objective.isRequired() && !objective.isLocked() && !objective.isSkipped());
         if (hasRequired) {
             return objectives.stream()
                     .filter(objective -> objective != null && objective.isRequired())
-                    .allMatch(objective -> objective.completed);
+                    .filter(objective -> !objective.isLocked() && !objective.isSkipped())
+                    .allMatch(TaskObjectiveProgress::isCompleted);
         }
-        boolean hasOptional = objectives.stream()
-                .anyMatch(objective -> objective != null && objective.isOptional());
+        boolean hasOptional = objectives.stream().anyMatch(objective -> objective != null
+                && objective.isOptional() && !objective.isLocked() && !objective.isSkipped());
         if (!hasOptional) {
             return false;
         }
         return objectives.stream()
                 .filter(objective -> objective != null && objective.isOptional())
-                .allMatch(objective -> objective.completed);
+                .filter(objective -> !objective.isLocked() && !objective.isSkipped())
+                .allMatch(TaskObjectiveProgress::isCompleted);
     }
 
     public boolean hasTriggeredFailureObjective() {
         return objectives.stream()
-                .anyMatch(objective -> objective != null && objective.isFailureCondition() && objective.completed);
+                .anyMatch(objective -> objective != null
+                        && objective.isFailureCondition() && objective.isCompleted());
+    }
+
+    public Optional<TaskObjectiveProgress> findObjectiveProgress(String objectiveId) {
+        if (objectiveId == null || objectiveId.isBlank()) {
+            return Optional.empty();
+        }
+        return objectives.stream()
+                .filter(objective -> objective != null && objectiveId.equals(objective.objectiveId))
+                .findFirst();
+    }
+
+    public void skipUnfinishedObjectives() {
+        for (TaskObjectiveProgress objective : objectives) {
+            if (objective != null && !objective.isCompleted()) {
+                objective.skip();
+            }
+        }
+        refreshSummary();
+    }
+
+    public void lockObjectives() {
+        for (TaskObjectiveProgress objective : objectives) {
+            if (objective != null) {
+                objective.status = ObjectiveStatus.LOCKED;
+                objective.currentAmount = 0;
+                objective.startedGameTime = -1L;
+                objective.progressTextOverride = "";
+            }
+        }
+        refreshSummary();
+    }
+
+    public void refreshSummary() {
+        manualSubmitRequired = objectives.stream()
+                .anyMatch(objective -> objective != null
+                        && objective.isActive() && objective.manualSubmitRequired);
+        taskHint = joinObjectiveHints(objectives);
+        if (objectives.isEmpty()) {
+            displayIcon = new DisplayIcon();
+            guideMarker = QuestGuideMarker.disabled();
+            return;
+        }
+        TaskObjectiveProgress displayObjective = selectDisplayObjective(objectives);
+        displayIcon = displayObjective.displayIcon;
+        guideMarker = displayObjective.guideMarker == null
+                ? QuestGuideMarker.disabled()
+                : displayObjective.guideMarker.copy();
     }
 
     public Component displayTaskHint() {
@@ -196,7 +235,9 @@ public class TaskProgress implements IPersistedSerializable {
         Component result = Component.empty();
         boolean appended = false;
         for (TaskObjectiveProgress objective : objectives) {
-            if (objective == null || objective.displayHint().getString().isBlank()) {
+            if (objective == null
+                    || !objective.isVisibleInHud()
+                    || objective.displayHint().getString().isBlank()) {
                 continue;
             }
             if (appended) {
@@ -210,15 +251,18 @@ public class TaskProgress implements IPersistedSerializable {
 
     private static TaskObjectiveProgress selectDisplayObjective(List<TaskObjectiveProgress> objectives) {
         return objectives.stream()
-                .filter(objective -> objective != null && !objective.isFailureCondition())
+                .filter(objective -> objective != null && objective.isActive() && !objective.isFailureCondition())
                 .filter(objective -> objective.guideMarker != null && objective.guideMarker.isEnabled())
                 .findFirst()
                 .orElseGet(() -> objectives.stream()
-                        .filter(objective -> objective != null && objective.guideMarker != null && objective.guideMarker.isEnabled())
+                        .filter(objective -> objective != null && objective.isActive() && !objective.isFailureCondition())
                         .findFirst()
                         .orElseGet(() -> objectives.stream()
-                                .filter(objective -> objective != null && !objective.isFailureCondition())
+                                .filter(objective -> objective != null && objective.isActive())
                                 .findFirst()
-                                .orElse(objectives.getFirst())));
+                                .orElseGet(() -> objectives.stream()
+                                        .filter(objective -> objective != null && objective.isCompleted())
+                                        .findFirst()
+                                        .orElse(objectives.getFirst()))));
     }
 }

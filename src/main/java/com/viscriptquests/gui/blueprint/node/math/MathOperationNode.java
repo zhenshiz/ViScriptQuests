@@ -82,10 +82,7 @@ public class MathOperationNode extends QuestBlueprintNode {
     }
 
     private MathOperation selectedOperation() {
-        if (getNodeModel() instanceof NodeModel nodeModel) {
-            return operationOf(nodeModel);
-        }
-        return MathOperation.ADD;
+        return MathOperation.fromValue(getOptionValue(OPERATION_OPTION));
     }
 
     private int selectedInputCount() {
@@ -93,6 +90,11 @@ public class MathOperationNode extends QuestBlueprintNode {
             return inputCountOf(nodeModel);
         }
         return MIN_INPUT_COUNT;
+    }
+
+    @Override
+    public boolean retainsOptionValue(String optionId) {
+        return super.retainsOptionValue(optionId) || INPUT_COUNT_OPTION.equals(optionId);
     }
 
     private void addIndexedValueInput(IPortDefinitionContext context, int index, float defaultValue) {

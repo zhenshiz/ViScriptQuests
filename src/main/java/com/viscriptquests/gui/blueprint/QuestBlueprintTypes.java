@@ -5,16 +5,12 @@ import com.lowdragmc.lowdraglib2.LDLib2;
 import com.lowdragmc.lowdraglib2.configurator.IConfigurable;
 import com.lowdragmc.lowdraglib2.configurator.accessors.EnumAccessor;
 import com.lowdragmc.lowdraglib2.configurator.accessors.ItemStackAccessor;
-import com.lowdragmc.lowdraglib2.configurator.annotation.ConfigNumber;
 import com.lowdragmc.lowdraglib2.configurator.ui.ArrayConfiguratorGroup;
-import com.lowdragmc.lowdraglib2.configurator.ui.ColorConfigurator;
 import com.lowdragmc.lowdraglib2.configurator.ui.Configurator;
 import com.lowdragmc.lowdraglib2.configurator.ui.ConfiguratorGroup;
 import com.lowdragmc.lowdraglib2.configurator.ui.ConfiguratorSelectorConfigurator;
 import com.lowdragmc.lowdraglib2.configurator.ui.DataComponentConfigurator;
-import com.lowdragmc.lowdraglib2.configurator.ui.NumberConfigurator;
 import com.lowdragmc.lowdraglib2.configurator.ui.RegistrySearchComponent;
-import com.lowdragmc.lowdraglib2.configurator.ui.SelectorConfigurator;
 import com.lowdragmc.lowdraglib2.configurator.ui.StringConfigurator;
 import com.lowdragmc.lowdraglib2.gui.ColorPattern;
 import com.lowdragmc.lowdraglib2.gui.sync.bindings.impl.SupplierDataSource;
@@ -22,7 +18,6 @@ import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
 import com.lowdragmc.lowdraglib2.gui.texture.Icons;
 import com.lowdragmc.lowdraglib2.gui.texture.ItemStackTexture;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
-import com.lowdragmc.lowdraglib2.gui.ui.data.Tooltips;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Dialog;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
@@ -33,8 +28,6 @@ import com.lowdragmc.lowdraglib2.nodegraphtookit.api.type.TypeHandleHelpers;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.api.type.TypeHandles;
 import com.viscript_lib.util.item.ItemStackCompareMode;
 import com.viscriptquests.ViScriptQuests;
-import com.viscriptquests.gui.blueprint.data.LocationMarkerConfig;
-import com.viscriptquests.gui.blueprint.data.LocationTargetConfig;
 import com.viscriptquests.gui.blueprint.data.QuestRegistryId;
 import com.viscriptquests.gui.blueprint.data.MathOperation;
 import com.viscriptquests.quest.data.CompareOp;
@@ -82,12 +75,8 @@ public final class QuestBlueprintTypes {
     public static final TypeHandle LOCATION_TARGET_TYPE = TypeHandleHelpers.fromType(LocationTargetType.class);
     // 位置目标的导航标记提供方：本模组 HUD 或外部小地图。
     public static final TypeHandle LOCATION_MARKER_PROVIDER = TypeHandleHelpers.fromType(LocationGuideMarkerProvider.class);
-    // 到达位置节点的复合目标配置。使用单个稳定 option，内部根据目标类型切换子表单。
-    public static final TypeHandle LOCATION_TARGET_CONFIG = TypeHandleHelpers.customType(LocationTargetConfig.class,
-            namespacedType("location_target_config"), "LocationTargetConfig");
-    // 到达位置节点的复合导航标配置。使用单个稳定 option，内部根据导航标类型切换子表单。
-    public static final TypeHandle LOCATION_MARKER_CONFIG = TypeHandleHelpers.customType(LocationMarkerConfig.class,
-            namespacedType("location_marker_config"), "LocationMarkerConfig");
+    // 外部小地图导航点使用的固定色板。
+    public static final TypeHandle LOCATION_WAYPOINT_COLOR = TypeHandleHelpers.fromType(LocationWaypointColor.class);
     // 比较节点的比较模式枚举
     public static final TypeHandle COMPARE_OP = TypeHandleHelpers.fromType(CompareOp.class);
     // 计分板/变量修改节点复用的数值写入运算模式
@@ -127,8 +116,6 @@ public final class QuestBlueprintTypes {
         registerItemIdentityStackType(ITEM_IDENTITY_STACK);
         registerItemMatchRuleType(ITEM_MATCH_RULE);
         registerLootTableRewardType(LOOT_TABLE_REWARD);
-        registerLocationTargetConfigType(LOCATION_TARGET_CONFIG);
-        registerLocationMarkerConfigType(LOCATION_MARKER_CONFIG);
         registerRegistryIdType(DIMENSION_ID, "minecraft:overworld");
         registerRegistryIdType(ENTITY_TYPE_ID, "minecraft:pig");
         registerRegistryIdType(ANY_ENTITY_TYPE_ID, "minecraft:pig");
@@ -201,36 +188,6 @@ public final class QuestBlueprintTypes {
                 }));
     }
 
-    private static void registerLocationTargetConfigType(TypeHandle typeHandle) {
-        TypeHandleHelpers.setCustomColorAndIcon(typeHandle, 0xFF60C5FF, Icons.RESOURCE.copy().setColor(0xFF60C5FF));
-        TypeHandleHelpers.setCustomDefaultValue(typeHandle, LocationTargetConfig::defaults);
-        TypeHandleHelpers.setCustomConfigurable(typeHandle, (valueConfigurable, ignored) ->
-                IConfigurable.create(father -> {
-                    LocationTargetConfig target = valueConfigurable.getValue();
-                    if (target == null) {
-                        target = copyOrDefaultLocationTarget(valueConfigurable.getDefaultValue());
-                        valueConfigurable.setValue(target);
-                    }
-                    target.ensureDefaults();
-                    father.addConfigurator(createLocationTargetConfigConfigurator(target, valueConfigurable::notifyValueChanged));
-                }));
-    }
-
-    private static void registerLocationMarkerConfigType(TypeHandle typeHandle) {
-        TypeHandleHelpers.setCustomColorAndIcon(typeHandle, 0xFFD8C7FF, Icons.RESOURCE.copy().setColor(0xFFD8C7FF));
-        TypeHandleHelpers.setCustomDefaultValue(typeHandle, LocationMarkerConfig::defaults);
-        TypeHandleHelpers.setCustomConfigurable(typeHandle, (valueConfigurable, ignored) ->
-                IConfigurable.create(father -> {
-                    LocationMarkerConfig marker = valueConfigurable.getValue();
-                    if (marker == null) {
-                        marker = copyOrDefaultLocationMarker(valueConfigurable.getDefaultValue());
-                        valueConfigurable.setValue(marker);
-                    }
-                    marker.ensureDefaults();
-                    father.addConfigurator(createLocationMarkerConfigConfigurator(marker, valueConfigurable::notifyValueChanged));
-                }));
-    }
-
     private static DisplayIcon createDefaultDisplayIcon(Object defaultValue) {
         DisplayIcon icon = new DisplayIcon();
         if (defaultValue instanceof DisplayIcon defaultIcon) {
@@ -293,277 +250,11 @@ public final class QuestBlueprintTypes {
         return defaultLootTableReward();
     }
 
-    private static LocationTargetConfig copyOrDefaultLocationTarget(Object defaultValue) {
-        if (defaultValue instanceof LocationTargetConfig target) {
-            return target.copy();
-        }
-        return LocationTargetConfig.defaults();
-    }
-
-    private static LocationMarkerConfig copyOrDefaultLocationMarker(Object defaultValue) {
-        if (defaultValue instanceof LocationMarkerConfig marker) {
-            return marker.copy();
-        }
-        return LocationMarkerConfig.defaults();
-    }
-
     private static ItemMatchRule copyOrDefaultItemMatchRule(Object defaultValue) {
         if (defaultValue instanceof ItemMatchRule rule) {
             return rule.copy();
         }
         return new ItemMatchRule();
-    }
-
-    private static Configurator createLocationTargetConfigConfigurator(LocationTargetConfig target, Runnable onChanged) {
-        target.ensureDefaults();
-        var selector = new ConfiguratorSelectorConfigurator<>(
-                "",
-                target::targetTypeOrDefault,
-                type -> {
-                    target.targetType = type == null ? LocationTargetType.COORDINATES : type;
-                    onChanged.run();
-                },
-                LocationTargetType.COORDINATES,
-                true,
-                List.of(LocationTargetType.values()),
-                EnumAccessor::getEnumName,
-                (type, group) -> group.addConfigurator(createLocationTargetValueConfigurator(target, onChanged))
-        );
-        configureSelectorLayout(selector, 126);
-        return selector;
-    }
-
-    private static Configurator createLocationTargetValueConfigurator(LocationTargetConfig target, Runnable onChanged) {
-        target.ensureDefaults();
-        LocationTargetType type = target.targetTypeOrDefault();
-        ConfiguratorGroup group = new ConfiguratorGroup("", false).hideTitle();
-        group.setCanCollapse(false);
-        group.layout(layout -> layout.widthPercent(100));
-        group.configuratorContainer.layout(layout -> {
-            layout.widthPercent(100);
-            layout.paddingAll(2);
-            layout.marginLeft(0);
-        });
-
-        if (type == LocationTargetType.COORDINATES) {
-            group.addConfigurators(
-                    createRegistryIdConfigurator(portKey("dimension"), () -> target.dimension,
-                            value -> target.dimension = registryIdOrDefault(value, "minecraft:overworld"),
-                            () -> new QuestRegistryId("minecraft:overworld"), QuestBlueprintTypes.DIMENSION_ID, onChanged),
-                    createDoubleConfigurator(portKey("x"), () -> target.x, value -> target.x = value, 0.0, onChanged),
-                    createDoubleConfigurator(portKey("y"), () -> target.y, value -> target.y = value, 64.0, onChanged),
-                    createDoubleConfigurator(portKey("z"), () -> target.z, value -> target.z = value, 0.0, onChanged),
-                    createDoubleConfigurator(portKey("arrival_radius"), target::arrivalRadius,
-                            value -> target.arrivalRadius = Math.max(0.0, value), 3.0, onChanged)
-            );
-        } else if (type == LocationTargetType.BIOME) {
-            group.addConfigurator(createRegistryIdConfigurator(portKey("biome_id"), () -> target.biomeId,
-                    value -> target.biomeId = registryIdOrDefault(value, "minecraft:plains"),
-                    () -> new QuestRegistryId("minecraft:plains"), QuestBlueprintTypes.BIOME_ID, onChanged));
-        } else {
-            group.addConfigurator(createRegistryIdConfigurator(portKey("structure_id"), () -> target.structureId,
-                    value -> target.structureId = registryIdOrDefault(value, "minecraft:village_plains"),
-                    () -> new QuestRegistryId("minecraft:village_plains"), QuestBlueprintTypes.STRUCTURE_ID, onChanged));
-        }
-        return group;
-    }
-
-    private static Configurator createLocationMarkerConfigConfigurator(LocationMarkerConfig marker, Runnable onChanged) {
-        marker.ensureDefaults();
-        var selector = new ConfiguratorSelectorConfigurator<>(
-                "",
-                marker::providerOrDefault,
-                provider -> {
-                    marker.provider = provider == null ? LocationGuideMarkerProvider.BUILT_IN : provider;
-                    onChanged.run();
-                },
-                LocationGuideMarkerProvider.BUILT_IN,
-                true,
-                List.of(LocationGuideMarkerProvider.values()),
-                EnumAccessor::getEnumName,
-                (provider, group) -> group.addConfigurator(createLocationMarkerValueConfigurator(marker, onChanged))
-        );
-        configureSelectorLayout(selector, 150);
-        return selector;
-    }
-
-    private static Configurator createLocationMarkerValueConfigurator(LocationMarkerConfig marker, Runnable onChanged) {
-        marker.ensureDefaults();
-        ConfiguratorGroup group = new ConfiguratorGroup("", false).hideTitle();
-        group.setCanCollapse(false);
-        group.layout(layout -> layout.widthPercent(100));
-        group.configuratorContainer.layout(layout -> {
-            layout.widthPercent(100);
-            layout.paddingAll(2);
-            layout.marginLeft(0);
-        });
-        group.addConfigurator(createStringConfigurator(portKey("marker_label"), () -> marker.label(), value -> marker.label = value, "", onChanged));
-        if (marker.providerOrDefault().usesBuiltInHudMarker()) {
-            group.addConfigurator(createDisplayIconConfigurator(marker.icon, onChanged));
-            group.addConfigurator(createColorConfigurator(portKey("marker_color"), () -> marker.color, value -> marker.color = value, 0xFFD8C7FF, onChanged));
-        } else {
-            marker.color = LocationWaypointColor.closestTo(marker.color).getArgb();
-            group.addConfigurator(createWaypointColorConfigurator(marker, onChanged));
-        }
-        return group;
-    }
-
-    private static void configureSelectorLayout(ConfiguratorSelectorConfigurator<?> selector, int selectorWidth) {
-        selector.layout(layout -> layout.widthPercent(100));
-        selector.lineContainer.layout(layout -> layout.widthPercent(100));
-        selector.inlineContainer.layout(layout -> layout.widthPercent(100));
-        selector.selector.layout(layout -> {
-            layout.width(selectorWidth);
-            layout.minWidth(selectorWidth);
-        });
-        selector.container.layout(layout -> layout.widthPercent(100));
-        selector.container.configuratorContainer.layout(layout -> {
-            layout.widthPercent(100);
-            layout.paddingAll(0);
-            layout.marginLeft(0);
-        });
-    }
-
-    private static Configurator createRegistryIdConfigurator(String name,
-                                                            Supplier<QuestRegistryId> supplier,
-                                                            Consumer<Object> onUpdate,
-                                                            Supplier<QuestRegistryId> defaultValue,
-                                                            TypeHandle typeHandle,
-                                                            Runnable onChanged) {
-        return QuestRegistryIdConfigurator.create(name, fieldValue(supplier, onUpdate, defaultValue, onChanged), typeHandle);
-    }
-
-    private static Configurator createStringConfigurator(String name,
-                                                        Supplier<String> supplier,
-                                                        Consumer<String> onUpdate,
-                                                        String defaultValue,
-                                                        Runnable onChanged) {
-        var configurator = new StringConfigurator(
-                name,
-                supplier,
-                value -> {
-                    onUpdate.accept(value == null ? "" : value);
-                    onChanged.run();
-                },
-                defaultValue,
-                true
-        );
-        configurator.layout(layout -> layout.widthPercent(100));
-        configurator.lineContainer.layout(layout -> layout.widthPercent(100));
-        configurator.inlineContainer.layout(layout -> layout.widthPercent(100));
-        configurator.textField.layout(layout -> layout.widthPercent(100));
-        return configurator;
-    }
-
-    private static Configurator createDoubleConfigurator(String name,
-                                                        Supplier<Double> supplier,
-                                                        Consumer<Double> onUpdate,
-                                                        double defaultValue,
-                                                        Runnable onChanged) {
-        var configurator = new NumberConfigurator(
-                name,
-                supplier::get,
-                value -> {
-                    onUpdate.accept(value == null ? defaultValue : value.doubleValue());
-                    onChanged.run();
-                },
-                defaultValue,
-                true
-        ).setType(ConfigNumber.Type.DOUBLE).setWheel(1.0d);
-        configurator.layout(layout -> layout.widthPercent(100));
-        configurator.lineContainer.layout(layout -> layout.widthPercent(100));
-        configurator.inlineContainer.layout(layout -> layout.widthPercent(100));
-        configurator.textField.layout(layout -> layout.widthPercent(100));
-        return configurator;
-    }
-
-    private static Configurator createColorConfigurator(String name,
-                                                       Supplier<Integer> supplier,
-                                                       Consumer<Integer> onUpdate,
-                                                       int defaultValue,
-                                                       Runnable onChanged) {
-        var configurator = new ColorConfigurator(
-                name,
-                supplier,
-                value -> {
-                    onUpdate.accept(value == null ? defaultValue : value);
-                    onChanged.run();
-                },
-                defaultValue,
-                true
-        );
-        configurator.layout(layout -> layout.widthPercent(100));
-        configurator.lineContainer.layout(layout -> layout.widthPercent(100));
-        configurator.inlineContainer.layout(layout -> layout.widthPercent(100));
-        return configurator;
-    }
-
-    private static Configurator createWaypointColorConfigurator(LocationMarkerConfig marker, Runnable onChanged) {
-        var configurator = new SelectorConfigurator<>(
-                portKey("marker_color"),
-                () -> LocationWaypointColor.closestTo(marker.color),
-                value -> {
-                    marker.color = (value == null ? LocationWaypointColor.PURPLE : value).getArgb();
-                    onChanged.run();
-                },
-                LocationWaypointColor.PURPLE,
-                true,
-                List.of(LocationWaypointColor.values()),
-                EnumAccessor::getEnumName
-        );
-        configurator.layout(layout -> layout.widthPercent(100));
-        configurator.lineContainer.layout(layout -> layout.widthPercent(100));
-        configurator.inlineContainer.layout(layout -> layout.widthPercent(100));
-        configurator.selector.layout(layout -> layout.widthPercent(100));
-        return configurator;
-    }
-
-    private static QuestRegistryId registryIdOrDefault(Object value, String defaultId) {
-        if (value instanceof QuestRegistryId id) {
-            return new QuestRegistryId(id.value().isBlank() ? defaultId : id.value());
-        }
-        if (value instanceof String id) {
-            return new QuestRegistryId(id.isBlank() ? defaultId : id);
-        }
-        return new QuestRegistryId(defaultId);
-    }
-
-    private static IFieldValueConfigurable fieldValue(Supplier<?> supplier,
-                                                      Consumer<Object> onUpdate,
-                                                      Supplier<?> defaultValue,
-                                                      Runnable onChanged) {
-        return new IFieldValueConfigurable() {
-            @Override
-            public void setValue(Object value) {
-                onUpdate.accept(value);
-            }
-
-            @Override
-            @SuppressWarnings("unchecked")
-            public <T> T getValue() {
-                return (T) supplier.get();
-            }
-
-            @Override
-            @SuppressWarnings("unchecked")
-            public <T> T getDefaultValue() {
-                return (T) defaultValue.get();
-            }
-
-            @Override
-            public Tooltips getTooltips() {
-                return Tooltips.empty();
-            }
-
-            @Override
-            public void notifyValueChanged() {
-                onChanged.run();
-            }
-        };
-    }
-
-    private static String portKey(String key) {
-        return ViScriptQuests.MOD_ID + ".blueprint.port." + key;
     }
 
     private static Configurator createLootTableRewardConfigurator(LootTableReward reward, Runnable onChanged) {
@@ -794,6 +485,7 @@ public final class QuestBlueprintTypes {
 
     private static void dockArrayButtonsToHeader(ArrayConfiguratorGroup<?> group) {
         group.buttonGroup.removeSelf();
+        group.buttonGroup.addEventListener(UIEvents.MOUSE_DOWN, event -> event.stopPropagation());
         group.buttonGroup.layout(layout -> {
             layout.flexDirection(FlexDirection.ROW);
             layout.alignItems(AlignItems.CENTER);

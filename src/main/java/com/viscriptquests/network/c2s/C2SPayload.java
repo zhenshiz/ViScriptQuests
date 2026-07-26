@@ -9,6 +9,8 @@ import com.viscriptquests.network.s2c.S2CPayload;
 import com.viscriptquests.quest.data.QuestFile;
 import com.viscriptquests.gui.blueprint.compiler.QuestBlueprintValidator;
 import com.viscriptquests.quest.data.runtime.QuestCategoryListData;
+import com.viscriptquests.quest.data.runtime.QuestStatus;
+import com.viscriptquests.quest.data.runtime.TaskStatus;
 import com.viscriptquests.quest.runtime.QuestManager;
 import com.viscriptquests.quest.runtime.QuestTrackingService;
 import com.viscriptquests.util.QuestCategoryFileHelper;
@@ -102,7 +104,16 @@ public class C2SPayload {
             return;
         }
         var questState = playerData.findQuest(trackedQuestId);
-        if (questState.isEmpty()) {
+        if (questState.isEmpty() || questState.get().status != QuestStatus.ACTIVE) {
+            playerData.trackedQuestId = "";
+            playerData.trackedStepId = "";
+            savedData.setDirty();
+            QuestTrackingService.refresh(player);
+            return;
+        }
+        if (!trackedStepId.isBlank() && questState.get().findStepProgress(trackedStepId)
+                .filter(progress -> progress.status == TaskStatus.ACTIVE)
+                .isEmpty()) {
             playerData.trackedQuestId = "";
             playerData.trackedStepId = "";
             savedData.setDirty();
@@ -110,9 +121,7 @@ public class C2SPayload {
             return;
         }
         playerData.trackedQuestId = trackedQuestId;
-        playerData.trackedStepId = trackedStepId.isBlank() || questState.get().findStepProgress(trackedStepId).isPresent()
-                ? trackedStepId
-                : "";
+        playerData.trackedStepId = trackedStepId;
         savedData.setDirty();
         QuestTrackingService.refresh(player);
     }

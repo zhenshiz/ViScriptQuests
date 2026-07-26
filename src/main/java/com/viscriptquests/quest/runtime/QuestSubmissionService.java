@@ -5,6 +5,7 @@ import com.viscriptquests.quest.data.QuestFile;
 import com.viscriptquests.quest.data.QuestSavedData;
 import com.viscriptquests.quest.data.ObjectiveAction;
 import com.viscriptquests.quest.data.runtime.PlayerQuestState;
+import com.viscriptquests.quest.data.runtime.ObjectiveStatus;
 import com.viscriptquests.quest.data.runtime.QuestPlayerData;
 import com.viscriptquests.quest.data.runtime.QuestStatus;
 import com.viscriptquests.quest.data.runtime.TaskObjectiveProgress;
@@ -35,8 +36,9 @@ import java.util.Set;
 /**
  * 处理玩家提交目标的运行时服务。
  *
- * <p>一个小任务可以包含多个目标。该服务先提交或自动完成单个目标，
- * 只有同一个小任务下的所有目标完成后，才结算奖励并推进蓝图流程。
+ * <p>一个小任务可以包含多个目标。该服务先提交或自动完成当前激活的单个目标，
+ * 再沿蓝图的“下一步”关系激活后继目标；当前目标路径中的必做目标完成后，
+ * 才结算奖励并推进小任务流程。
  */
 public class QuestSubmissionService {
     @FunctionalInterface
@@ -48,7 +50,7 @@ public class QuestSubmissionService {
      * 尝试提交玩家指定小任务中当前可提交的目标。
      *
      * <p>自动 tick 只处理允许自动提交的目标；手动命令会额外尝试提交手动目标。
-     * 小任务只有在所有目标都完成后才会真正完成。
+     * 小任务只有在当前目标路径中的必做目标都完成后才会真正完成。
      *
      * @param player 服务端玩家，提交目标的玩家
      * @param questId 任务标识，必须已经是运行时使用的规范化标识
@@ -100,18 +102,21 @@ public class QuestSubmissionService {
         for (int i = 0; i < tasks.size(); i++) {
             TaskObjectiveProgress objective = progress.get().objectives.get(i);
             ObjectiveSnapshot snapshot = objectiveSnapshot(objectiveSnapshots, i, objective);
-            if (objective.completed) {
+            if (objective.isCompleted()) {
                 if (snapshot.differsFrom(objective)) {
                     changed = true;
                     postObjectiveEvents(player, questState, progress.get(), objective, i, snapshot, automatic);
                     if (!snapshot.completed) {
-                        triggerObjectiveActions(player, questState, questFile, stepId, objective);
+                        triggerObjectiveActions(player, questState, questFile, progress.get(), stepId, objective);
                     }
                     if (objective.isFailureCondition()) {
                         return failQuestFromObjective(player, savedData, playerData, questState, questFile,
                                 progress.get(), stepId);
                     }
                 }
+                continue;
+            }
+            if (!objective.isActive() || snapshot.status != ObjectiveStatus.ACTIVE) {
                 continue;
             }
             ITask task = tasks.get(i);
@@ -126,8 +131,8 @@ public class QuestSubmissionService {
                 postObjectiveEvents(player, questState, progress.get(), objective, i, snapshot, automatic);
             }
             if (submitted) {
-                triggerObjectiveActions(player, questState, questFile, stepId, objective);
-                if (objective.isFailureCondition() && objective.completed) {
+                triggerObjectiveActions(player, questState, questFile, progress.get(), stepId, objective);
+                if (objective.isFailureCondition() && objective.isCompleted()) {
                     return failQuestFromObjective(player, savedData, playerData, questState, questFile,
                             progress.get(), stepId);
                 }
@@ -172,7 +177,7 @@ public class QuestSubmissionService {
             return false;
         }
         TaskObjectiveProgress objective = progress.get().objectives.get(objectiveIndex);
-        if (objective.isFailureCondition()) {
+        if (!objective.isActive() || objective.isFailureCondition()) {
             return false;
         }
         ObjectiveSnapshot snapshot = objectiveSnapshot(objectiveSnapshots, objectiveIndex, objective);
@@ -186,7 +191,7 @@ public class QuestSubmissionService {
             return false;
         }
         postObjectiveEvents(player, questState, progress.get(), objective, objectiveIndex, snapshot, false);
-        triggerObjectiveActions(player, questState, questFile, stepId, objective);
+        triggerObjectiveActions(player, questState, questFile, progress.get(), stepId, objective);
         return completeStepIfReady(player, savedData, playerData, questState, questFile, progress.get(), stepId);
     }
 
@@ -229,7 +234,8 @@ public class QuestSubmissionService {
      * 记录事件累计型目标的进度，并把后续结算交回任务系统。
      *
      * <p>击杀、对话、打开方块等事件驱动目标通常不能从玩家当前状态反推进度。
-     * 联动方在 recorder 中只修改当前目标的 {@code currentAmount / requiredAmount / completed}；
+     * 联动方在 recorder 中只修改当前目标的 {@code currentAmount / requiredAmount}，
+     * 并在满足完成条件时调用 {@link TaskObjectiveProgress#complete()}；
      * 该方法会负责保存数据、完成小任务、发放奖励、推进流程、刷新追踪 HUD 和同步队伍状态。
      * 如果被修改的目标是失败条件并被标记完成，则会结束当前任务为失败。
      */
@@ -270,13 +276,15 @@ public class QuestSubmissionService {
             if (!killTask.matches(killedEntity)) {
                 return false;
             }
-            if (objective.completed) {
+            if (!objective.isActive()) {
                 return false;
             }
             int required = Math.max(1, killTask.getRequiredAmount(questState.questVariables, recordPlayer));
             objective.requiredAmount = required;
             objective.currentAmount = Math.min(required, Math.max(0, objective.currentAmount) + 1);
-            objective.completed = objective.currentAmount >= required;
+            if (objective.currentAmount >= required) {
+                objective.complete();
+            }
             return true;
         });
     }
@@ -292,13 +300,15 @@ public class QuestSubmissionService {
                 if (!deathTask.matches(deadEntity)) {
                     return false;
                 }
-                if (objective.completed) {
+                if (!objective.isActive()) {
                     return false;
                 }
                 int required = Math.max(1, deathTask.getRequiredAmount(questState.questVariables, recordPlayer));
                 objective.requiredAmount = required;
                 objective.currentAmount = Math.min(required, Math.max(0, objective.currentAmount) + 1);
-                objective.completed = objective.currentAmount >= required;
+                if (objective.currentAmount >= required) {
+                    objective.complete();
+                }
                 return true;
             })) {
                 changed = true;
@@ -315,13 +325,15 @@ public class QuestSubmissionService {
             if (!breakTask.matches(blockState)) {
                 return false;
             }
-            if (objective.completed) {
+            if (!objective.isActive()) {
                 return false;
             }
             int required = Math.max(1, breakTask.getRequiredAmount(questState.questVariables, recordPlayer));
             objective.requiredAmount = required;
             objective.currentAmount = Math.min(required, Math.max(0, objective.currentAmount) + 1);
-            objective.completed = objective.currentAmount >= required;
+            if (objective.currentAmount >= required) {
+                objective.complete();
+            }
             return true;
         });
     }
@@ -334,13 +346,13 @@ public class QuestSubmissionService {
             if (!interactTask.matches(target)) {
                 return false;
             }
-            if (objective.completed) {
+            if (!objective.isActive()) {
                 return false;
             }
             int required = Math.max(1, interactTask.getRequiredAmount(questState.questVariables, recordPlayer));
             objective.requiredAmount = required;
             objective.currentAmount = required;
-            objective.completed = true;
+            objective.complete();
             return true;
         });
     }
@@ -350,13 +362,13 @@ public class QuestSubmissionService {
             return false;
         }
         return recordTaskProgress(player, AdvancementTask.class, (recordPlayer, advancementTask, objective, questState) -> {
-            if (!advancementTask.matches(advancement) || objective.completed) {
+            if (!advancementTask.matches(advancement) || !objective.isActive()) {
                 return false;
             }
             int required = Math.max(1, advancementTask.getRequiredAmount(questState.questVariables, recordPlayer));
             objective.requiredAmount = required;
             objective.currentAmount = required;
-            objective.completed = true;
+            objective.complete();
             return true;
         });
     }
@@ -366,13 +378,13 @@ public class QuestSubmissionService {
             return false;
         }
         return recordTaskProgress(player, CustomTriggerTask.class, (recordPlayer, triggerTask, objective, questState) -> {
-            if (!triggerTask.matches(triggerId) || objective.completed) {
+            if (!triggerTask.matches(triggerId) || !objective.isActive()) {
                 return false;
             }
             int required = Math.max(1, triggerTask.getRequiredAmount(questState.questVariables, recordPlayer));
             objective.requiredAmount = required;
             objective.currentAmount = required;
-            objective.completed = true;
+            objective.complete();
             return true;
         });
     }
@@ -403,14 +415,17 @@ public class QuestSubmissionService {
             }
             TaskObjectiveProgress objective = progress.objectives.get(i);
             ObjectiveSnapshot snapshot = objectiveSnapshot(objectiveSnapshots, i, objective);
+            if (!objective.isActive() || snapshot.status != ObjectiveStatus.ACTIVE) {
+                continue;
+            }
             boolean recorded = recorder.record(player, taskType.cast(task), objective, questState);
             if (recorded || snapshot.differsFrom(objective)) {
                 changed = true;
                 postObjectiveEvents(player, questState, progress, objective, i, snapshot, true);
-                if (recorded && !snapshot.completed && objective.completed) {
-                    triggerObjectiveActions(player, questState, questFile, progress.stepId, objective);
+                if (!snapshot.completed && objective.isCompleted()) {
+                    triggerObjectiveActions(player, questState, questFile, progress, progress.stepId, objective);
                 }
-                if (objective.isFailureCondition() && objective.completed) {
+                if (objective.isFailureCondition() && objective.isCompleted()) {
                     return failQuestFromObjective(player, savedData, playerData, questState, questFile,
                             progress, progress.stepId);
                 }
@@ -429,6 +444,7 @@ public class QuestSubmissionService {
         if (progress.hasTriggeredFailureObjective()) {
             return failQuestFromObjective(player, savedData, playerData, questState, questFile, progress, stepId);
         }
+        progress.refreshSummary();
         if (!progress.areAllObjectivesCompleted()) {
             savedData.setDirty();
             QuestTrackingService.refresh(player);
@@ -438,6 +454,7 @@ public class QuestSubmissionService {
         // 记录提交前已经激活的小任务，提交后追踪服务会用它优先选出刚解锁的新小任务。
         Set<String> activeStepIdsBeforeSubmit = activeStepIds(questState);
         // 到这里才真正提交成功：写进度、发奖励、推进蓝图流程，并刷新任务追踪。
+        progress.skipUnfinishedObjectives();
         progress.status = TaskStatus.COMPLETED;
         NeoForge.EVENT_BUS.post(new QuestEvent.TaskCompleted(player, questState, progress, false));
         QuestCompletionNotificationService.notifyTaskCompleted(player, progress);
@@ -450,10 +467,13 @@ public class QuestSubmissionService {
     }
 
     private static void triggerObjectiveActions(ServerPlayer player, PlayerQuestState questState, QuestFile questFile,
-                                                String stepId, TaskObjectiveProgress objective) {
-        if (objective == null || !objective.completed || objective.objectiveId == null || objective.objectiveId.isBlank()) {
+                                                TaskProgress progress, String stepId,
+                                                TaskObjectiveProgress objective) {
+        if (objective == null || !objective.isCompleted()
+                || objective.objectiveId == null || objective.objectiveId.isBlank()) {
             return;
         }
+        boolean activatedObjective = false;
         for (ObjectiveAction action : questFile.findObjectiveActions(stepId, objective.objectiveId)) {
             if (action == null || action.actionId == null || action.actionId.isBlank()) {
                 continue;
@@ -465,12 +485,36 @@ public class QuestSubmissionService {
             if (!canRunObjectiveAction(player, questState, action)) {
                 continue;
             }
-            action.edge.applyMutations(questState.questVariables, player.registryAccess(), player);
-            QuestFlowExecutor.printDebugMessages(player, questState, action.edge);
+            if (action.edge != null) {
+                action.edge.applyMutations(questState.questVariables, player.registryAccess(), player);
+                QuestFlowExecutor.printDebugMessages(player, questState, action.edge);
+            }
             for (var reward : action.rewards) {
                 QuestRewardService.grantDynamicReward(player, reward, questState, stepId);
             }
+            for (String targetObjectiveId : action.activateObjectiveIds) {
+                activatedObjective |= activateObjective(player, questState, questFile, progress,
+                        stepId, targetObjectiveId);
+            }
         }
+        if (activatedObjective) {
+            progress.refreshSummary();
+        }
+    }
+
+    private static boolean activateObjective(ServerPlayer player, PlayerQuestState questState, QuestFile questFile,
+                                             TaskProgress progress, String stepId, String objectiveId) {
+        TaskObjectiveProgress objective = progress.findObjectiveProgress(objectiveId).orElse(null);
+        if (objective == null || !objective.activate()) {
+            return false;
+        }
+        for (ITask task : questFile.findTasksForStep(stepId)) {
+            if (task != null && objectiveId.equals(task.objectiveId)) {
+                task.refreshObjectiveProgress(player, objective, questState.questVariables);
+                break;
+            }
+        }
+        return true;
     }
 
     private static boolean canRunObjectiveAction(ServerPlayer player, PlayerQuestState questState, ObjectiveAction action) {
@@ -507,7 +551,7 @@ public class QuestSubmissionService {
             NeoForge.EVENT_BUS.post(new QuestEvent.ObjectiveProgress(player, questState, progress, objective,
                     objectiveIndex, snapshot.amount, snapshot.requiredAmount, snapshot.completed, automatic));
         }
-        if (!snapshot.completed && objective.completed) {
+        if (!snapshot.completed && objective.isCompleted()) {
             NeoForge.EVENT_BUS.post(new QuestEvent.ObjectiveCompleted(player, questState, progress, objective,
                     objectiveIndex, snapshot.amount, snapshot.requiredAmount, false, automatic));
         }
@@ -526,15 +570,16 @@ public class QuestSubmissionService {
         return index >= 0 && index < snapshots.size() ? snapshots.get(index) : ObjectiveSnapshot.of(objective);
     }
 
-    private record ObjectiveSnapshot(int amount, int requiredAmount, boolean completed) {
+    private record ObjectiveSnapshot(int amount, int requiredAmount, ObjectiveStatus status, boolean completed) {
         private static ObjectiveSnapshot of(TaskObjectiveProgress objective) {
-            return new ObjectiveSnapshot(objective.currentAmount, objective.requiredAmount, objective.completed);
+            return new ObjectiveSnapshot(objective.currentAmount, objective.requiredAmount,
+                    objective.status, objective.isCompleted());
         }
 
         private boolean differsFrom(TaskObjectiveProgress objective) {
             return amount != objective.currentAmount
                     || requiredAmount != objective.requiredAmount
-                    || completed != objective.completed;
+                    || status != objective.status;
         }
     }
 

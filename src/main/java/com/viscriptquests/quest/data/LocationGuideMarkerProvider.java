@@ -19,26 +19,7 @@ public enum LocationGuideMarkerProvider implements StringRepresentable {
     }
 
     public static LocationGuideMarkerProvider fromValue(Object value) {
-        if (value instanceof LocationGuideMarkerProvider provider) {
-            return provider;
-        }
-        if (value instanceof String serializedName) {
-            for (LocationGuideMarkerProvider provider : values()) {
-                if (provider.name().equalsIgnoreCase(serializedName)
-                        || provider.getSerializedName().equals(serializedName)
-                        || provider.getName().equals(serializedName)) {
-                    return provider;
-                }
-            }
-        }
-        if (value instanceof Number index) {
-            int ordinal = index.intValue();
-            LocationGuideMarkerProvider[] providers = values();
-            if (ordinal >= 0 && ordinal < providers.length) {
-                return providers[ordinal];
-            }
-        }
-        return BUILT_IN;
+        return value instanceof LocationGuideMarkerProvider provider ? provider : BUILT_IN;
     }
 
     @Override

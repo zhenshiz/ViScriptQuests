@@ -5,7 +5,6 @@ import com.lowdragmc.lowdraglib2.nodegraphtookit.model.constant.Constant;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.graph.GraphModel;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.ConstantNodeModel;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.CustomNodeModelImpl;
-import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.NodeOption;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.PortModel;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.SubgraphNodeModel;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.VariableNodeModelImpl;
@@ -13,7 +12,6 @@ import com.lowdragmc.lowdraglib2.nodegraphtookit.model.variable.VariableDeclarat
 import com.viscriptquests.gui.blueprint.QuestBlueprintFlowTypes;
 import com.viscriptquests.gui.blueprint.QuestBlueprintGraph;
 import com.viscriptquests.gui.blueprint.model.QuestSubQuestNodeModel;
-import com.viscriptquests.gui.blueprint.node.QuestLinkedNode;
 import com.viscriptquests.gui.blueprint.node.flow.QuestStartNode;
 import com.viscriptquests.gui.blueprint.node.flow.SubQuestStartNode;
 import com.viscriptquests.gui.blueprint.node.flow.SubQuestNode;
@@ -46,6 +44,7 @@ public final class QuestBlueprintCompiler {
         Map<String, List<CustomNodeModelImpl>> rewardNodes = new LinkedHashMap<>();
         Map<String, List<RewardDisplay>> rewardPlaceholders = new LinkedHashMap<>();
         Map<String, List<ObjectiveAction>> objectiveActions = new LinkedHashMap<>();
+        Map<String, Set<String>> initialObjectiveIds = new LinkedHashMap<>();
 
         for (var nodeModel : graph.graphModel.getNodeModels()) {
             if (!(nodeModel instanceof CustomNodeModelImpl custom)) continue;
@@ -70,7 +69,7 @@ public final class QuestBlueprintCompiler {
                             context.getStringArray(custom, "description")
                     ));
                     collectSubQuestContent(context, custom, stepId, taskNodes, rewardNodes, rewardPlaceholders,
-                            objectiveActions);
+                            objectiveActions, initialObjectiveIds);
                 }
                 continue;
             }
@@ -108,11 +107,13 @@ public final class QuestBlueprintCompiler {
         for (String stepId : result.orderedStepIds()) {
             List<CustomNodeModelImpl> taskModels = remainingTasks.remove(stepId);
             if (taskModels == null || taskModels.isEmpty()) continue;
-            addCompiledTasksAndStep(questFile, context, taskModels, stepId, subQuests.get(stepId));
+            addCompiledTasksAndStep(questFile, context, taskModels, stepId, subQuests.get(stepId),
+                    objectiveActions.get(stepId), initialObjectiveIds.get(stepId));
         }
         for (var entry : remainingTasks.entrySet()) {
             String stepId = entry.getKey();
-            addCompiledTasksAndStep(questFile, context, entry.getValue(), stepId, subQuests.get(stepId));
+            addCompiledTasksAndStep(questFile, context, entry.getValue(), stepId, subQuests.get(stepId),
+                    objectiveActions.get(stepId), initialObjectiveIds.get(stepId));
         }
 
         questFile.flowNodes.addAll(result.flowNodes());
@@ -149,7 +150,8 @@ public final class QuestBlueprintCompiler {
                                                Map<String, List<CustomNodeModelImpl>> taskNodes,
                                                Map<String, List<CustomNodeModelImpl>> rewardNodes,
                                                Map<String, List<RewardDisplay>> rewardPlaceholders,
-                                               Map<String, List<ObjectiveAction>> objectiveActions) {
+                                               Map<String, List<ObjectiveAction>> objectiveActions,
+                                               Map<String, Set<String>> initialObjectiveIds) {
         GraphModel subgraph = null;
         if (subQuestNode instanceof QuestSubQuestNodeModel subQuestModel) {
             subgraph = subQuestModel.getSubgraphModel();
@@ -160,7 +162,7 @@ public final class QuestBlueprintCompiler {
         CustomNodeModelImpl start = findSubQuestStart(subgraph);
         if (start != null) {
             collectSubQuestFlowContent(context, start, stepId, taskNodes, rewardNodes, rewardPlaceholders,
-                    objectiveActions);
+                    objectiveActions, initialObjectiveIds);
             return;
         }
         collectTaskAndRewardNodesInGraph(context, subgraph, stepId, taskNodes, rewardNodes, rewardPlaceholders,
@@ -224,7 +226,12 @@ public final class QuestBlueprintCompiler {
                                                    Map<String, List<CustomNodeModelImpl>> taskNodes,
                                                    Map<String, List<CustomNodeModelImpl>> rewardNodes,
                                                    Map<String, List<RewardDisplay>> rewardPlaceholders,
-                                                   Map<String, List<ObjectiveAction>> objectiveActions) {
+                                                   Map<String, List<ObjectiveAction>> objectiveActions,
+                                                   Map<String, Set<String>> initialObjectiveIds) {
+        Set<String> initialIds = initialObjectiveIds.computeIfAbsent(stepId, ignored -> new LinkedHashSet<>());
+        for (CustomNodeModelImpl taskNode : collectFirstReachableTaskNodes(context, start, "objectives")) {
+            initialIds.add(objectiveIdOf(taskNode));
+        }
         for (CustomNodeModelImpl taskNode : collectReachableCustomNodes(start, "objectives")) {
             if (context.findTaskCompiler(taskNode) == null) {
                 continue;
@@ -244,6 +251,31 @@ public final class QuestBlueprintCompiler {
                 rewardPlaceholders.computeIfAbsent(stepId, ignored -> new ArrayList<>()).add(placeholder);
             }
         }
+    }
+
+    private static List<CustomNodeModelImpl> collectFirstReachableTaskNodes(QuestCompileContext context,
+                                                                            CustomNodeModelImpl start,
+                                                                            String portId) {
+        List<CustomNodeModelImpl> result = new ArrayList<>();
+        ArrayDeque<CustomNodeModelImpl> queue = new ArrayDeque<>();
+        enqueueOutput(start, portId, queue);
+        Set<UUID> visited = new LinkedHashSet<>();
+        while (!queue.isEmpty()) {
+            CustomNodeModelImpl node = queue.removeFirst();
+            if (node == null || !visited.add(node.getUid())) {
+                continue;
+            }
+            if (context.findTaskCompiler(node) != null) {
+                result.add(node);
+                continue;
+            }
+            enqueueOutput(node, "next", queue);
+            if (node.getNode() instanceof com.viscriptquests.gui.blueprint.node.flow.QuestBranchNode) {
+                enqueueOutput(node, "true", queue);
+                enqueueOutput(node, "false", queue);
+            }
+        }
+        return result;
     }
 
     private static RewardDisplay compileRewardPlaceholder(QuestCompileContext context,
@@ -347,7 +379,16 @@ public final class QuestBlueprintCompiler {
     }
 
     private static void addCompiledTasksAndStep(QuestFile questFile, QuestCompileContext context,
-                                                List<CustomNodeModelImpl> taskModels, String stepId, SubQuestInfo subInfo) {
+                                                List<CustomNodeModelImpl> taskModels, String stepId, SubQuestInfo subInfo,
+                                                List<ObjectiveAction> actions, Set<String> initialObjectiveIds) {
+        Set<String> activatedByPredecessor = new LinkedHashSet<>();
+        if (actions != null) {
+            for (ObjectiveAction action : actions) {
+                if (action != null) {
+                    activatedByPredecessor.addAll(action.activateObjectiveIds);
+                }
+            }
+        }
         boolean addedTask = false;
         for (CustomNodeModelImpl taskModel : taskModels) {
             IQuestTaskNodeCompiler taskCompiler = context.findTaskCompiler(taskModel);
@@ -359,6 +400,9 @@ public final class QuestBlueprintCompiler {
                 continue;
             }
             task.objectiveId = objectiveIdOf(taskModel);
+            task.initiallyActive = initialObjectiveIds == null || initialObjectiveIds.isEmpty()
+                    ? !activatedByPredecessor.contains(task.objectiveId)
+                    : initialObjectiveIds.contains(task.objectiveId);
             IQuestTaskNodeCompiler.applyCommonOptions(context, taskModel, task);
             questFile.tasks.add(task);
             addedTask = true;
@@ -519,11 +563,6 @@ public final class QuestBlueprintCompiler {
     }
 
     private static String subQuestRuntimeId(QuestSubQuestNodeModel subQuestNode) {
-        Constant legacyStepId = subQuestNode.getInputConstantsById()
-                .get(NodeOption.PORT_ID_PREFIX + QuestLinkedNode.STEP_ID_OPTION);
-        if (legacyStepId != null && legacyStepId.getValue() instanceof String value && !value.isBlank()) {
-            return value;
-        }
         return subQuestNode.getUid() == null ? "sub_quest" : subQuestNode.getUid().toString();
     }
 

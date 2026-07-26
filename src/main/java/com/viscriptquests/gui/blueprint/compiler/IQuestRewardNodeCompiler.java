@@ -3,6 +3,7 @@ package com.viscriptquests.gui.blueprint.compiler;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.CustomNodeModelImpl;
 import com.lowdragmc.lowdraglib2.registry.ILDLRegister;
 import com.viscriptquests.ViScriptQuests;
+import com.viscriptquests.gui.blueprint.node.QuestBlueprintNode;
 import com.viscriptquests.quest.data.reward.IReward;
 
 import java.util.function.Supplier;
@@ -16,8 +17,9 @@ public interface IQuestRewardNodeCompiler extends ILDLRegister<IQuestRewardNodeC
     IReward compileReward(QuestCompileContext context, CustomNodeModelImpl node, String stepId);
 
     static void applyCommonOptions(QuestCompileContext context, CustomNodeModelImpl node, IReward reward) {
-        reward.rewardIcon = context.getDisplayIcon(node, "reward_icon");
-        reward.rewardTooltip = context.getString(node, "reward_tooltip").trim();
+        reward.showInRewardList = context.getBool(node, QuestBlueprintNode.SHOW_IN_REWARD_LIST_OPTION, true);
+        reward.rewardIcon = context.getDisplayIcon(node, QuestBlueprintNode.REWARD_ICON_OPTION);
+        reward.rewardTooltip = context.getString(node, QuestBlueprintNode.REWARD_TOOLTIP_OPTION).trim();
         reward.teamLeaderOnly = context.getBool(node, "team_leader_only");
     }
 }

@@ -58,7 +58,12 @@ public final class QuestBlueprintExamples {
             return;
         }
 
-        CustomNodeModelImpl subStart = createNode(customGraph, new SubQuestStartNode(), new Vector2f(0, 0));
+        CustomNodeModelImpl subStart = customGraph.getNodeModels().stream()
+                .filter(CustomNodeModelImpl.class::isInstance)
+                .map(CustomNodeModelImpl.class::cast)
+                .filter(node -> node.getNode() instanceof SubQuestStartNode)
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("New sub quest graph is missing its default start node"));
 
         CustomNodeModelImpl itemTask = createNode(customGraph, new ItemTaskNode(), new Vector2f(320, -90));
         setOption(itemTask, "item_stack", new ItemStack(Items.DIRT, 4));

@@ -54,6 +54,13 @@ public final class QuestObjectiveActionCompiler {
                 continue;
             }
 
+            if (context.findTaskCompiler(node) != null) {
+                ObjectiveAction action = createAction(stepId, objectiveId, node, entry);
+                action.activateObjectiveIds.add(node.getUid().toString());
+                addAction(actions, action);
+                continue;
+            }
+
             IQuestRewardNodeCompiler rewardCompiler = context.findRewardCompiler(node);
             if (rewardCompiler != null) {
                 ObjectiveAction action = createAction(stepId, objectiveId, node, entry);
@@ -202,7 +209,8 @@ public final class QuestObjectiveActionCompiler {
                         && existing.actionId.equals(action.actionId)
                         && existing.gates.equals(action.gates)
                         && QuestFlowGraphBuilder.sameFlowEdge(existing.edge, action.edge)
-                        && existing.rewards.equals(action.rewards));
+                        && existing.rewards.equals(action.rewards)
+                        && existing.activateObjectiveIds.equals(action.activateObjectiveIds));
         if (!duplicate) {
             actions.add(action);
         }

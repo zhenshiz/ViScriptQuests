@@ -14,7 +14,6 @@ import io.netty.buffer.ByteBuf;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.item.ItemStack;
 
 import java.lang.reflect.Type;
@@ -185,19 +184,10 @@ public class QuestVariableValue implements IPersistedSerializable {
     /**
      * 返回此变量值记录的 LDLib2 类型句柄。
      *
-     * <p>当旧数据没有保存 <code>typeId</code> 时，会从 <code>constantTag.type</code> 回退读取；
-     * 若仍然无法确定类型，则返回 <code>Float</code>，以保持旧数值变量数据可用。
-     *
      * @return 此变量值记录的 LDLib2 类型句柄
      */
     public TypeHandle typeHandle() {
-        if (typeId != null && !typeId.isEmpty()) {
-            return TypeHandle.create(typeId);
-        }
-        if (constantTag != null && constantTag.contains("type")) {
-            return TypeHandle.create(constantTag.getString("type"));
-        }
-        return TypeHandles.FLOAT;
+        return TypeHandle.create(typeId);
     }
 
     /**
@@ -489,9 +479,8 @@ public class QuestVariableValue implements IPersistedSerializable {
     /**
      * 将传入值规范化为指定枚举类型。
      *
-     * <p>字符串会按枚举常量名进行大小写不敏感匹配，并支持
-     * <code>StringRepresentable</code> 的序列化名称。数值会按枚举常量下标读取。
-     * 无法匹配时返回第一个枚举常量，确保保存值仍然属于目标枚举类型。
+     * <p>已是目标枚举类型时直接使用；其他类型返回第一个枚举常量，
+     * 确保保存值属于目标枚举类型。
      *
      * @param rawType 类对象，表示目标枚举类型
      * @param value   对象值，表示待规范化的运行时值；可以为 <code>null</code>
@@ -504,25 +493,6 @@ public class QuestVariableValue implements IPersistedSerializable {
         Object[] constants = rawType.getEnumConstants();
         if (constants == null || constants.length == 0) {
             return null;
-        }
-        if (value instanceof String string) {
-            String trimmed = string.trim();
-            for (Object constant : constants) {
-                Enum<?> enumValue = (Enum<?>) constant;
-                if (enumValue.name().equalsIgnoreCase(trimmed)) {
-                    return enumValue;
-                }
-                if (constant instanceof StringRepresentable representable
-                        && representable.getSerializedName().equals(trimmed)) {
-                    return enumValue;
-                }
-            }
-        }
-        if (value instanceof Number number) {
-            int index = number.intValue();
-            if (index >= 0 && index < constants.length) {
-                return constants[index];
-            }
         }
         return constants[0];
     }

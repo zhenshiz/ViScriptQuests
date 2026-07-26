@@ -3,6 +3,7 @@ package com.viscriptquests.event.kubejs;
 import com.viscriptquests.event.neoforge.QuestEvent;
 import com.viscriptquests.quest.data.reward.IReward;
 import com.viscriptquests.quest.data.runtime.PlayerQuestState;
+import com.viscriptquests.quest.data.runtime.ObjectiveStatus;
 import com.viscriptquests.quest.data.runtime.TaskObjectiveProgress;
 import com.viscriptquests.quest.data.runtime.TaskProgress;
 import dev.latvian.mods.kubejs.player.EntityArrayList;
@@ -206,6 +207,10 @@ public abstract class QuestEventJS implements KubePlayerEvent {
 
         public boolean isCompleted() {
             return event.isCompleted();
+        }
+
+        public ObjectiveStatus getStatus() {
+            return event.getStatus();
         }
 
         public boolean isAutomatic() {

@@ -16,26 +16,7 @@ public enum LocationTargetType implements StringRepresentable {
     private final String name;
 
     public static LocationTargetType fromValue(Object value) {
-        if (value instanceof LocationTargetType type) {
-            return type;
-        }
-        if (value instanceof String serializedName) {
-            for (LocationTargetType type : values()) {
-                if (type.name().equalsIgnoreCase(serializedName)
-                        || type.getSerializedName().equals(serializedName)
-                        || type.getName().equals(serializedName)) {
-                    return type;
-                }
-            }
-        }
-        if (value instanceof Number index) {
-            int ordinal = index.intValue();
-            LocationTargetType[] types = values();
-            if (ordinal >= 0 && ordinal < types.length) {
-                return types[ordinal];
-            }
-        }
-        return COORDINATES;
+        return value instanceof LocationTargetType type ? type : COORDINATES;
     }
 
     @Override

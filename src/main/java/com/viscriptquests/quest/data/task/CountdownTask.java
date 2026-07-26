@@ -60,11 +60,11 @@ public class CountdownTask extends ITask {
         int duration = getRequiredAmount(questVariables, player);
         progress.requiredAmount = duration;
         if (player == null) {
-            progress.currentAmount = progress.completed ? 0 : duration;
+            progress.currentAmount = progress.isCompleted() ? 0 : duration;
             progress.progressTextOverride = "(" + formatTime(progress.currentAmount) + ")";
             return;
         }
-        if (progress.completed) {
+        if (progress.isCompleted()) {
             progress.currentAmount = 0;
             progress.progressTextOverride = "(" + formatTime(0) + ")";
             return;
@@ -87,11 +87,13 @@ public class CountdownTask extends ITask {
     @Override
     public boolean autoCompleteObjective(ServerPlayer player, TaskObjectiveProgress progress,
                                          Map<String, QuestVariableValue> questVariables) {
-        if (progress.completed) {
+        if (!progress.isActive()) {
             return false;
         }
         refreshObjectiveProgress(player, progress, questVariables);
-        progress.completed = progress.currentAmount <= 0;
+        if (progress.currentAmount <= 0) {
+            progress.complete();
+        }
         return true;
     }
 

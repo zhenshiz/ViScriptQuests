@@ -29,35 +29,12 @@ public enum LocationWaypointColor implements StringRepresentable {
     private final String name;
     private final int argb;
 
-    public static LocationWaypointColor closestTo(int argb) {
-        int target = argb & 0xFFFFFF;
-        LocationWaypointColor closest = WHITE;
-        int closestDistance = Integer.MAX_VALUE;
-        for (LocationWaypointColor color : values()) {
-            int distance = colorDistance(target, color.argb & 0xFFFFFF);
-            if (distance < closestDistance) {
-                closestDistance = distance;
-                closest = color;
-            }
-        }
-        return closest;
+    public static LocationWaypointColor fromValue(Object value) {
+        return value instanceof LocationWaypointColor color ? color : PURPLE;
     }
 
     @Override
     public @NotNull String getSerializedName() {
         return name;
-    }
-
-    private static int colorDistance(int a, int b) {
-        int ar = (a >> 16) & 0xFF;
-        int ag = (a >> 8) & 0xFF;
-        int ab = a & 0xFF;
-        int br = (b >> 16) & 0xFF;
-        int bg = (b >> 8) & 0xFF;
-        int bb = b & 0xFF;
-        int dr = ar - br;
-        int dg = ag - bg;
-        int db = ab - bb;
-        return dr * dr + dg * dg + db * db;
     }
 }

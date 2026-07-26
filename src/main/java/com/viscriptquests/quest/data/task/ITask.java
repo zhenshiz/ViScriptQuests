@@ -38,9 +38,18 @@ public abstract class ITask implements ILDLRegister<ITask, Supplier<ITask>>, IPe
     // 目标节点的稳定 ID，用于目标完成后触发子图里的动态动作流。
     @Persisted
     public String objectiveId = "";
+    // 是否在小任务激活时立即激活；有目标前置连线时由蓝图编译器设为 false。
+    @Persisted
+    public boolean initiallyActive = true;
     // 自定义目标提示文本；为空时使用具体目标自己的默认提示。
     @Persisted
     public String taskHint = "";
+    // 是否在任务书和追踪 HUD 的目标栏中展示；不影响目标完成判定。
+    @Persisted
+    public boolean showInObjectiveList = true;
+    // 任务书和追踪 HUD 使用的自定义目标图标；为空时使用具体目标类型的默认图标。
+    @Persisted
+    public DisplayIcon objectiveIcon = new DisplayIcon();
     // 目标在小任务里的语义：必做、可选，或作为失败条件监听。
     @Persisted
     public TaskObjectiveType objectiveType = TaskObjectiveType.REQUIRED;
@@ -88,9 +97,28 @@ public abstract class ITask implements ILDLRegister<ITask, Supplier<ITask>>, IPe
         return getDefaultTaskHint();
     }
 
-    // 任务目标显示用图片，任务书和 HUD 都可以复用。
+    // 具体目标类型提供的默认图标。
     public DisplayIcon getDisplayIcon() {
         return new DisplayIcon();
+    }
+
+    // 返回任务书和 HUD 实际使用的图标，自定义图标为空时回退到目标类型默认图标。
+    public DisplayIcon getObjectiveIcon() {
+        if (hasCustomObjectiveIcon()) {
+            return objectiveIcon.copy();
+        }
+        DisplayIcon defaultIcon = getDisplayIcon();
+        return defaultIcon == null ? new DisplayIcon() : defaultIcon;
+    }
+
+    private boolean hasCustomObjectiveIcon() {
+        if (objectiveIcon == null) {
+            return false;
+        }
+        if (objectiveIcon.isTexture()) {
+            return objectiveIcon.getTexture() != null && !objectiveIcon.getTexture().isBlank();
+        }
+        return objectiveIcon.getItemStack() != null && !objectiveIcon.getItemStack().isEmpty();
     }
 
     // 目标进度需求量，默认目标只有完成/未完成两种状态。
@@ -111,7 +139,7 @@ public abstract class ITask implements ILDLRegister<ITask, Supplier<ITask>>, IPe
                                          Map<String, QuestVariableValue> questVariables) {
         int required = Math.max(1, getRequiredAmount(questVariables, player));
         progress.requiredAmount = required;
-        progress.currentAmount = progress.completed ? required : 0;
+        progress.currentAmount = progress.isCompleted() ? required : 0;
     }
 
     // 目标进度是否能从玩家当前状态直接重算；击杀次数这类事件累计目标需要保留已有进度。
@@ -137,12 +165,12 @@ public abstract class ITask implements ILDLRegister<ITask, Supplier<ITask>>, IPe
     public boolean autoCompleteObjective(ServerPlayer player, TaskObjectiveProgress progress,
                                          Map<String, QuestVariableValue> questVariables) {
         if ((!allowsAutoSubmit() && !progress.isFailureCondition())
-                || progress.completed
+                || !progress.isActive()
                 || !checkCompletion(player, questVariables)
                 || (!progress.isFailureCondition() && !onComplete(player, questVariables))) {
             return false;
         }
-        progress.completed = true;
+        progress.complete();
         progress.currentAmount = Math.max(1, getRequiredAmount(questVariables, player));
         progress.requiredAmount = progress.currentAmount;
         return true;

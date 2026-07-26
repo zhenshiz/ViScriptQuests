@@ -71,7 +71,9 @@ public class QuestCommand implements ICommand {
     private static final SuggestionProvider<CommandSourceStack> STEP_SUGGESTIONS = (context, builder) -> {
         Collection<ServerPlayer> players = EntityArgument.getPlayers(context, "target");
         String questId = StringArgumentType.getString(context, "quest");
-        return SharedSuggestionProvider.suggest(commonValues(players, player -> QuestManager.getStepIds(player, questId)), builder);
+        return SharedSuggestionProvider.suggest(
+                commonValues(players, player -> QuestManager.getTrackedStepIds(player, questId)),
+                builder);
     };
 
     @Override
@@ -271,7 +273,7 @@ public class QuestCommand implements ICommand {
                 player -> player.createCommandSourceStack().sendSuccess(
                         () -> Component.translatable("viscript_quests.quest.objective_completed", stepId, questId), true),
                 player -> submitPrecheckFailure(player, questId, stepId),
-                player -> Component.translatable("commands.viscript_quests.quest.submit.consume_failed", stepId),
+                player -> Component.translatable("commands.viscript_quests.quest.submit.not_ready", stepId),
                 player -> Component.translatable(
                         "commands.viscript_quests.quest.submit.success",
                         player.getDisplayName(), QuestFileHelper.normalizeQuestId(questId), stepId),
@@ -282,16 +284,17 @@ public class QuestCommand implements ICommand {
     private int triggerCustom(CommandContext<CommandSourceStack> context) {
         Collection<ServerPlayer> players = EntityArgument.getPlayers(context, "target");
         String triggerId = StringArgumentType.getString(context, "trigger_id");
-        return applyToPlayers(context, players,
-                player -> QuestManager.triggerCustom(player, triggerId),
-                player -> player.createCommandSourceStack().sendSuccess(
-                        () -> Component.translatable("viscript_quests.quest.custom_trigger.completed", triggerId), true),
-                player -> null,
-                player -> Component.translatable("commands.viscript_quests.quest.trigger.no_match", player.getDisplayName(), triggerId),
-                player -> Component.translatable(
-                        "commands.viscript_quests.quest.trigger.success",
-                        player.getDisplayName(), triggerId),
-                true);
+        int successCount = 0;
+        for (ServerPlayer player : players) {
+            if (QuestManager.triggerCustom(player, triggerId)) {
+                successCount++;
+            } else {
+                context.getSource().sendFailure(Component.translatable(
+                        "commands.viscript_quests.quest.trigger.no_match",
+                        player.getDisplayName(), triggerId));
+            }
+        }
+        return successCount;
     }
 
     private int applyToPlayers(CommandContext<CommandSourceStack> context,
@@ -445,10 +448,6 @@ public class QuestCommand implements ICommand {
         var tasks = questFile.get().findTasksForStep(stepId);
         if (tasks.isEmpty()) {
             return Component.translatable("commands.viscript_quests.quest.task.definition_missing", stepId, normalizedQuestId);
-        }
-        boolean completed = tasks.stream().allMatch(task -> task.checkCompletion(player, state.get().questVariables));
-        if (!completed) {
-            return Component.translatable("commands.viscript_quests.quest.submit.missing_items", stepId);
         }
         return null;
     }

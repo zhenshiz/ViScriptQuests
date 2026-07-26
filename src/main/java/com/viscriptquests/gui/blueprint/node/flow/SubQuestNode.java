@@ -5,12 +5,11 @@ import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.definition.IOptionDe
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.definition.IPortDefinitionContext;
 import com.viscriptquests.gui.blueprint.QuestBlueprintGraph;
 import com.viscriptquests.gui.blueprint.node.QuestBlueprintNode;
-import com.viscriptquests.gui.blueprint.node.QuestLinkedNode;
 import net.minecraft.network.chat.Component;
 
 // 小任务节点，作为目标和奖励的分组容器
 @NodeAttribute(name = QuestBlueprintNode.ID + "sub_quest", group = QuestBlueprintNode.FLOW_GROUP, graphTypes = QuestBlueprintGraph.class)
-public class SubQuestNode extends QuestLinkedNode {
+public class SubQuestNode extends QuestBlueprintNode {
     @Override
     public Component getDisplayName() {
         return nodeName("sub_quest");

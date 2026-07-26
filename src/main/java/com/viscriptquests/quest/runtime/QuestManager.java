@@ -12,6 +12,7 @@ import com.viscriptquests.quest.data.runtime.QuestCategoryListData;
 import com.viscriptquests.quest.data.runtime.QuestPlayerData;
 import com.viscriptquests.quest.data.runtime.QuestStatus;
 import com.viscriptquests.quest.data.runtime.TaskProgress;
+import com.viscriptquests.quest.data.runtime.TaskStatus;
 import com.viscriptquests.util.QuestCategoryFileHelper;
 import com.viscriptquests.util.QuestFileHelper;
 import net.minecraft.network.chat.Component;
@@ -213,7 +214,7 @@ public class QuestManager {
      * 刷新任务书需要展示的目标文本、图标和提交按钮状态。
      *
      * <p>该方法只同步运行时任务文件派生出的展示数据，不改变任务流程状态。
-     * 打开任务书或服务端提交后调用它，可以让旧存档里的展示字段跟上当前任务定义。
+     * 打开任务书或服务端提交后调用它，可以让展示字段跟上当前任务定义。
      *
      * @param player 服务端玩家，要刷新该玩家的任务书数据
      */
@@ -261,17 +262,29 @@ public class QuestManager {
     }
 
     /**
-     * 获取指定任务文件中可提交的小任务标识列表。
+     * 获取玩家在指定任务中当前追踪且可提交的小任务标识。
      *
-     * <p>该方法主要用于命令补全和调试查询。返回值来自运行时任务文件，
-     * 不代表玩家当前一定已经解锁这些小任务。
+     * <p>该查询用于 {@code submit} 指令补全，只返回玩家当前明确追踪、任务和小任务都处于
+     * 激活状态的步骤 UUID。尚未解锁、未被追踪或已经结束的小任务不会出现在补全列表中。
      *
-     * @param player 服务端玩家，提供注册表访问和任务文件解析上下文
+     * @param player 服务端玩家，要读取该玩家的追踪状态
      * @param questId 任务标识，允许传入未规范化的任务文件标识
-     * @return 小任务标识列表，任务文件不存在时返回空列表
+     * @return 当前可提交的追踪小任务标识列表；没有匹配项时返回空列表
      */
-    public static List<String> getStepIds(ServerPlayer player, String questId) {
-        return QuestRuntimeDebug.getStepIds(player, questId);
+    public static List<String> getTrackedStepIds(ServerPlayer player, String questId) {
+        String normalizedQuestId = QuestFileHelper.normalizeQuestId(questId);
+        QuestPlayerData playerData = QuestSavedData.get(player.getServer()).getPlayer(player.getUUID());
+        if (!normalizedQuestId.equals(playerData.trackedQuestId)
+                || playerData.trackedStepId == null
+                || playerData.trackedStepId.isBlank()) {
+            return List.of();
+        }
+        return playerData.findQuest(normalizedQuestId)
+                .filter(state -> state.status == QuestStatus.ACTIVE)
+                .flatMap(state -> state.findStepProgress(playerData.trackedStepId))
+                .filter(progress -> progress.status == TaskStatus.ACTIVE)
+                .map(progress -> List.of(progress.stepId))
+                .orElseGet(List::of);
     }
 
     /**

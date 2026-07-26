@@ -108,9 +108,11 @@ public class QuestFlowExecutor {
         state.findStepProgress(failedStepId).ifPresent(progress -> {
             progress.status = TaskStatus.FAILED;
             TaskObjectiveProgress failedObjective = progress.objectives.stream()
-                    .filter(objective -> objective != null && objective.isFailureCondition() && objective.completed)
+                    .filter(objective -> objective != null
+                            && objective.isFailureCondition() && objective.isCompleted())
                     .findFirst()
                     .orElse(null);
+            progress.skipUnfinishedObjectives();
             NeoForge.EVENT_BUS.post(new QuestEvent.TaskFailed(player, state, progress, failedObjective));
         });
         state.activeFlowNodes.remove(failedStepId);
@@ -120,24 +122,6 @@ public class QuestFlowExecutor {
             return;
         }
         advance(player, state, questFile);
-    }
-
-    /**
-     * 直接把整条任务结算为失败。
-     *
-     * <p>保留该入口给命令、兼容旧逻辑或异常兜底使用。普通失败条件应优先调用
-     * {@link #failStepNode(ServerPlayer, PlayerQuestState, QuestFile, String)}，让蓝图失败出口有机会接管流程。
-     */
-    public static void failQuest(ServerPlayer player, PlayerQuestState state, QuestFile questFile, String failedStepId) {
-        state.findStepProgress(failedStepId).ifPresent(progress -> {
-            progress.status = TaskStatus.FAILED;
-            TaskObjectiveProgress failedObjective = progress.objectives.stream()
-                    .filter(objective -> objective != null && objective.isFailureCondition() && objective.completed)
-                    .findFirst()
-                    .orElse(null);
-            NeoForge.EVENT_BUS.post(new QuestEvent.TaskFailed(player, state, progress, failedObjective));
-        });
-        finish(player, state, questFile, false, false, failedStepId);
     }
 
     /**
@@ -155,6 +139,14 @@ public class QuestFlowExecutor {
         for (TaskProgress progress : state.taskProgresses) {
             if (progress.status != TaskStatus.COMPLETED) {
                 newlyCompleted.add(progress);
+            }
+            for (TaskObjectiveProgress objective : progress.objectives) {
+                if (objective == null || objective.isFailureCondition()) {
+                    continue;
+                }
+                objective.requiredAmount = Math.max(1, objective.requiredAmount);
+                objective.currentAmount = objective.requiredAmount;
+                objective.complete();
             }
             progress.status = TaskStatus.COMPLETED;
             state.completedFlowNodes.add(progress.stepId);
@@ -198,12 +190,12 @@ public class QuestFlowExecutor {
             boolean reentered = progress.status == TaskStatus.COMPLETED
                     || progress.status == TaskStatus.FAILED
                     || progress.status == TaskStatus.SKIPPED;
-            if (progress.status == TaskStatus.COMPLETED
-                    || progress.status == TaskStatus.FAILED
-                    || progress.status == TaskStatus.SKIPPED) {
-                // 回环重新进入同一个小任务时，重置目标进度并允许再次等待玩家完成。
-                state.rewardedSteps.remove(stepId);
-                state.triggeredObjectiveActions.removeIf(actionKey -> actionKey.startsWith(stepId + ":"));
+            if (progress.status == TaskStatus.LOCKED || reentered) {
+                // 初次解锁或回环重新进入小任务时，按导出的目标流程重建目标状态。
+                if (reentered) {
+                    state.rewardedSteps.remove(stepId);
+                    state.triggeredObjectiveActions.removeIf(actionKey -> actionKey.startsWith(stepId + ":"));
+                }
                 TaskProgress refreshed = TaskProgress.fromTasks(stepId, questFile.findTasksForStep(stepId),
                         questFile.findStep(stepId).orElse(null), player, state.questVariables);
                 progress.title = refreshed.title;
@@ -396,6 +388,7 @@ public class QuestFlowExecutor {
                     .filter(progress -> progress.status == TaskStatus.ACTIVE || progress.status == TaskStatus.LOCKED)
                     .ifPresent(progress -> {
                         progress.status = TaskStatus.SKIPPED;
+                        progress.skipUnfinishedObjectives();
                         NeoForge.EVENT_BUS.post(new QuestEvent.TaskSkipped(player, state, progress, "branch"));
                     });
         }
@@ -426,6 +419,7 @@ public class QuestFlowExecutor {
         for (TaskProgress progress : state.taskProgresses) {
             if (progress.status == TaskStatus.ACTIVE || progress.status == TaskStatus.LOCKED) {
                 progress.status = TaskStatus.SKIPPED;
+                progress.skipUnfinishedObjectives();
                 NeoForge.EVENT_BUS.post(new QuestEvent.TaskSkipped(player, state, progress, "quest_finished"));
             }
         }

@@ -30,25 +30,7 @@ public enum MathOperation implements StringRepresentable {
     }
 
     public static MathOperation fromValue(Object value) {
-        if (value instanceof MathOperation operation) {
-            return operation;
-        }
-        if (value instanceof String serializedName) {
-            for (MathOperation operation : values()) {
-                if (operation.name().equalsIgnoreCase(serializedName)
-                        || operation.getSerializedName().equals(serializedName)) {
-                    return operation;
-                }
-            }
-        }
-        if (value instanceof Number index) {
-            MathOperation[] operations = values();
-            int ordinal = index.intValue();
-            if (ordinal >= 0 && ordinal < operations.length) {
-                return operations[ordinal];
-            }
-        }
-        return ADD;
+        return value instanceof MathOperation operation ? operation : ADD;
     }
 
     @Override
