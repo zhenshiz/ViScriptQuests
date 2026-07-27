@@ -4,11 +4,7 @@ import com.lowdragmc.lowdraglib2.gui.texture.ColorRectTexture;
 import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
 import com.lowdragmc.lowdraglib2.gui.texture.SpriteTexture;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
-import com.lowdragmc.lowdraglib2.gui.ui.data.Horizontal;
-import com.lowdragmc.lowdraglib2.gui.ui.data.ScrollDisplay;
-import com.lowdragmc.lowdraglib2.gui.ui.data.ScrollerMode;
-import com.lowdragmc.lowdraglib2.gui.ui.data.TextWrap;
-import com.lowdragmc.lowdraglib2.gui.ui.data.Vertical;
+import com.lowdragmc.lowdraglib2.gui.ui.data.*;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
@@ -21,21 +17,8 @@ import com.viscriptquests.compat.ponder.PonderCompat;
 import com.viscriptquests.config.ClientConfig;
 import com.viscriptquests.network.c2s.C2SPayload;
 import com.viscriptquests.quest.data.DisplayIcon;
-import com.viscriptquests.quest.data.runtime.PlayerQuestState;
-import com.viscriptquests.quest.data.runtime.QuestBookData;
-import com.viscriptquests.quest.data.runtime.QuestCategoryData;
-import com.viscriptquests.quest.data.runtime.QuestCategoryListData;
-import com.viscriptquests.quest.data.runtime.QuestPlayerData;
-import com.viscriptquests.quest.data.runtime.QuestStatus;
-import com.viscriptquests.quest.data.runtime.RewardDisplay;
-import com.viscriptquests.quest.data.runtime.TaskObjectiveProgress;
-import com.viscriptquests.quest.data.runtime.TaskProgress;
-import com.viscriptquests.quest.data.runtime.TaskStatus;
-import dev.vfyjxf.taffy.style.AlignContent;
-import dev.vfyjxf.taffy.style.AlignItems;
-import dev.vfyjxf.taffy.style.FlexDirection;
-import dev.vfyjxf.taffy.style.FlexWrap;
-import dev.vfyjxf.taffy.style.TaffyPosition;
+import com.viscriptquests.quest.data.runtime.*;
+import dev.vfyjxf.taffy.style.*;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -47,14 +30,16 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-/** 玩家任务书。界面使用固定 480×380 书本坐标系，任务与进度操作仍由原有运行时数据驱动。 */
+/**
+ * 玩家任务书。界面使用固定 480×380 书本坐标系，任务与进度操作仍由原有运行时数据驱动。
+ */
 public class QuestBookUI extends UIElement {
     private static final int BOOK_WIDTH = 480;
     private static final int BOOK_HEIGHT = 380;
     private static final float MAX_SCREEN_WIDTH_RATIO = 0.80f;
     private static final float MAX_SCREEN_HEIGHT_RATIO = 0.90f;
 
-    private static final int CATEGORY_X = 19;
+    private static final int CATEGORY_X = 13;
     private static final int CATEGORY_Y = 68;
     private static final int CATEGORY_HEIGHT = 18;
     private static final int CATEGORY_GAP = 5;
