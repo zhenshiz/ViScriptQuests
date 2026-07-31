@@ -3,6 +3,7 @@ package com.viscriptquests.quest.data;
 import com.lowdragmc.lowdraglib2.syncdata.IPersistedSerializable;
 import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.scores.Objective;
 import net.minecraft.world.scores.ReadOnlyScoreInfo;
 import net.minecraft.world.scores.ScoreHolder;
@@ -26,6 +27,10 @@ public class QuestValueToken implements IPersistedSerializable {
     public String objectiveName = "";
     @Persisted
     public String scoreHolder = "";
+    @Persisted
+    public ItemStack itemStack = ItemStack.EMPTY;
+    @Persisted
+    public ItemMatchRule itemMatchRule = new ItemMatchRule();
 
     public static QuestValueToken constant(float value) {
         QuestValueToken token = new QuestValueToken();
@@ -46,6 +51,23 @@ public class QuestValueToken implements IPersistedSerializable {
         token.kind = Kind.SCOREBOARD;
         token.objectiveName = objectiveName == null ? "" : objectiveName.trim();
         token.scoreHolder = scoreHolder == null ? "" : scoreHolder.trim();
+        return token;
+    }
+
+    /**
+     * 创建在运行时统计当前玩家背包物品数量的表达式 token。
+     *
+     * @param  itemStack 用于确定目标物品和组件数据的物品堆
+     * @param  matchRule 控制物品组件比较方式的匹配规则
+     * @return 包含物品身份和匹配规则的表达式 token
+     */
+    public static QuestValueToken playerItemCount(ItemStack itemStack, ItemMatchRule matchRule) {
+        QuestValueToken token = new QuestValueToken();
+        token.kind = Kind.PLAYER_ITEM_COUNT;
+        token.itemStack = itemStack == null || itemStack.isEmpty()
+                ? ItemStack.EMPTY
+                : itemStack.copyWithCount(1);
+        token.itemMatchRule = matchRule == null ? new ItemMatchRule() : matchRule.copy();
         return token;
     }
 
@@ -74,6 +96,7 @@ public class QuestValueToken implements IPersistedSerializable {
                     stack.push(variableValue == null ? 0f : variableValue.asFloat());
                 }
                 case SCOREBOARD -> stack.push(readScoreboardValue(player, token.objectiveName, token.scoreHolder));
+                case PLAYER_ITEM_COUNT -> stack.push(readPlayerItemCount(player, token.itemStack, token.itemMatchRule));
                 case ADD -> stack.push(pop(stack) + pop(stack));
                 case SUBTRACT -> {
                     float b = pop(stack);
@@ -123,6 +146,9 @@ public class QuestValueToken implements IPersistedSerializable {
             if (token.kind == Kind.SCOREBOARD && player == null) {
                 return true;
             }
+            if (token.kind == Kind.PLAYER_ITEM_COUNT && player == null) {
+                return true;
+            }
             if (token.kind == Kind.VARIABLE
                     && (questVariables == null || !questVariables.containsKey(token.variableName))) {
                 return true;
@@ -147,6 +173,14 @@ public class QuestValueToken implements IPersistedSerializable {
         return scoreInfo == null ? 0f : scoreInfo.value();
     }
 
+    private static float readPlayerItemCount(ServerPlayer player, ItemStack itemStack, ItemMatchRule matchRule) {
+        if (player == null || itemStack == null || itemStack.isEmpty()) {
+            return 0f;
+        }
+        ItemMatchRule resolvedRule = matchRule == null ? new ItemMatchRule() : matchRule;
+        return resolvedRule.getItemForPlayerCount(player, itemStack.copyWithCount(1));
+    }
+
     private static float pop(ArrayDeque<Float> stack) {
         return stack.isEmpty() ? 0f : stack.pop();
     }
@@ -155,6 +189,7 @@ public class QuestValueToken implements IPersistedSerializable {
         CONSTANT,
         VARIABLE,
         SCOREBOARD,
+        PLAYER_ITEM_COUNT,
         ADD,
         SUBTRACT,
         MULTIPLY,
@@ -171,11 +206,29 @@ public class QuestValueToken implements IPersistedSerializable {
                 && kind == that.kind
                 && Objects.equals(variableName, that.variableName)
                 && Objects.equals(objectiveName, that.objectiveName)
-                && Objects.equals(scoreHolder, that.scoreHolder);
+                && Objects.equals(scoreHolder, that.scoreHolder)
+                && ItemStack.matches(itemStack, that.itemStack)
+                && sameMatchRule(itemMatchRule, that.itemMatchRule);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(kind, variableName, value, objectiveName, scoreHolder);
+        return Objects.hash(kind, variableName, value, objectiveName, scoreHolder,
+                ItemStack.hashItemAndComponents(itemStack), matchRuleHash(itemMatchRule));
+    }
+
+    private static boolean sameMatchRule(ItemMatchRule first, ItemMatchRule second) {
+        if (first == second) {
+            return true;
+        }
+        if (first == null || second == null) {
+            return false;
+        }
+        return first.resolvedCompareMode() == second.resolvedCompareMode()
+                && Objects.equals(first.resolvedComponents(), second.resolvedComponents());
+    }
+
+    private static int matchRuleHash(ItemMatchRule rule) {
+        return rule == null ? 0 : Objects.hash(rule.resolvedCompareMode(), rule.resolvedComponents());
     }
 }

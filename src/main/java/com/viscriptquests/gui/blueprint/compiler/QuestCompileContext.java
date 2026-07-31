@@ -533,6 +533,10 @@ public class QuestCompileContext {
                     // 计分板值依赖当前玩家和服务器运行时，导出阶段不能提前折叠成常量。
                     return null;
                 }
+                case PLAYER_ITEM_COUNT -> {
+                    // 背包内容依赖当前玩家的运行时状态，导出阶段不能提前折叠成常量。
+                    return null;
+                }
                 case ADD -> {
                     Float b = pop(stack);
                     Float a = pop(stack);

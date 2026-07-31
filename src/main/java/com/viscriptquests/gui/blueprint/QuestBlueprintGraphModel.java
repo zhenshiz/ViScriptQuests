@@ -262,6 +262,7 @@ public class QuestBlueprintGraphModel extends CustomGraphModelImpl {
         return isNodeInGroup(nodeClass, QuestBlueprintNode.TASK_GROUP)
                 || isNodeInGroup(nodeClass, QuestBlueprintNode.LOGIC_GROUP)
                 || isNodeInGroup(nodeClass, QuestBlueprintNode.MATH_GROUP)
+                || isNodeInGroup(nodeClass, QuestBlueprintNode.PLAYER_GROUP)
                 || isNodeInGroup(nodeClass, QuestBlueprintNode.DEBUG_GROUP)
                 || isNodeInGroup(nodeClass, QuestBlueprintNode.SCOREBOARD_GROUP)
                 || isNodeInGroup(nodeClass, QuestBlueprintNode.VARIABLE_GROUP)

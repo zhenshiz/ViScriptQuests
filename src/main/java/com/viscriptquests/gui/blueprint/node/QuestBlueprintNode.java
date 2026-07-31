@@ -1,7 +1,12 @@
 package com.viscriptquests.gui.blueprint.node;
 
+import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
+import com.lowdragmc.lowdraglib2.gui.ui.data.TextWrap;
+import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
+import com.lowdragmc.lowdraglib2.gui.ui.utils.UIElementProvider;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.api.node.IOptionBuilder;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.api.node.Node;
+import com.lowdragmc.lowdraglib2.nodegraphtookit.api.node.NodeAttribute;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.api.port.IPortBuilder;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.api.type.TypeHandle;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.api.type.TypeHandles;
@@ -16,6 +21,7 @@ import com.viscriptquests.gui.blueprint.data.QuestRegistryId;
 import com.viscriptquests.quest.data.DisplayIcon;
 import com.viscriptquests.quest.data.ItemMatchRule;
 import com.viscriptquests.quest.data.TaskObjectiveType;
+import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
@@ -34,10 +40,58 @@ public abstract class QuestBlueprintNode extends Node {
     public static final String FLOW_GROUP = "flow";
     public static final String LOGIC_GROUP = "logic";
     public static final String MATH_GROUP = "math";
+    public static final String PLAYER_GROUP = "player";
     public static final String REWARD_GROUP = "reward";
     public static final String SCOREBOARD_GROUP = "scoreboard";
     public static final String TASK_GROUP = "task";
     public static final String VARIABLE_GROUP = "variable";
+
+    @Override
+    public UIElement createDescriptionUI() {
+        NodeAttribute attribute = getClass().getAnnotation(NodeAttribute.class);
+        if (attribute == null) {
+            return null;
+        }
+
+        String nodePath = pathOf(attribute.name());
+        String nodeKey = ViScriptQuests.MOD_ID + ".blueprint.node." + nodePath;
+        var container = new UIElement();
+        container.layout(layout -> layout.widthPercent(100).gapAll(3));
+
+        UIElement title = UIElementProvider.iconText(Node::getNodeIcon, Node::getDisplayName).apply(this);
+        title.layout(layout -> layout.widthPercent(100));
+        container.addChild(title);
+
+        if (!attribute.group().isBlank()) {
+            container.addChild(descriptionLabel(Component.translatable(
+                    ViScriptQuests.MOD_ID + ".blueprint.description.category",
+                    Component.translatable(ViScriptQuests.MOD_ID + ".blueprint.category." + attribute.group())
+            ), 5));
+        }
+
+        container.addChildren(
+                descriptionLabel(Component.translatable(
+                        ViScriptQuests.MOD_ID + ".blueprint.description.section.description"
+                ).withStyle(ChatFormatting.BOLD), 6),
+                descriptionLabel(Component.translatable(nodeKey + ".description"), 6),
+                descriptionLabel(Component.translatable(
+                        ViScriptQuests.MOD_ID + ".blueprint.description.section.usage"
+                ).withStyle(ChatFormatting.BOLD), 6),
+                descriptionLabel(Component.translatable(nodeKey + ".usage"), 6)
+        );
+        return container;
+    }
+
+    private static Label descriptionLabel(Component text, float fontSize) {
+        Label label = new Label();
+        label.setText(text);
+        label.layout(layout -> layout.widthPercent(100));
+        label.textStyle(style -> style
+                .fontSize(fontSize)
+                .textWrap(TextWrap.WRAP)
+                .adaptiveHeight(true));
+        return label;
+    }
 
     protected void inputFlow(IPortDefinitionContext context) {
         input(context, "in", TypeHandles.EXECUTION_FLOW, null);
@@ -218,6 +272,12 @@ public abstract class QuestBlueprintNode extends Node {
 
     protected void floatOutput(IPortDefinitionContext context, String id) {
         context.addOutputPort(id, TypeHandles.FLOAT)
+                .withDisplayName(portName(id))
+                .build();
+    }
+
+    protected void intOutput(IPortDefinitionContext context, String id) {
+        context.addOutputPort(id, TypeHandles.INT)
                 .withDisplayName(portName(id))
                 .build();
     }

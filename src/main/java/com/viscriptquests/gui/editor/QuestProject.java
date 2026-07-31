@@ -32,6 +32,8 @@ public class QuestProject implements IRuntimeFileProject {
     private transient GraphEditorView graphEditorView;
     @Nullable
     private transient Supplier<CompoundTag> graphSnapshotSupplier;
+    @Nullable
+    private transient QuestBlueprintGraph deserializedGraph;
 
     public static QuestProject createProject(CompoundTag graphTag) {
         QuestProject project = new QuestProject();
@@ -65,14 +67,15 @@ public class QuestProject implements IRuntimeFileProject {
     @Override
     public void deserializeProject(@NotNull HolderLookup.Provider provider, @NotNull CompoundTag nbt) {
         graphTag = nbt.getCompound("graph").copy();
+        deserializedGraph = deserializeGraph(provider, graphTag);
     }
 
     @Override
     public void onLoad(Editor editor) {
-        QuestBlueprintGraph graph = new QuestBlueprintGraph();
-        if (!graphTag.isEmpty()) {
-            graph.graphModel.deserializeNBT(Platform.getFrozenRegistry(), graphTag.copy());
-        }
+        QuestBlueprintGraph graph = deserializedGraph == null
+                ? deserializeGraph(Platform.getFrozenRegistry(), graphTag)
+                : deserializedGraph;
+        deserializedGraph = null;
 
         graphEditorView = new GraphEditorView().loadGraph(graph, savedGraph -> graphTag = savedGraph.copy());
         graphSnapshotSupplier = graphEditorView::serializeGraph;
@@ -94,6 +97,7 @@ public class QuestProject implements IRuntimeFileProject {
         }
         graphEditorView = null;
         graphSnapshotSupplier = null;
+        deserializedGraph = null;
     }
 
     public QuestFile compileQuestFile() {
@@ -110,6 +114,14 @@ public class QuestProject implements IRuntimeFileProject {
         if (graphSnapshotSupplier != null) {
             graphTag = graphSnapshotSupplier.get().copy();
         }
+    }
+
+    private static QuestBlueprintGraph deserializeGraph(HolderLookup.Provider provider, CompoundTag graphTag) {
+        QuestBlueprintGraph graph = new QuestBlueprintGraph();
+        if (!graphTag.isEmpty()) {
+            graph.graphModel.deserializeNBT(provider, graphTag.copy());
+        }
+        return graph;
     }
 
     private static class QuestProjectType extends ProjectFileProjectType {

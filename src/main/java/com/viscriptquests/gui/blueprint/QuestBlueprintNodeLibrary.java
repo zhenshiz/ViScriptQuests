@@ -28,6 +28,7 @@ public final class QuestBlueprintNodeLibrary {
     }
 
     public static void rebuild(ItemLibrary itemLibrary, List<Class<? extends Node>> nodes) {
+        itemLibrary.setDescriptionWidth(180);
         hideDefaultLibraryTrees(itemLibrary);
 
         Map<String, List<Class<? extends Node>>> grouped = new LinkedHashMap<>();
