@@ -44,11 +44,12 @@ public class ItemMatchRule implements IConfigurable, IPersistedSerializable {
     }
 
     public int getItemForPlayerCount(ServerPlayer player, ItemStack itemStack) {
-        return ItemUtil.getItemForPlayerCount(player, itemStack, resolvedCompareMode(), resolvedComponents());
+        // VSL 已将计数返回值改为 long，任务系统内部数量使用 int，这里在边界处收窄
+        return (int) ItemUtil.getItemForPlayerCount(player, itemStack, resolvedCompareMode(), resolvedComponents());
     }
 
     public int removeItemForPlayer(ServerPlayer player, ItemStack itemStack, int count) {
-        return ItemUtil.removeItemForPlayer(player, itemStack, count, resolvedCompareMode(), resolvedComponents());
+        return (int) ItemUtil.removeItemForPlayer(player, itemStack, count, resolvedCompareMode(), resolvedComponents());
     }
 
     public ItemMatchRule copy() {

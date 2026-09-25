@@ -77,17 +77,8 @@ base {
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
-configurations {
-    create("mixinAgent") {
-        canBeConsumed = false
-        canBeResolved = true
-        defaultDependencies {
-            add(dependencyFactory.create("dev.vfyjxf:mixin-hotswap-agent:1.1").setTransitive(false))
-        }
-    }
-}
-
-configurations.configureEach {
+// mixinAgent 配置由根项目 build.gradle 的 subprojects 块统一提供，这里跳过它
+configurations.matching { it.name != 'mixinAgent' }.configureEach {
     resolutionStrategy.cacheChangingModulesFor 0, 'seconds'
 }
 
@@ -108,14 +99,8 @@ if (enableLocalTest) {
     sourceSets.test.resources.setSrcDirs([])
 }
 
+// neoForge 的 version/parchment 由根项目 build.gradle 的 subprojects 块统一提供
 neoForge {
-    version = project.neo_version
-
-    parchment {
-        mappingsVersion = project.parchment_mappings_version
-        minecraftVersion = project.parchment_minecraft_version
-    }
-
     runs {
         client {
             client()
@@ -179,16 +164,11 @@ neoForge.unitTest {
 
 sourceSets.main.resources { srcDir 'src/generated/resources' }
 
-modAccessor {
-    createTransformConfiguration(configurations.compileOnly)
-    accessTransformerFiles = project.files('src/main/resources/META-INF/accesstransformer.cfg')
-}
-
+// modAccessor 由根项目 build.gradle 的 subprojects 块统一配置
 dependencies {
-    // LDLib2
-    implementation("com.lowdragmc.ldlib2:ldlib2-neoforge-${minecraft_version}:${ldlib2_version}:all")
-    implementation("com.zhenshiz:ViScriptLib-neoforge-${minecraft_version}:${viscriptlib_version}")
-    jarJar("com.zhenshiz:ViScriptLib-neoforge-${minecraft_version}:${viscriptlib_version}")
+    //前置模组
+    implementation project(":ViScriptLib")
+    jarJar "com.zhenshiz:ViScriptLib-neoforge-${minecraft_version}:${vsl_jij_version}"
 
     // KubeJS
     implementation "dev.latvian.mods:rhino:${rhino_version}"
