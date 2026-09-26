@@ -66,7 +66,7 @@ final class QuestObjectiveProgressService {
             }
         }
         while (progress.objectives.size() > refreshed.objectives.size()) {
-            progress.objectives.removeLast();
+            progress.objectives.remove(progress.objectives.size() - 1);
         }
         progress.refreshSummary();
         return true;

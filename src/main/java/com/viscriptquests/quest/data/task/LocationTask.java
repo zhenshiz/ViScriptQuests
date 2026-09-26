@@ -1,8 +1,8 @@
 package com.viscriptquests.quest.data.task;
 
-import com.mojang.datafixers.util.Pair;
 import com.lowdragmc.lowdraglib2.registry.annotation.LDLRegister;
 import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
+import com.mojang.datafixers.util.Pair;
 import com.viscriptquests.quest.data.DisplayIcon;
 import com.viscriptquests.quest.data.LocationGuideMarkerProvider;
 import com.viscriptquests.quest.data.LocationTargetType;
@@ -16,11 +16,11 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.ChunkPos;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
@@ -179,7 +179,7 @@ public class LocationTask extends ITask {
         Optional<Holder.Reference<Structure>> holder = structureHolder(level);
         return holder.isPresent()
                 && level.structureManager()
-                .getStructureWithPieceAt(player.blockPosition(), HolderSet.direct(holder.get()))
+                .getStructureWithPieceAt(player.blockPosition(), holder.get().key())
                 .isValid();
     }
 

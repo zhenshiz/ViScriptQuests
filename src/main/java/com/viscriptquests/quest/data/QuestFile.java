@@ -7,15 +7,14 @@ import com.mojang.serialization.Codec;
 import com.viscriptquests.quest.data.reward.IReward;
 import com.viscriptquests.quest.data.runtime.RewardDisplay;
 import com.viscriptquests.quest.data.task.ITask;
-import io.netty.buffer.ByteBuf;
-import net.minecraft.network.codec.StreamCodec;
+import net.nikdo53.neobackports.io.StreamCodec;
 
 import java.util.*;
 
 // 任务文件定义，包含任务元数据、目标和奖励
 public class QuestFile implements IPersistedSerializable {
     public static final Codec<QuestFile> CODEC = PersistedParser.createCodec(QuestFile::new);
-    public static final StreamCodec<ByteBuf, QuestFile> STREAM_CODEC = PersistedParser.createStreamCodec(QuestFile::new);
+    public static final StreamCodec<QuestFile> STREAM_CODEC = PersistedParser.createStreamCodec(QuestFile::new);
 
     @Persisted
     public int version = 1;

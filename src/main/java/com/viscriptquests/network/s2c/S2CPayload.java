@@ -10,14 +10,14 @@ import com.lowdragmc.lowdraglib2.gui.ui.UI;
 import com.lowdragmc.lowdraglib2.networking.rpc.RPCPacket;
 import com.viscriptquests.ViScriptQuests;
 import com.viscriptquests.gui.editor.QuestEditor;
+import com.viscriptquests.gui.editor.QuestProject;
 import com.viscriptquests.gui.hud.QuestCompletionToastHud;
 import com.viscriptquests.gui.hud.QuestHudData;
-import com.viscriptquests.gui.editor.QuestProject;
 import com.viscriptquests.quest.data.runtime.QuestCompletionToastData;
 import com.viscriptquests.util.ViScriptQuestsClientUtil;
-import net.minecraft.network.chat.Component;
 import net.minecraft.client.Minecraft;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
 
 public class S2CPayload {
     public static final String OPEN_EDITOR_WITH_PROJECT = ViScriptQuests.MOD_ID + ":open_editor_with_project";

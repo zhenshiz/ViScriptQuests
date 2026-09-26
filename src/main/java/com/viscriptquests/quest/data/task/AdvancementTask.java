@@ -6,7 +6,6 @@ import com.viscriptquests.quest.data.DisplayIcon;
 import com.viscriptquests.quest.data.QuestVariableValue;
 import com.viscriptquests.quest.data.runtime.TaskObjectiveProgress;
 import net.minecraft.advancements.Advancement;
-import net.minecraft.advancements.AdvancementHolder;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
@@ -14,6 +13,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
 import java.util.Map;
+import java.util.Optional;
 
 // 进度目标，检查玩家是否已经完成指定 Minecraft Advancement。
 @LDLRegister(name = "advancement_task", registry = ITask.ID)
@@ -21,14 +21,14 @@ public class AdvancementTask extends ITask {
     @Persisted
     public String advancementId = "minecraft:story/root";
 
-    public boolean matches(AdvancementHolder advancement) {
+    public boolean matches(Advancement advancement) {
         ResourceLocation id = targetAdvancementId();
-        return id != null && advancement != null && id.equals(advancement.id());
+        return id != null && advancement != null && id.equals(advancement.getId());
     }
 
     @Override
     public boolean checkCompletion(ServerPlayer player) {
-        AdvancementHolder advancement = findAdvancement(player);
+        Advancement advancement = findAdvancement(player);
         return advancement != null && player.getAdvancements().getOrStartProgress(advancement).isDone();
     }
 
@@ -45,15 +45,13 @@ public class AdvancementTask extends ITask {
     @Override
     public void refreshObjectiveProgress(ServerPlayer player, TaskObjectiveProgress progress,
                                          Map<String, QuestVariableValue> questVariables) {
-        AdvancementHolder advancement = findAdvancement(player);
+        Advancement advancement = findAdvancement(player);
         if (advancement != null) {
             if (taskHint == null || taskHint.isBlank()) {
                 progress.hint = Component.translatable("viscript_quests.task_hint.advancement_task",
-                        Advancement.name(advancement));
+                        advancement.getChatComponent());
             }
-            ItemStack icon = advancement.value().display()
-                    .map(display -> display.getIcon().copy())
-                    .filter(stack -> !stack.isEmpty())
+            ItemStack icon = Optional.ofNullable(advancement.getDisplay().getIcon())
                 .orElse(Items.KNOWLEDGE_BOOK.getDefaultInstance());
             progress.displayIcon = DisplayIcon.item(icon);
         }
@@ -70,12 +68,12 @@ public class AdvancementTask extends ITask {
         return DisplayIcon.item(Items.KNOWLEDGE_BOOK.getDefaultInstance());
     }
 
-    private AdvancementHolder findAdvancement(ServerPlayer player) {
+    private Advancement findAdvancement(ServerPlayer player) {
         ResourceLocation id = targetAdvancementId();
         if (player == null || player.getServer() == null || id == null) {
             return null;
         }
-        return player.getServer().getAdvancements().get(id);
+        return player.getServer().getAdvancements().getAdvancement(id);
     }
 
     private Component advancementDisplayNameKey() {

@@ -20,12 +20,12 @@ public class ViScriptQuestsRegistries {
     public static AutoRegistry.LDLibRegister<IQuestPassthroughNodeCompiler, Supplier<IQuestPassthroughNodeCompiler>> BLUEPRINT_PASSTHROUGH_NODE_COMPILERS;
 
     static {
-        TASKS = AutoRegistry.LDLibRegister.create(ResourceLocation.parse(ITask.ID), ITask.class, AutoRegistry::noArgsCreator);
-        REWARDS = AutoRegistry.LDLibRegister.create(ResourceLocation.parse(IReward.ID), IReward.class, AutoRegistry::noArgsCreator);
+        TASKS = AutoRegistry.LDLibRegister.create(new ResourceLocation(ITask.ID), ITask.class, AutoRegistry::noArgsCreator);
+        REWARDS = AutoRegistry.LDLibRegister.create(new ResourceLocation(IReward.ID), IReward.class, AutoRegistry::noArgsCreator);
 
-        BLUEPRINT_TASK_NODE_COMPILERS = AutoRegistry.LDLibRegister.create(ResourceLocation.parse(IQuestTaskNodeCompiler.ID), IQuestTaskNodeCompiler.class, AutoRegistry::noArgsCreator);
-        BLUEPRINT_REWARD_NODE_COMPILERS = AutoRegistry.LDLibRegister.create(ResourceLocation.parse(IQuestRewardNodeCompiler.ID), IQuestRewardNodeCompiler.class, AutoRegistry::noArgsCreator);
-        BLUEPRINT_EXPRESSION_NODE_COMPILERS = AutoRegistry.LDLibRegister.create(ResourceLocation.parse(IQuestExpressionNodeCompiler.ID), IQuestExpressionNodeCompiler.class, AutoRegistry::noArgsCreator);
-        BLUEPRINT_PASSTHROUGH_NODE_COMPILERS = AutoRegistry.LDLibRegister.create(ResourceLocation.parse(IQuestPassthroughNodeCompiler.ID), IQuestPassthroughNodeCompiler.class, AutoRegistry::noArgsCreator);
+        BLUEPRINT_TASK_NODE_COMPILERS = AutoRegistry.LDLibRegister.create(new ResourceLocation(IQuestTaskNodeCompiler.ID), IQuestTaskNodeCompiler.class, AutoRegistry::noArgsCreator);
+        BLUEPRINT_REWARD_NODE_COMPILERS = AutoRegistry.LDLibRegister.create(new ResourceLocation(IQuestRewardNodeCompiler.ID), IQuestRewardNodeCompiler.class, AutoRegistry::noArgsCreator);
+        BLUEPRINT_EXPRESSION_NODE_COMPILERS = AutoRegistry.LDLibRegister.create(new ResourceLocation(IQuestExpressionNodeCompiler.ID), IQuestExpressionNodeCompiler.class, AutoRegistry::noArgsCreator);
+        BLUEPRINT_PASSTHROUGH_NODE_COMPILERS = AutoRegistry.LDLibRegister.create(new ResourceLocation(IQuestPassthroughNodeCompiler.ID), IQuestPassthroughNodeCompiler.class, AutoRegistry::noArgsCreator);
     }
 }

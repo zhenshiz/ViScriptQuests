@@ -1,10 +1,10 @@
 package com.viscriptquests.quest.data;
 
+import com.lowdragmc.lowdraglib2.Platform;
 import com.lowdragmc.lowdraglib2.syncdata.IPersistedSerializable;
 import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
 import com.viscriptquests.ViScriptQuests;
 import com.viscriptquests.quest.data.runtime.QuestPlayerData;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.saveddata.SavedData;
@@ -16,13 +16,12 @@ import java.util.UUID;
 
 public class QuestSavedData extends SavedData implements IPersistedSerializable {
     private static final String DATA_NAME = ViScriptQuests.MOD_ID + "_quests";
-    private static final Factory<QuestSavedData> FACTORY = new Factory<>(QuestSavedData::new, QuestSavedData::load);
 
     @Persisted
     private final Map<UUID, QuestPlayerData> players = new LinkedHashMap<>();
 
     public static QuestSavedData get(MinecraftServer server) {
-        return server.overworld().getDataStorage().computeIfAbsent(FACTORY, DATA_NAME);
+        return server.overworld().getDataStorage().computeIfAbsent(QuestSavedData::load, QuestSavedData::new, DATA_NAME);
     }
 
     public QuestPlayerData getPlayer(UUID playerId) {
@@ -43,15 +42,15 @@ public class QuestSavedData extends SavedData implements IPersistedSerializable 
         return removed;
     }
 
-    public static QuestSavedData load(CompoundTag tag, HolderLookup.Provider provider) {
+    public static QuestSavedData load(CompoundTag tag) {
         QuestSavedData data = new QuestSavedData();
-        data.deserializeNBT(provider, tag);
+        data.deserializeNBT(Platform.getFrozenRegistry(), tag);
         return data;
     }
 
     @Override
-    public @NotNull CompoundTag save(CompoundTag tag, HolderLookup.@NotNull Provider provider) {
-        tag.merge(serializeNBT(provider));
+    public @NotNull CompoundTag save(CompoundTag tag) {
+        tag.merge(serializeNBT(Platform.getFrozenRegistry()));
         return tag;
     }
 }

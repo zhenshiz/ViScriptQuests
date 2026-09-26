@@ -4,11 +4,11 @@ import com.viscriptquests.ViScriptQuests;
 import com.viscriptquests.quest.runtime.QuestRewardService;
 import com.viscriptquests.quest.runtime.QuestTrackingService;
 import net.minecraft.server.level.ServerPlayer;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.minecraftforge.event.entity.player.PlayerEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
 
-@EventBusSubscriber(modid = ViScriptQuests.MOD_ID)
+@Mod.EventBusSubscriber(modid = ViScriptQuests.MOD_ID)
 public class HudEvents {
     @SubscribeEvent
     public static void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {

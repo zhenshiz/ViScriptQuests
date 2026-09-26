@@ -6,18 +6,12 @@ import com.viscriptquests.event.neoforge.QuestEvent;
 import com.viscriptquests.network.s2c.S2CPayload;
 import com.viscriptquests.quest.data.QuestFile;
 import com.viscriptquests.quest.data.QuestSavedData;
-import com.viscriptquests.quest.data.runtime.PlayerQuestState;
-import com.viscriptquests.quest.data.runtime.QuestBookData;
-import com.viscriptquests.quest.data.runtime.QuestCategoryListData;
-import com.viscriptquests.quest.data.runtime.QuestPlayerData;
-import com.viscriptquests.quest.data.runtime.QuestStatus;
-import com.viscriptquests.quest.data.runtime.TaskProgress;
-import com.viscriptquests.quest.data.runtime.TaskStatus;
+import com.viscriptquests.quest.data.runtime.*;
 import com.viscriptquests.util.QuestCategoryFileHelper;
 import com.viscriptquests.util.QuestFileHelper;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
-import net.neoforged.neoforge.common.NeoForge;
+import net.minecraftforge.common.MinecraftForge;
 
 import java.util.List;
 import java.util.Optional;
@@ -58,7 +52,7 @@ public class QuestManager {
      */
     public static boolean grant(ServerPlayer player, String questId) {
         String normalizedQuestId = QuestFileHelper.normalizeQuestId(questId);
-        Optional<QuestFile> questFile = QuestFileHelper.getQuest(normalizedQuestId, player.registryAccess());
+        Optional<QuestFile> questFile = QuestFileHelper.getQuest(normalizedQuestId, player.level().registryAccess());
         if (questFile.isEmpty()) {
             return false;
         }
@@ -71,7 +65,7 @@ public class QuestManager {
         }
         var completedInScope = QuestTeamProgressService.findCompletedQuestInScope(player, savedData, normalizedQuestId);
         if (completedInScope.isPresent()) {
-            PlayerQuestState copiedState = QuestTeamProgressService.copyState(completedInScope.get().state(), player.registryAccess());
+            PlayerQuestState copiedState = QuestTeamProgressService.copyState(completedInScope.get().state(), player.level().registryAccess());
             playerData.putQuest(copiedState);
             savedData.setDirty();
             QuestTrackingService.refresh(player);
@@ -83,7 +77,7 @@ public class QuestManager {
         }
         var activeInScope = QuestTeamProgressService.findActiveQuestInScope(player, savedData, normalizedQuestId);
         if (activeInScope.isPresent()) {
-            PlayerQuestState copiedState = QuestTeamProgressService.copyState(activeInScope.get().state(), player.registryAccess());
+            PlayerQuestState copiedState = QuestTeamProgressService.copyState(activeInScope.get().state(), player.level().registryAccess());
             playerData.putQuest(copiedState);
             QuestTrackingService.trackFirstActiveStep(player, playerData, copiedState);
             savedData.setDirty();
@@ -94,7 +88,7 @@ public class QuestManager {
         PlayerQuestState state = PlayerQuestState.fromQuestFile(questFile.get(), player.level().getGameTime(), player);
         state.categoryId = normalizedCategoryId;
         playerData.putQuest(state);
-        NeoForge.EVENT_BUS.post(new QuestEvent.QuestStarted(player, state));
+        MinecraftForge.EVENT_BUS.post(new QuestEvent.QuestStarted(player, state));
         QuestFlowExecutor.advance(player, state, questFile.get());
         QuestTrackingService.trackFirstActiveStep(player, playerData, state);
         savedData.setDirty();
@@ -223,7 +217,7 @@ public class QuestManager {
         QuestPlayerData playerData = savedData.getPlayer(player.getUUID());
         QuestFileHelper.clearCache();
         for (PlayerQuestState state : playerData.quests) {
-            QuestFile questFile = QuestFileHelper.getQuest(state.questId, player.registryAccess()).orElse(null);
+            QuestFile questFile = QuestFileHelper.getQuest(state.questId, player.level().registryAccess()).orElse(null);
             if (questFile == null) {
                 continue;
             }
@@ -254,7 +248,7 @@ public class QuestManager {
             return false;
         }
         QuestFlowExecutor.completeQuest(player, state.get(),
-                QuestFileHelper.getQuest(normalizedQuestId, player.registryAccess()).orElse(null));
+                QuestFileHelper.getQuest(normalizedQuestId, player.level().registryAccess()).orElse(null));
         savedData.setDirty();
         QuestTrackingService.refresh(player);
         QuestTeamProgressService.syncQuestState(player, state.get());

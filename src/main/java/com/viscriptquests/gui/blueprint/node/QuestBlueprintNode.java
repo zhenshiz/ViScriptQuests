@@ -46,7 +46,8 @@ public abstract class QuestBlueprintNode extends Node {
     public static final String TASK_GROUP = "task";
     public static final String VARIABLE_GROUP = "variable";
 
-    @Override
+    //todo 2.2.27的牢大lib似乎没有这个方法
+    //@Override
     public UIElement createDescriptionUI() {
         NodeAttribute attribute = getClass().getAnnotation(NodeAttribute.class);
         if (attribute == null) {

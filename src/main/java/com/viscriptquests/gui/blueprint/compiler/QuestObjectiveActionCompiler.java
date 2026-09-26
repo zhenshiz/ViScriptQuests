@@ -3,19 +3,10 @@ package com.viscriptquests.gui.blueprint.compiler;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.CustomNodeModelImpl;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.PortModel;
 import com.viscriptquests.gui.blueprint.node.flow.QuestBranchNode;
-import com.viscriptquests.quest.data.ObjectiveAction;
-import com.viscriptquests.quest.data.QuestDebugPrint;
-import com.viscriptquests.quest.data.QuestFlowEdge;
-import com.viscriptquests.quest.data.ScoreboardMutation;
-import com.viscriptquests.quest.data.VariableMutation;
+import com.viscriptquests.quest.data.*;
 import com.viscriptquests.quest.data.reward.IReward;
 
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Queue;
-import java.util.Set;
+import java.util.*;
 
 // 编译小任务子图里“目标完成后”的动作链，复用主流程边上的条件、变量修改和调试输出模型。
 public final class QuestObjectiveActionCompiler {

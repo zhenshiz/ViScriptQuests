@@ -2,14 +2,14 @@ package com.viscriptquests.event.neoforge;
 
 import com.viscriptquests.compat.team.QuestTeamService;
 import com.viscriptquests.quest.data.reward.IReward;
-import com.viscriptquests.quest.data.runtime.PlayerQuestState;
 import com.viscriptquests.quest.data.runtime.ObjectiveStatus;
+import com.viscriptquests.quest.data.runtime.PlayerQuestState;
 import com.viscriptquests.quest.data.runtime.TaskObjectiveProgress;
 import com.viscriptquests.quest.data.runtime.TaskProgress;
 import com.viscriptquests.util.QuestFileHelper;
 import lombok.Getter;
 import net.minecraft.server.level.ServerPlayer;
-import net.neoforged.bus.api.Event;
+import net.minecraftforge.eventbus.api.Event;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;

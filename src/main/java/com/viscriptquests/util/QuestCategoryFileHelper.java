@@ -6,7 +6,6 @@ import com.viscriptquests.ViScriptQuests;
 import com.viscriptquests.quest.data.runtime.QuestCategoryData;
 import com.viscriptquests.quest.data.runtime.QuestCategoryListData;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtAccounter;
 import net.minecraft.nbt.NbtIo;
 
 import java.io.IOException;
@@ -50,7 +49,7 @@ public final class QuestCategoryFileHelper {
     public static void saveCategories(Collection<QuestCategoryData> categories) throws IOException {
         QuestCategoryListData data = QuestCategoryListData.of(categories);
         Files.createDirectories(categoryDirectory());
-        NbtIo.writeCompressed(data.serializeNBT(Platform.getFrozenRegistry()), categoryFile());
+        NbtIo.writeCompressed(data.serializeNBT(Platform.getFrozenRegistry()), categoryFile().toFile());
         cache = copy(data);
     }
 
@@ -94,7 +93,7 @@ public final class QuestCategoryFileHelper {
             return new QuestCategoryListData();
         }
         try {
-            CompoundTag tag = NbtIo.readCompressed(path, NbtAccounter.unlimitedHeap());
+            CompoundTag tag = NbtIo.readCompressed(path.toFile());
             QuestCategoryListData data = new QuestCategoryListData();
             data.deserializeNBT(Platform.getFrozenRegistry(), tag);
             return QuestCategoryListData.of(data.copyCategories());

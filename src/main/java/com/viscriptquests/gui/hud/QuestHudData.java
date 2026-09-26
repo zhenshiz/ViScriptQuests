@@ -1,11 +1,7 @@
 package com.viscriptquests.gui.hud;
 
 import com.lowdragmc.lowdraglib2.Platform;
-import com.viscriptquests.quest.data.runtime.PlayerQuestState;
-import com.viscriptquests.quest.data.runtime.QuestPlayerData;
-import com.viscriptquests.quest.data.runtime.QuestGuideMarker;
-import com.viscriptquests.quest.data.runtime.TaskObjectiveProgress;
-import com.viscriptquests.quest.data.runtime.TaskProgress;
+import com.viscriptquests.quest.data.runtime.*;
 import net.minecraft.nbt.CompoundTag;
 
 import java.util.ArrayList;

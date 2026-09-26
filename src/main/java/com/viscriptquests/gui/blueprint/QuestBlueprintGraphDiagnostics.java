@@ -10,20 +10,10 @@ import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.PortModel;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.SubgraphNodeModel;
 import com.viscriptquests.gui.blueprint.model.QuestSubQuestNodeModel;
 import com.viscriptquests.gui.blueprint.node.QuestBlueprintNode;
-import com.viscriptquests.gui.blueprint.node.flow.QuestEndNode;
-import com.viscriptquests.gui.blueprint.node.flow.QuestJoinNode;
-import com.viscriptquests.gui.blueprint.node.flow.QuestStartNode;
-import com.viscriptquests.gui.blueprint.node.flow.SubQuestNode;
-import com.viscriptquests.gui.blueprint.node.flow.SubQuestStartNode;
+import com.viscriptquests.gui.blueprint.node.flow.*;
 import net.minecraft.network.chat.Component;
 
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * 轻量图诊断，只检查编辑期结构问题，不触发完整导出编译。
@@ -56,10 +46,10 @@ final class QuestBlueprintGraphDiagnostics {
         }
 
         if (starts.size() == 1) {
-            if (!hasConnectedOutput(starts.getFirst(), "next")) {
-                logger.error(translatable("missing_flow_edge"), starts.getFirst());
+            if (!hasConnectedOutput(starts.get(0), "next")) {
+                logger.error(translatable("missing_flow_edge"), starts.get(0));
             }
-            warnUnreachableFlowNodes(model, starts.getFirst(), logger);
+            warnUnreachableFlowNodes(model, starts.get(0), logger);
         }
 
         for (CustomNodeModelImpl node : customNodes(model)) {
@@ -86,7 +76,7 @@ final class QuestBlueprintGraphDiagnostics {
             return;
         }
 
-        CustomNodeModelImpl start = starts.getFirst();
+        CustomNodeModelImpl start = starts.get(0);
         Set<UUID> reachable = collectReachable(start);
         boolean hasReachableTask = customNodes(model).stream()
                 .filter(node -> reachable.contains(node.getUid()))

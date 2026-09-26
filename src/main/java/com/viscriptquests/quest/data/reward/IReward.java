@@ -1,20 +1,18 @@
 package com.viscriptquests.quest.data.reward;
 
+import com.lowdragmc.lowdraglib2.compat.network.codec.ByteBufCodecs;
 import com.lowdragmc.lowdraglib2.registry.ILDLRegister;
 import com.lowdragmc.lowdraglib2.syncdata.IPersistedSerializable;
 import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
-import com.lowdragmc.lowdraglib2.utils.LDLibExtraCodecs;
 import com.lowdragmc.lowdraglib2.utils.PersistedParser;
 import com.mojang.serialization.Codec;
 import com.viscriptquests.ViScriptQuests;
 import com.viscriptquests.ViScriptQuestsRegistries;
 import com.viscriptquests.quest.data.DisplayIcon;
 import com.viscriptquests.quest.data.QuestVariableValue;
-import io.netty.buffer.ByteBuf;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.codec.ByteBufCodecs;
-import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.server.level.ServerPlayer;
+import net.nikdo53.neobackports.io.StreamCodec;
 
 import java.util.Map;
 import java.util.function.Supplier;
@@ -25,9 +23,9 @@ public abstract class IReward implements ILDLRegister<IReward, Supplier<IReward>
 
     public static final Codec<IReward> CODEC = ViScriptQuestsRegistries.REWARDS.optionalCodec()
             .dispatch(ILDLRegister::getRegistryHolderOptional,
-                    optional -> optional.map(holder -> PersistedParser.createMapCodec(holder.value()))
-                            .orElseGet(LDLibExtraCodecs::errorDecoder));
-    public static final StreamCodec<ByteBuf, IReward> STREAM_CODEC = ByteBufCodecs.fromCodec(CODEC);
+                    optional -> optional.map(holder -> PersistedParser.createCodec(holder.value()))
+                            .orElseGet(null));
+    public static final StreamCodec<IReward> STREAM_CODEC = ByteBufCodecs.fromCodec(CODEC);
 
     // 关联的小任务 ID，为空表示大任务完成时发放的全局奖励
     @Persisted

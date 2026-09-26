@@ -1,9 +1,9 @@
 package com.viscriptquests.quest.data.task;
 
+import com.lowdragmc.lowdraglib2.compat.network.codec.ByteBufCodecs;
 import com.lowdragmc.lowdraglib2.registry.ILDLRegister;
 import com.lowdragmc.lowdraglib2.syncdata.IPersistedSerializable;
 import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
-import com.lowdragmc.lowdraglib2.utils.LDLibExtraCodecs;
 import com.lowdragmc.lowdraglib2.utils.PersistedParser;
 import com.mojang.serialization.Codec;
 import com.viscriptquests.ViScriptQuests;
@@ -13,11 +13,9 @@ import com.viscriptquests.quest.data.QuestVariableValue;
 import com.viscriptquests.quest.data.TaskObjectiveType;
 import com.viscriptquests.quest.data.runtime.QuestGuideMarker;
 import com.viscriptquests.quest.data.runtime.TaskObjectiveProgress;
-import io.netty.buffer.ByteBuf;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.codec.ByteBufCodecs;
-import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.server.level.ServerPlayer;
+import net.nikdo53.neobackports.io.StreamCodec;
 
 import java.util.Map;
 import java.util.function.Supplier;
@@ -28,9 +26,9 @@ public abstract class ITask implements ILDLRegister<ITask, Supplier<ITask>>, IPe
 
     public static final Codec<ITask> CODEC = ViScriptQuestsRegistries.TASKS.optionalCodec()
             .dispatch(ILDLRegister::getRegistryHolderOptional,
-                    optional -> optional.map(holder -> PersistedParser.createMapCodec(holder.value()))
-                            .orElseGet(LDLibExtraCodecs::errorDecoder));
-    public static final StreamCodec<ByteBuf, ITask> STREAM_CODEC = ByteBufCodecs.fromCodec(CODEC);
+                    optional -> optional.map(holder -> PersistedParser.createCodec(holder.value()))
+                            .orElseGet(null));
+    public static final StreamCodec<ITask> STREAM_CODEC = ByteBufCodecs.fromCodec(CODEC);
 
     // 所有任务类型共有的基础字段
     @Persisted

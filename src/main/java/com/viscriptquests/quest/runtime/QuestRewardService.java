@@ -1,9 +1,9 @@
 package com.viscriptquests.quest.runtime;
 
+import com.viscript_lib.util.CodecUtil;
 import com.viscriptquests.compat.team.QuestTeamScope;
 import com.viscriptquests.compat.team.QuestTeamService;
 import com.viscriptquests.event.neoforge.QuestEvent;
-import com.viscript_lib.util.CodecUtil;
 import com.viscriptquests.quest.data.QuestFile;
 import com.viscriptquests.quest.data.QuestSavedData;
 import com.viscriptquests.quest.data.QuestVariableValue;
@@ -11,10 +11,10 @@ import com.viscriptquests.quest.data.reward.IReward;
 import com.viscriptquests.quest.data.runtime.PlayerQuestState;
 import com.viscriptquests.quest.data.runtime.QuestPlayerData;
 import net.minecraft.server.level.ServerPlayer;
-import net.neoforged.neoforge.common.NeoForge;
+import net.minecraftforge.common.MinecraftForge;
 
-import java.util.Map;
 import java.util.LinkedHashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -48,7 +48,7 @@ public class QuestRewardService {
         QuestSavedData.get(player.getServer()).setDirty();
         for (IReward reward : rewards) {
             reward.grant(player);
-            NeoForge.EVENT_BUS.post(new QuestEvent.RewardGranted(player, player, null, reward,
+            MinecraftForge.EVENT_BUS.post(new QuestEvent.RewardGranted(player, player, null, reward,
                     reward.stepId, "pending"));
         }
     }
@@ -58,9 +58,9 @@ public class QuestRewardService {
         Map<String, QuestVariableValue> questVariables = state == null ? Map.of() : state.questVariables;
         QuestTeamScope scope = QuestTeamService.scopeOf(sourcePlayer);
         if (!scope.isParty()) {
-            IReward resolved = resolvedReward(reward, questVariables, sourcePlayer, sourcePlayer.registryAccess());
+            IReward resolved = resolvedReward(reward, questVariables, sourcePlayer, sourcePlayer.level().registryAccess());
             resolved.grant(sourcePlayer);
-            NeoForge.EVENT_BUS.post(new QuestEvent.RewardGranted(sourcePlayer, sourcePlayer, state, resolved,
+            MinecraftForge.EVENT_BUS.post(new QuestEvent.RewardGranted(sourcePlayer, sourcePlayer, state, resolved,
                     stepId, rewardSource));
             return;
         }
@@ -74,10 +74,10 @@ public class QuestRewardService {
         QuestSavedData savedData = QuestSavedData.get(sourcePlayer.getServer());
         for (UUID recipientId : recipients) {
             ServerPlayer recipient = sourcePlayer.getServer().getPlayerList().getPlayer(recipientId);
-            IReward resolved = resolvedReward(reward, questVariables, sourcePlayer, sourcePlayer.registryAccess());
+            IReward resolved = resolvedReward(reward, questVariables, sourcePlayer, sourcePlayer.level().registryAccess());
             if (recipient != null) {
                 resolved.grant(recipient);
-                NeoForge.EVENT_BUS.post(new QuestEvent.RewardGranted(sourcePlayer, recipient, state, resolved,
+                MinecraftForge.EVENT_BUS.post(new QuestEvent.RewardGranted(sourcePlayer, recipient, state, resolved,
                         stepId, rewardSource));
                 continue;
             }

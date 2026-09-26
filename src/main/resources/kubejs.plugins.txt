@@ -1,1 +1,1 @@
-com.viscriptquests.ViScriptQuestsJSPlugin viscript_quests
+com.viscriptquests.ViScriptQuestsJSPlugin

@@ -2,11 +2,11 @@ package com.viscriptquests.event;
 
 import com.viscriptquests.event.kubejs.QuestEventJS;
 import com.viscriptquests.event.neoforge.QuestEvent;
-import dev.latvian.mods.kubejs.event.KubeEvent;
-import dev.latvian.mods.kubejs.event.TargetedEventHandler;
+import dev.latvian.mods.kubejs.event.EventHandler;
+import dev.latvian.mods.kubejs.event.EventJS;
 import dev.latvian.mods.kubejs.script.ScriptType;
-import net.neoforged.bus.api.EventPriority;
-import net.neoforged.bus.api.SubscribeEvent;
+import net.minecraftforge.eventbus.api.EventPriority;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
 
 public final class CommonEventsPostJS {
     private CommonEventsPostJS() {
@@ -67,7 +67,7 @@ public final class CommonEventsPostJS {
         post(ViScriptQuestsEventJS.REWARD_GRANTED, event, new QuestEventJS.RewardGranted(event));
     }
 
-    private static void post(TargetedEventHandler<String> handler, QuestEvent event, KubeEvent kubeEvent) {
+    private static void post(EventHandler handler, QuestEvent event, EventJS kubeEvent) {
         String target = event.getTarget();
         String targetOrNull = target == null || target.isBlank() ? null : target;
         if (handler.hasListeners(targetOrNull)) {

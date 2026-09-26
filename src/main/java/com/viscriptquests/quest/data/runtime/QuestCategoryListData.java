@@ -4,11 +4,7 @@ import com.lowdragmc.lowdraglib2.syncdata.IPersistedSerializable;
 import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
 import com.viscriptquests.util.QuestFileHelper;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 // 分类列表的 RPC/界面数据包装，避免在包里手写列表 NBT。
 public class QuestCategoryListData implements IPersistedSerializable {

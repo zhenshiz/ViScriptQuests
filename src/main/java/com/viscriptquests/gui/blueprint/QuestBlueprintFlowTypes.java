@@ -3,11 +3,7 @@ package com.viscriptquests.gui.blueprint;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.api.node.Node;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.api.node.NodeAttribute;
 import com.viscriptquests.gui.blueprint.node.QuestBlueprintNode;
-import com.viscriptquests.gui.blueprint.node.flow.QuestBranchNode;
-import com.viscriptquests.gui.blueprint.node.flow.QuestEndNode;
-import com.viscriptquests.gui.blueprint.node.flow.QuestJoinNode;
-import com.viscriptquests.gui.blueprint.node.flow.QuestStartNode;
-import com.viscriptquests.gui.blueprint.node.flow.SubQuestNode;
+import com.viscriptquests.gui.blueprint.node.flow.*;
 import com.viscriptquests.quest.data.QuestFlowNode;
 import com.viscriptquests.quest.data.QuestJoinMode;
 

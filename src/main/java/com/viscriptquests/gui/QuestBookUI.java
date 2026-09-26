@@ -216,7 +216,7 @@ public class QuestBookUI extends UIElement {
             return;
         }
         if (findCategory(selectedCategoryId) == null) {
-            selectedCategoryId = categoryData.categories.getFirst().id;
+            selectedCategoryId = categoryData.categories.get(0).id;
         }
         int selectedIndex = categoryIndex(selectedCategoryId);
         if (selectedIndex >= 0) {

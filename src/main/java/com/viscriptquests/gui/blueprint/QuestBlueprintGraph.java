@@ -6,11 +6,7 @@ import com.lowdragmc.lowdraglib2.nodegraphtookit.api.graph.GraphNodeRegistry;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.api.node.Node;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.api.type.TypeHandle;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.api.type.TypeHandles;
-import com.lowdragmc.lowdraglib2.nodegraphtookit.gui.command.CreateForeignLocalSubgraphCommand;
-import com.lowdragmc.lowdraglib2.nodegraphtookit.gui.command.CreateLocalSubgraphCommand;
-import com.lowdragmc.lowdraglib2.nodegraphtookit.gui.command.CreateSubgraphFromSelectionCommand;
-import com.lowdragmc.lowdraglib2.nodegraphtookit.gui.command.IGraphCommand;
-import com.lowdragmc.lowdraglib2.nodegraphtookit.gui.command.ImportExternalSubgraphCommand;
+import com.lowdragmc.lowdraglib2.nodegraphtookit.gui.command.*;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.graph.CustomGraphModelImpl;
 import com.viscriptquests.ViScriptQuests;
 

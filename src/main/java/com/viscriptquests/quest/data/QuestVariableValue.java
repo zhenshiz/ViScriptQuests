@@ -10,11 +10,10 @@ import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
 import com.lowdragmc.lowdraglib2.utils.PersistedParser;
 import com.mojang.serialization.Codec;
 import com.viscript_lib.util.CodecUtil;
-import io.netty.buffer.ByteBuf;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
-import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.world.item.ItemStack;
+import net.nikdo53.neobackports.io.StreamCodec;
 
 import java.lang.reflect.Type;
 import java.util.Arrays;
@@ -32,7 +31,7 @@ import java.util.Objects;
  */
 public class QuestVariableValue implements IPersistedSerializable {
     public static final Codec<QuestVariableValue> CODEC = PersistedParser.createCodec(QuestVariableValue::new);
-    public static final StreamCodec<ByteBuf, QuestVariableValue> STREAM_CODEC = PersistedParser.createStreamCodec(QuestVariableValue::new);
+    public static final StreamCodec<QuestVariableValue> STREAM_CODEC = PersistedParser.createStreamCodec(QuestVariableValue::new);
 
     @Persisted
     public String typeId = "";
@@ -286,13 +285,11 @@ public class QuestVariableValue implements IPersistedSerializable {
      */
     public String asString() {
         Object value = value();
-        return switch (value) {
-            case null -> "";
-            case String string -> string;
-            case String[] strings -> Arrays.toString(strings);
-            case ItemStack itemStack -> displayValue();
-            default -> String.valueOf(value);
-        };
+        if (value == null) return "";
+        else if (value instanceof String string) return string;
+        else if (value instanceof String[] strings) return Arrays.toString(strings);
+        else if (value instanceof ItemStack) return displayValue();
+        else return String.valueOf(value);
     }
 
     /**
@@ -514,12 +511,10 @@ public class QuestVariableValue implements IPersistedSerializable {
             return value;
         }
         if (rawType.isInstance(value)) {
-            return switch (value) {
-                case ItemStack stack -> stack.copy();
-                case DisplayIcon icon -> icon.copy();
-                case String[] strings -> strings.clone();
-                default -> value;
-            };
+            if (value instanceof ItemStack stack) return stack.copy();
+            else if (value instanceof DisplayIcon icon) return icon.copy();
+            else if (value instanceof String[] strings) return strings.clone();
+            else return value;
         }
         if (rawType.isArray()) {
             return coerceArrayValue(rawType, value);

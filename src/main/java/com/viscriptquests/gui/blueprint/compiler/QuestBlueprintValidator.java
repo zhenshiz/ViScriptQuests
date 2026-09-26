@@ -1,21 +1,10 @@
 package com.viscriptquests.gui.blueprint.compiler;
 
 import com.viscriptquests.gui.blueprint.QuestBlueprintFlowTypes;
-import com.viscriptquests.quest.data.QuestFile;
-import com.viscriptquests.quest.data.QuestFlowEdge;
-import com.viscriptquests.quest.data.QuestFlowNode;
-import com.viscriptquests.quest.data.QuestJoinMode;
-import com.viscriptquests.quest.data.ObjectiveAction;
-import com.viscriptquests.quest.data.QuestStep;
+import com.viscriptquests.quest.data.*;
 import com.viscriptquests.quest.data.task.ITask;
 
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 public final class QuestBlueprintValidator {
     private QuestBlueprintValidator() {

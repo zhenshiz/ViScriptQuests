@@ -4,30 +4,28 @@ import com.viscriptquests.event.CommonEventsPostJS;
 import com.viscriptquests.event.ViScriptQuestsEventJS;
 import com.viscriptquests.util.ViScriptQuestsClientUtil;
 import com.viscriptquests.util.ViScriptQuestsServerUtil;
-import dev.latvian.mods.kubejs.event.EventGroupRegistry;
-import dev.latvian.mods.kubejs.plugin.KubeJSPlugin;
-import dev.latvian.mods.kubejs.script.BindingRegistry;
-import dev.latvian.mods.kubejs.script.ScriptType;
-import net.neoforged.neoforge.common.NeoForge;
+import dev.latvian.mods.kubejs.KubeJSPlugin;
+import dev.latvian.mods.kubejs.script.BindingsEvent;
+import net.minecraftforge.common.MinecraftForge;
 
-public final class ViScriptQuestsJSPlugin implements KubeJSPlugin {
+public final class ViScriptQuestsJSPlugin extends KubeJSPlugin {
     @Override
     public void init() {
-        NeoForge.EVENT_BUS.register(CommonEventsPostJS.class);
+        MinecraftForge.EVENT_BUS.register(CommonEventsPostJS.class);
         ViScriptQuests.LOGGER.info("Enabled KubeJS quest event bridge");
     }
 
     @Override
-    public void registerEvents(EventGroupRegistry registry) {
-        registry.register(ViScriptQuestsEventJS.QUEST_EVENTS);
+    public void registerEvents() {
+        ViScriptQuestsEventJS.QUEST_EVENTS.register();
     }
 
     @Override
-    public void registerBindings(BindingRegistry bindings) {
-        if (bindings.type() == ScriptType.CLIENT) {
-            bindings.add("ViScriptQuestsUtil", ViScriptQuestsClientUtil.class);
-        } else if (bindings.type() == ScriptType.SERVER) {
-            bindings.add("ViScriptQuestsUtil", ViScriptQuestsServerUtil.class);
+    public void registerBindings(BindingsEvent event) {
+        if (event.getType().isClient()) {
+            event.add("ViScriptQuestsUtil", ViScriptQuestsClientUtil.class);
+        } else if (event.getType().isServer()) {
+            event.add("ViScriptQuestsUtil", ViScriptQuestsServerUtil.class);
         }
     }
 }

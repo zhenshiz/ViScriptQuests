@@ -1,6 +1,6 @@
 package com.viscriptquests.compat.ponder;
 
-import net.createmod.catnip.registry.RegisteredObjectsHelper;
+import net.createmod.catnip.platform.ForgeRegisteredObjectsHelper;
 import net.createmod.ponder.foundation.PonderIndex;
 import net.createmod.ponder.foundation.registration.PonderIndexExclusionHelper;
 import net.minecraft.resources.ResourceLocation;
@@ -35,7 +35,7 @@ final class PonderComponentSearchApi {
     }
 
     private static boolean isIncluded(ResourceLocation id, List<Predicate<ItemLike>> exclusions) {
-        ItemLike item = RegisteredObjectsHelper.getItemOrBlock(id);
+        ItemLike item = new ForgeRegisteredObjectsHelper().getItemOrBlock(id);
         return item != null && exclusions.stream().noneMatch(predicate -> predicate.test(item));
     }
 }

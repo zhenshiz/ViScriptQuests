@@ -3,18 +3,14 @@ package com.viscriptquests.gui;
 import com.lowdragmc.lowdraglib2.Platform;
 import com.lowdragmc.lowdraglib2.configurator.ui.Configurator;
 import com.lowdragmc.lowdraglib2.configurator.ui.ConfiguratorGroup;
-import com.lowdragmc.lowdraglib2.gui.ui.data.Horizontal;
+import com.lowdragmc.lowdraglib2.gui.texture.SpriteTexture;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
-import com.lowdragmc.lowdraglib2.gui.ui.data.ScrollDisplay;
-import com.lowdragmc.lowdraglib2.gui.ui.data.ScrollerMode;
-import com.lowdragmc.lowdraglib2.gui.ui.data.TextWrap;
-import com.lowdragmc.lowdraglib2.gui.ui.data.Vertical;
+import com.lowdragmc.lowdraglib2.gui.ui.data.*;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.ScrollerView;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Selector;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
-import com.lowdragmc.lowdraglib2.gui.texture.SpriteTexture;
 import com.lowdragmc.lowdraglib2.math.Size;
 import com.lowdragmc.lowdraglib2.networking.rpc.RPCPacketDistributor;
 import com.viscript_lib.gui.components.DraggableUI;
@@ -51,7 +47,7 @@ public class QuestCategoryConfigUI extends UIElement {
             availableQuestIds.addAll(data.copyQuestIds());
         }
         if (!categories.isEmpty()) {
-            selectedCategory = categories.getFirst();
+            selectedCategory = categories.get(0);
         }
         buildUI();
     }
@@ -59,7 +55,7 @@ public class QuestCategoryConfigUI extends UIElement {
     public QuestCategoryConfigUI(QuestCategoryListData data) {
         categories.addAll(data.copyCategories());
         if (!categories.isEmpty()) {
-            selectedCategory = categories.getFirst();
+            selectedCategory = categories.get(0);
         }
         buildUI();
     }
@@ -186,7 +182,7 @@ public class QuestCategoryConfigUI extends UIElement {
             return;
         }
         categories.remove(selectedCategory);
-        selectedCategory = categories.isEmpty() ? null : categories.getFirst();
+        selectedCategory = categories.isEmpty() ? null : categories.get(0);
         reloadCategoryList();
         reloadEditor();
     }
@@ -417,7 +413,7 @@ public class QuestCategoryConfigUI extends UIElement {
     }
 
     private String defaultNewQuestId() {
-        return availableQuestIds.isEmpty() ? "" : availableQuestIds.getFirst();
+        return availableQuestIds.isEmpty() ? "" : availableQuestIds.get(0);
     }
 
     private Component questCandidateText(String questId) {
@@ -453,10 +449,10 @@ public class QuestCategoryConfigUI extends UIElement {
         categories.clear();
         categories.addAll(sanitized);
         selectedCategory = previousSelectionId.isBlank()
-                ? categories.isEmpty() ? null : categories.getFirst()
+                ? categories.isEmpty() ? null : categories.get(0)
                 : findCategory(previousSelectionId);
         if (selectedCategory == null && !categories.isEmpty()) {
-            selectedCategory = categories.getFirst();
+            selectedCategory = categories.get(0);
         }
         reloadCategoryList();
         reloadEditor();

@@ -2,17 +2,12 @@ package com.viscriptquests.gui.blueprint;
 
 import com.lowdragmc.lowdraglib2.configurator.ui.Configurator;
 import com.lowdragmc.lowdraglib2.configurator.ui.ValueConfigurator;
-import com.lowdragmc.lowdraglib2.gui.ui.utils.UIElementProvider;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.SearchComponent;
+import com.lowdragmc.lowdraglib2.gui.ui.utils.UIElementProvider;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.api.IFieldValueConfigurable;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.api.type.TypeHandle;
 import com.lowdragmc.lowdraglib2.utils.search.IResultHandler;
-import com.viscript_lib.gui.components.search.BiomeSearchBox;
-import com.viscript_lib.gui.components.search.DataPackFileSearchBox;
-import com.viscript_lib.gui.components.search.DimensionSearchBox;
-import com.viscript_lib.gui.components.search.EntityTypeSearchBox;
-import com.viscript_lib.gui.components.search.JsonFileSearchBox;
-import com.viscript_lib.gui.components.search.StructureSearchBox;
+import com.viscript_lib.gui.components.search.*;
 import com.viscriptquests.compat.ponder.PonderComponentSearch;
 import com.viscriptquests.gui.blueprint.data.QuestRegistryId;
 import net.minecraft.client.Minecraft;
@@ -22,9 +17,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.biome.Biome;
-import net.minecraft.world.level.levelgen.structure.Structure;
 
 import java.util.Objects;
 import java.util.function.Function;
@@ -212,7 +205,7 @@ public final class QuestRegistryIdConfigurator {
 
     private static ResourceLocation idOrDefault(QuestRegistryId value, String defaultId) {
         ResourceLocation id = ResourceLocation.tryParse(value == null ? "" : value.value());
-        return id == null ? ResourceLocation.parse(defaultId) : id;
+        return id == null ? new ResourceLocation(defaultId) : id;
     }
 
     private static EntityType<?> entityTypeOf(QuestRegistryId value) {

@@ -6,7 +6,6 @@ import com.viscriptquests.ViScriptQuests;
 import com.viscriptquests.quest.data.QuestFile;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtAccounter;
 import net.minecraft.nbt.NbtIo;
 
 import java.io.IOException;
@@ -105,7 +104,7 @@ public final class QuestFileHelper {
         questFile.quest.questId = normalized;
         Path path = resolveQuestPath(normalized);
         Files.createDirectories(path.getParent());
-        NbtIo.writeCompressed(questFile.serializeNBT(provider), path);
+        NbtIo.writeCompressed(questFile.serializeNBT(provider), path.toFile());
         CACHE.put(normalized, questFile);
         return path;
     }
@@ -122,7 +121,7 @@ public final class QuestFileHelper {
     }
 
     private static QuestFile read(Path path, HolderLookup.Provider provider) throws IOException {
-        CompoundTag tag = NbtIo.readCompressed(path, NbtAccounter.unlimitedHeap());
+        CompoundTag tag = NbtIo.readCompressed(path.toFile());
         QuestFile questFile = new QuestFile();
         questFile.deserializeNBT(provider, tag);
         return questFile;
@@ -153,7 +152,7 @@ public final class QuestFileHelper {
         String normalized = normalizeProjectId(projectId);
         Path path = resolveProjectPath(normalized);
         Files.createDirectories(path.getParent());
-        NbtIo.write(createProjectFileTag(graphTag), path);
+        NbtIo.write(createProjectFileTag(graphTag), path.toFile());
         return path;
     }
 
@@ -200,7 +199,7 @@ public final class QuestFileHelper {
     }
 
     public static CompoundTag readProjectFileTag(Path path) throws IOException {
-        CompoundTag tag = NbtIo.read(path);
+        CompoundTag tag = NbtIo.read(path.toFile());
         if (tag == null) {
             throw new IOException("Empty quest project file: " + path);
         }

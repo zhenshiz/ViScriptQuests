@@ -1,32 +1,19 @@
 package com.viscriptquests.quest.runtime;
 
 import com.viscriptquests.event.neoforge.QuestEvent;
+import com.viscriptquests.quest.data.ObjectiveAction;
 import com.viscriptquests.quest.data.QuestFile;
 import com.viscriptquests.quest.data.QuestSavedData;
-import com.viscriptquests.quest.data.ObjectiveAction;
-import com.viscriptquests.quest.data.runtime.PlayerQuestState;
-import com.viscriptquests.quest.data.runtime.ObjectiveStatus;
-import com.viscriptquests.quest.data.runtime.QuestPlayerData;
-import com.viscriptquests.quest.data.runtime.QuestStatus;
-import com.viscriptquests.quest.data.runtime.TaskObjectiveProgress;
-import com.viscriptquests.quest.data.runtime.TaskProgress;
-import com.viscriptquests.quest.data.runtime.TaskStatus;
-import com.viscriptquests.quest.data.task.AdvancementTask;
-import com.viscriptquests.quest.data.task.BreakBlockTask;
-import com.viscriptquests.quest.data.task.CountdownTask;
-import com.viscriptquests.quest.data.task.CustomTriggerTask;
-import com.viscriptquests.quest.data.task.EntityDeathTask;
-import com.viscriptquests.quest.data.task.ITask;
-import com.viscriptquests.quest.data.task.InteractEntityTask;
-import com.viscriptquests.quest.data.task.KillEntityTask;
+import com.viscriptquests.quest.data.runtime.*;
+import com.viscriptquests.quest.data.task.*;
 import com.viscriptquests.util.QuestFileHelper;
-import net.minecraft.advancements.AdvancementHolder;
+import net.minecraft.advancements.Advancement;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.players.PlayerList;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.neoforged.neoforge.common.NeoForge;
+import net.minecraftforge.common.MinecraftForge;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -65,14 +52,14 @@ public class QuestSubmissionService {
         // 玩家没有接取该任务，或任务已经完成/失败时，不允许再提交小任务。
         if (state.isEmpty() || state.get().status != QuestStatus.ACTIVE) {
             QuestTeamProgressService.findCompletedQuestInScope(player, savedData, questId).ifPresent(ref -> {
-                playerData.putQuest(QuestTeamProgressService.copyState(ref.state(), player.registryAccess()));
+                playerData.putQuest(QuestTeamProgressService.copyState(ref.state(), player.level().registryAccess()));
                 savedData.setDirty();
                 QuestTrackingService.refresh(player);
             });
             return false;
         }
 
-        QuestFile questFile = QuestFileHelper.getQuest(questId, player.registryAccess()).orElse(null);
+        QuestFile questFile = QuestFileHelper.getQuest(questId, player.level().registryAccess()).orElse(null);
         // 运行时任务文件不存在时，无法读取目标定义、奖励和流程边。
         if (questFile == null) {
             return false;
@@ -153,13 +140,13 @@ public class QuestSubmissionService {
         var state = playerData.findQuest(questId);
         if (state.isEmpty() || state.get().status != QuestStatus.ACTIVE) {
             QuestTeamProgressService.findCompletedQuestInScope(player, savedData, questId).ifPresent(ref -> {
-                playerData.putQuest(QuestTeamProgressService.copyState(ref.state(), player.registryAccess()));
+                playerData.putQuest(QuestTeamProgressService.copyState(ref.state(), player.level().registryAccess()));
                 savedData.setDirty();
                 QuestTrackingService.refresh(player);
             });
             return false;
         }
-        QuestFile questFile = QuestFileHelper.getQuest(questId, player.registryAccess()).orElse(null);
+        QuestFile questFile = QuestFileHelper.getQuest(questId, player.level().registryAccess()).orElse(null);
         if (questFile == null) {
             return false;
         }
@@ -213,7 +200,7 @@ public class QuestSubmissionService {
             if (questState.status != QuestStatus.ACTIVE) {
                 continue;
             }
-            QuestFile questFile = QuestFileHelper.getQuest(questState.questId, player.registryAccess()).orElse(null);
+            QuestFile questFile = QuestFileHelper.getQuest(questState.questId, player.level().registryAccess()).orElse(null);
             if (questFile == null) {
                 continue;
             }
@@ -251,7 +238,7 @@ public class QuestSubmissionService {
             if (questState.status != QuestStatus.ACTIVE) {
                 continue;
             }
-            QuestFile questFile = QuestFileHelper.getQuest(questState.questId, player.registryAccess()).orElse(null);
+            QuestFile questFile = QuestFileHelper.getQuest(questState.questId, player.level().registryAccess()).orElse(null);
             if (questFile == null) {
                 continue;
             }
@@ -357,7 +344,7 @@ public class QuestSubmissionService {
         });
     }
 
-    public static boolean recordAdvancementEarn(ServerPlayer player, AdvancementHolder advancement) {
+    public static boolean recordAdvancementEarn(ServerPlayer player, Advancement advancement) {
         if (player == null || advancement == null || player.level().isClientSide()) {
             return false;
         }
@@ -456,7 +443,7 @@ public class QuestSubmissionService {
         // 到这里才真正提交成功：写进度、发奖励、推进蓝图流程，并刷新任务追踪。
         progress.skipUnfinishedObjectives();
         progress.status = TaskStatus.COMPLETED;
-        NeoForge.EVENT_BUS.post(new QuestEvent.TaskCompleted(player, questState, progress, false));
+        MinecraftForge.EVENT_BUS.post(new QuestEvent.TaskCompleted(player, questState, progress, false));
         QuestCompletionNotificationService.notifyTaskCompleted(player, progress);
         QuestRewardService.grantStepRewards(player, questFile, questState, stepId);
         QuestFlowExecutor.completeStepNode(player, questState, questFile, stepId);
@@ -486,7 +473,7 @@ public class QuestSubmissionService {
                 continue;
             }
             if (action.edge != null) {
-                action.edge.applyMutations(questState.questVariables, player.registryAccess(), player);
+                action.edge.applyMutations(questState.questVariables, player.level().registryAccess(), player);
                 QuestFlowExecutor.printDebugMessages(player, questState, action.edge);
             }
             for (var reward : action.rewards) {
@@ -519,11 +506,11 @@ public class QuestSubmissionService {
 
     private static boolean canRunObjectiveAction(ServerPlayer player, PlayerQuestState questState, ObjectiveAction action) {
         for (var gate : action.gates) {
-            if (gate != null && !gate.evaluate(questState.questVariables, player.registryAccess(), player)) {
+            if (gate != null && !gate.evaluate(questState.questVariables, player.level().registryAccess(), player)) {
                 return false;
             }
         }
-        return action.edge == null || action.edge.evaluate(questState.questVariables, player.registryAccess(), player);
+        return action.edge == null || action.edge.evaluate(questState.questVariables, player.level().registryAccess(), player);
     }
 
     private static boolean failQuestFromObjective(ServerPlayer player, QuestSavedData savedData,
@@ -548,11 +535,11 @@ public class QuestSubmissionService {
                                             int objectiveIndex, ObjectiveSnapshot snapshot,
                                             boolean automatic) {
         if (snapshot.differsFrom(objective)) {
-            NeoForge.EVENT_BUS.post(new QuestEvent.ObjectiveProgress(player, questState, progress, objective,
+            MinecraftForge.EVENT_BUS.post(new QuestEvent.ObjectiveProgress(player, questState, progress, objective,
                     objectiveIndex, snapshot.amount, snapshot.requiredAmount, snapshot.completed, automatic));
         }
         if (!snapshot.completed && objective.isCompleted()) {
-            NeoForge.EVENT_BUS.post(new QuestEvent.ObjectiveCompleted(player, questState, progress, objective,
+            MinecraftForge.EVENT_BUS.post(new QuestEvent.ObjectiveCompleted(player, questState, progress, objective,
                     objectiveIndex, snapshot.amount, snapshot.requiredAmount, false, automatic));
         }
     }

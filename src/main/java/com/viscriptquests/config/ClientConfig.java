@@ -1,26 +1,26 @@
 package com.viscriptquests.config;
 
-import net.neoforged.neoforge.common.ModConfigSpec;
+import net.minecraftforge.common.ForgeConfigSpec;
 
 public class ClientConfig {
-    public static final ModConfigSpec SPEC;
-    public static final ModConfigSpec.BooleanValue SHOW_COMPLETED_QUESTS_IN_BOOK;
-    public static final ModConfigSpec.BooleanValue SHOW_COMPLETED_TASKS_IN_BOOK;
-    public static final ModConfigSpec.BooleanValue REGISTER_OPEN_QUEST_BOOK_KEY;
-    public static final ModConfigSpec.BooleanValue SHOW_QUEST_COMPLETION_TOAST;
-    public static final ModConfigSpec.DoubleValue QUEST_COMPLETION_TOAST_X_PERCENT;
-    public static final ModConfigSpec.DoubleValue QUEST_COMPLETION_TOAST_Y_PERCENT;
-    public static final ModConfigSpec.BooleanValue SHOW_TRACKED_QUEST_HUD;
-    public static final ModConfigSpec.DoubleValue TRACKED_QUEST_HUD_X_PERCENT;
-    public static final ModConfigSpec.DoubleValue TRACKED_QUEST_HUD_Y_PERCENT;
-    public static final ModConfigSpec.DoubleValue TRACKED_QUEST_HUD_WIDTH_PERCENT;
-    public static final ModConfigSpec.DoubleValue TRACKED_QUEST_HUD_HEIGHT_PERCENT;
-    public static final ModConfigSpec.BooleanValue SHOW_QUEST_GUIDE_MARKER;
-    public static final ModConfigSpec.DoubleValue QUEST_GUIDE_MARKER_EDGE_MARGIN_PERCENT;
-    public static final ModConfigSpec.DoubleValue QUEST_GUIDE_MARKER_ICON_SIZE_PERCENT;
+    public static final ForgeConfigSpec SPEC;
+    public static final ForgeConfigSpec.BooleanValue SHOW_COMPLETED_QUESTS_IN_BOOK;
+    public static final ForgeConfigSpec.BooleanValue SHOW_COMPLETED_TASKS_IN_BOOK;
+    public static final ForgeConfigSpec.BooleanValue REGISTER_OPEN_QUEST_BOOK_KEY;
+    public static final ForgeConfigSpec.BooleanValue SHOW_QUEST_COMPLETION_TOAST;
+    public static final ForgeConfigSpec.DoubleValue QUEST_COMPLETION_TOAST_X_PERCENT;
+    public static final ForgeConfigSpec.DoubleValue QUEST_COMPLETION_TOAST_Y_PERCENT;
+    public static final ForgeConfigSpec.BooleanValue SHOW_TRACKED_QUEST_HUD;
+    public static final ForgeConfigSpec.DoubleValue TRACKED_QUEST_HUD_X_PERCENT;
+    public static final ForgeConfigSpec.DoubleValue TRACKED_QUEST_HUD_Y_PERCENT;
+    public static final ForgeConfigSpec.DoubleValue TRACKED_QUEST_HUD_WIDTH_PERCENT;
+    public static final ForgeConfigSpec.DoubleValue TRACKED_QUEST_HUD_HEIGHT_PERCENT;
+    public static final ForgeConfigSpec.BooleanValue SHOW_QUEST_GUIDE_MARKER;
+    public static final ForgeConfigSpec.DoubleValue QUEST_GUIDE_MARKER_EDGE_MARGIN_PERCENT;
+    public static final ForgeConfigSpec.DoubleValue QUEST_GUIDE_MARKER_ICON_SIZE_PERCENT;
 
     static {
-        ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
+        ForgeConfigSpec.Builder builder = new ForgeConfigSpec.Builder();
         builder
                 .translation("viscript_quests.configuration.quest_book")
                 .push("questBook");

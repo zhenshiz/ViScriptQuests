@@ -7,7 +7,7 @@ import com.viscriptquests.quest.data.*;
 import com.viscriptquests.quest.data.runtime.*;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
-import net.neoforged.neoforge.common.NeoForge;
+import net.minecraftforge.common.MinecraftForge;
 
 import java.util.*;
 
@@ -113,7 +113,7 @@ public class QuestFlowExecutor {
                     .findFirst()
                     .orElse(null);
             progress.skipUnfinishedObjectives();
-            NeoForge.EVENT_BUS.post(new QuestEvent.TaskFailed(player, state, progress, failedObjective));
+            MinecraftForge.EVENT_BUS.post(new QuestEvent.TaskFailed(player, state, progress, failedObjective));
         });
         state.activeFlowNodes.remove(failedStepId);
         state.completedFlowNodes.add(failedStepId);
@@ -152,7 +152,7 @@ public class QuestFlowExecutor {
             state.completedFlowNodes.add(progress.stepId);
         }
         for (TaskProgress progress : newlyCompleted) {
-            NeoForge.EVENT_BUS.post(new QuestEvent.TaskCompleted(player, state, progress, true));
+            MinecraftForge.EVENT_BUS.post(new QuestEvent.TaskCompleted(player, state, progress, true));
             QuestCompletionNotificationService.notifyTaskCompleted(player, progress);
         }
         state.activeFlowNodes.clear();
@@ -166,7 +166,7 @@ public class QuestFlowExecutor {
             state.status = QuestStatus.COMPLETED;
             state.completedGameTime = player.level().getGameTime();
             if (newlyCompletedQuest) {
-                NeoForge.EVENT_BUS.post(new QuestEvent.QuestCompleted(player, state, true));
+                MinecraftForge.EVENT_BUS.post(new QuestEvent.QuestCompleted(player, state, true));
                 QuestCompletionNotificationService.notifyQuestCompleted(player, state);
             }
         }
@@ -215,7 +215,7 @@ public class QuestFlowExecutor {
             if (activating) {
                 progress.status = TaskStatus.ACTIVE;
                 progress.refreshObjectives(questFile, player, state.questVariables);
-                NeoForge.EVENT_BUS.post(new QuestEvent.TaskStarted(player, state, progress, reentered));
+                MinecraftForge.EVENT_BUS.post(new QuestEvent.TaskStarted(player, state, progress, reentered));
             }
         });
     }
@@ -282,10 +282,10 @@ public class QuestFlowExecutor {
                                               String fromNodeId, QuestStepResult stepResult) {
         boolean applied = false;
         for (QuestFlowEdge edge : questFile.findFlowEdgesFrom(fromNodeId, stepResult)) {
-            if (!edge.evaluate(state.questVariables, player.registryAccess(), player)) {
+            if (!edge.evaluate(state.questVariables, player.level().registryAccess(), player)) {
                 continue;
             }
-            edge.applyMutations(state.questVariables, player.registryAccess(), player);
+            edge.applyMutations(state.questVariables, player.level().registryAccess(), player);
             printDebugMessages(player, state, edge);
 
             QuestFlowNode target = questFile.findFlowNode(edge.toNodeId).orElse(null);
@@ -389,7 +389,7 @@ public class QuestFlowExecutor {
                     .ifPresent(progress -> {
                         progress.status = TaskStatus.SKIPPED;
                         progress.skipUnfinishedObjectives();
-                        NeoForge.EVENT_BUS.post(new QuestEvent.TaskSkipped(player, state, progress, "branch"));
+                        MinecraftForge.EVENT_BUS.post(new QuestEvent.TaskSkipped(player, state, progress, "branch"));
                     });
         }
         for (QuestFlowEdge outgoing : questFile.findFlowEdgesFrom(nodeId)) {
@@ -420,7 +420,7 @@ public class QuestFlowExecutor {
             if (progress.status == TaskStatus.ACTIVE || progress.status == TaskStatus.LOCKED) {
                 progress.status = TaskStatus.SKIPPED;
                 progress.skipUnfinishedObjectives();
-                NeoForge.EVENT_BUS.post(new QuestEvent.TaskSkipped(player, state, progress, "quest_finished"));
+                MinecraftForge.EVENT_BUS.post(new QuestEvent.TaskSkipped(player, state, progress, "quest_finished"));
             }
         }
         for (JoinProgress joinProgress : state.flowJoinProgresses) {
@@ -432,10 +432,10 @@ public class QuestFlowExecutor {
         state.status = success ? QuestStatus.COMPLETED : QuestStatus.FAILED;
         state.completedGameTime = player.level().getGameTime();
         if (success) {
-            NeoForge.EVENT_BUS.post(new QuestEvent.QuestCompleted(player, state, forced));
+            MinecraftForge.EVENT_BUS.post(new QuestEvent.QuestCompleted(player, state, forced));
             QuestCompletionNotificationService.notifyQuestCompleted(player, state);
         } else {
-            NeoForge.EVENT_BUS.post(new QuestEvent.QuestFailed(player, state, failedStepId));
+            MinecraftForge.EVENT_BUS.post(new QuestEvent.QuestFailed(player, state, failedStepId));
         }
         QuestPlayerData playerData = QuestSavedData.get(player.getServer()).getPlayer(player.getUUID());
         if (playerData.trackedQuestId.equals(state.questId)) {
@@ -451,7 +451,7 @@ public class QuestFlowExecutor {
                 continue;
             }
             String interpolated = interpolateVariables(debugPrint.message, state.questVariables,
-                    debugPrint.valuePrints, player.registryAccess(), player);
+                    debugPrint.valuePrints, player.level().registryAccess(), player);
             if (debugPrint.sendToChat) {
                 player.sendSystemMessage(Component.literal(interpolated));
             } else {

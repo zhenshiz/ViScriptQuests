@@ -5,7 +5,6 @@ import com.viscriptquests.quest.data.runtime.PlayerQuestState;
 import com.viscriptquests.quest.data.runtime.QuestStatus;
 import com.viscriptquests.quest.data.runtime.TaskStatus;
 import com.viscriptquests.util.QuestFileHelper;
-import lombok.experimental.UtilityClass;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 
@@ -23,7 +22,7 @@ public class QuestRuntimeDebug {
         if (state.isEmpty() || state.get().status != QuestStatus.ACTIVE) {
             return false;
         }
-        state.get().setVariable(varName, value, player.registryAccess());
+        state.get().setVariable(varName, value, player.level().registryAccess());
         savedData.setDirty();
         return true;
     }

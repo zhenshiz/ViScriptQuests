@@ -9,11 +9,7 @@ import com.viscriptquests.quest.data.QuestVariableValue;
 import com.viscriptquests.quest.data.task.ITask;
 import net.minecraft.network.chat.Component;
 
-import java.util.List;
-import java.util.ArrayList;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 
 // 任务目标的运行时进度追踪
 public class TaskProgress implements IPersistedSerializable {
@@ -146,7 +142,7 @@ public class TaskProgress implements IPersistedSerializable {
             }
         }
         while (objectives.size() > refreshed.objectives.size()) {
-            objectives.removeLast();
+            objectives.remove(objectives.size() - 1);
         }
         refreshSummary();
     }
@@ -263,6 +259,6 @@ public class TaskProgress implements IPersistedSerializable {
                                 .orElseGet(() -> objectives.stream()
                                         .filter(objective -> objective != null && objective.isCompleted())
                                         .findFirst()
-                                        .orElse(objectives.getFirst()))));
+                                        .orElse(objectives.get(0)))));
     }
 }

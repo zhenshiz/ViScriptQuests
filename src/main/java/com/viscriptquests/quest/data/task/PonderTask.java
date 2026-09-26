@@ -98,10 +98,7 @@ public class PonderTask extends ITask {
             return item.get().getDescription();
         }
         Optional<Block> block = BuiltInRegistries.BLOCK.getOptional(id);
-        if (block.isPresent()) {
-            return block.get().getName();
-        }
-        return Component.literal(id.toString());
+        return block.<Component>map(Block::getName).orElseGet(() -> Component.literal(id.toString()));
     }
 
     private ItemStack componentStack() {

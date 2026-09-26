@@ -4,7 +4,7 @@ import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.CustomNodeModelImpl;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.model.node.PortModel;
 import com.viscriptquests.gui.blueprint.QuestBlueprintFlowTypes;
 import com.viscriptquests.gui.blueprint.node.flow.*;
-import com.viscriptquests.gui.blueprint.node.logic.*;
+import com.viscriptquests.gui.blueprint.node.logic.CompareOperationNode;
 import com.viscriptquests.quest.data.*;
 
 import java.util.*;

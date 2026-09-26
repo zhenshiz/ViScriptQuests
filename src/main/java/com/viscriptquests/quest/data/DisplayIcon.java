@@ -12,23 +12,22 @@ import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
 import com.lowdragmc.lowdraglib2.utils.PersistedParser;
 import com.mojang.serialization.Codec;
 import com.viscript_lib.util.CodecUtil;
-import io.netty.buffer.ByteBuf;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.Tag;
-import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.item.ItemStack;
+import net.nikdo53.neobackports.io.StreamCodec;
 import org.jetbrains.annotations.NotNull;
 
 @Data
 public class DisplayIcon implements IPersistedSerializable, IConfigurable {
     public static final Codec<DisplayIcon> CODEC = PersistedParser.createCodec(DisplayIcon::new);
-    public static final StreamCodec<ByteBuf, DisplayIcon> STREAM_CODEC = PersistedParser.createStreamCodec(DisplayIcon::new);
+    public static final StreamCodec<DisplayIcon> STREAM_CODEC = PersistedParser.createStreamCodec(DisplayIcon::new);
 
     @Configurable(name = "viscript_quests.displayIcon.type")
     @ConfigSelector(subConfiguratorBuilder = "iconTypeSubConfiguratorBuilder")

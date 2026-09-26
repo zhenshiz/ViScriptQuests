@@ -4,8 +4,6 @@ import com.lowdragmc.lowdraglib2.syncdata.IPersistedSerializable;
 import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.scores.Objective;
-import net.minecraft.world.scores.ScoreAccess;
-import net.minecraft.world.scores.ScoreHolder;
 import net.minecraft.world.scores.Scoreboard;
 
 import java.util.ArrayList;
@@ -35,12 +33,11 @@ public class ScoreboardMutation implements IPersistedSerializable {
         if (objective == null) {
             return;
         }
-        ScoreHolder holder = ScoreHolder.forNameOnly(resolveScoreHolderName(player));
-        ScoreAccess scoreAccess = scoreboard.getOrCreatePlayerScore(holder, objective);
+        var score = scoreboard.getOrCreatePlayerScore(player.getScoreboardName(), objective);
         float operand = expression.isEmpty() ? value : QuestValueToken.evaluate(expression, questVariables, player);
-        int nextValue = Math.round(operation.apply(scoreAccess.get(), operand));
+        int nextValue = Math.round(operation.apply(score.getScore(), operand));
         try {
-            scoreAccess.set(nextValue);
+            score.setScore(nextValue);
         } catch (IllegalStateException ignored) {
             // 原版只允许修改非只读目标；只读目标保持原值，避免任务流程因此中断。
         }

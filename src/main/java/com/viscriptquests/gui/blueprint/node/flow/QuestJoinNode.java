@@ -36,8 +36,7 @@ public class QuestJoinNode extends QuestBlueprintNode {
         // 选择 ANY 或 ALL 时这个端口不会出现，实现动态表单效果
         INodeOption modeOpt = getNodeOptionById("join_mode");
         if (modeOpt != null) {
-            modeOpt.tryGetValue(QuestJoinMode.class)
-                    .ifSuccess(mode -> {
+            modeOpt.tryGetValue(QuestJoinMode.class).get().ifLeft(mode -> {
                         if (mode == QuestJoinMode.COUNT) {
                             IPortBuilder<?> builder = context.addInputPort("required_count", TypeHandles.INT)
                                     .withDisplayName(portName("required_count"));

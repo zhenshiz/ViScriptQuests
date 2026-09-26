@@ -11,7 +11,7 @@ import com.lowdragmc.lowdraglib2.syncdata.IPersistedSerializable;
 import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
 import com.viscript_lib.util.item.ItemStackCompareMode;
 import com.viscript_lib.util.item.ItemUtil;
-import net.minecraft.core.component.DataComponentType;
+import lombok.Getter;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 
@@ -24,17 +24,18 @@ import java.util.List;
  * 比较所有组件、只比较指定组件、或比较时排除指定组件。
  */
 public class ItemMatchRule implements IConfigurable, IPersistedSerializable {
+    @Getter
     @Configurable(name = "viscript_quests.item_match_rule.compare_mode")
     @ConfigSelector(subConfiguratorBuilder = "compareModeSubConfiguratorBuilder")
     @Persisted
     private ItemStackCompareMode compareMode = ItemStackCompareMode.ALL_COMPONENTS;
     @Persisted
-    private List<DataComponentType<?>> components = new ArrayList<>();
+    private List<String> components = new ArrayList<>();
 
     public ItemMatchRule() {
     }
 
-    public ItemMatchRule(ItemStackCompareMode compareMode, List<DataComponentType<?>> components) {
+    public ItemMatchRule(ItemStackCompareMode compareMode, List<String> components) {
         this.compareMode = compareMode == null ? ItemStackCompareMode.ALL_COMPONENTS : compareMode;
         this.components = copyComponents(components);
     }
@@ -43,13 +44,12 @@ public class ItemMatchRule implements IConfigurable, IPersistedSerializable {
         return ItemUtil.isSameItem(candidate, target, resolvedCompareMode(), resolvedComponents());
     }
 
-    public int getItemForPlayerCount(ServerPlayer player, ItemStack itemStack) {
-        // VSL 已将计数返回值改为 long，任务系统内部数量使用 int，这里在边界处收窄
-        return (int) ItemUtil.getItemForPlayerCount(player, itemStack, resolvedCompareMode(), resolvedComponents());
+    public long getItemForPlayerCount(ServerPlayer player, ItemStack itemStack) {
+        return ItemUtil.getItemForPlayerCount(player, itemStack, resolvedCompareMode(), resolvedComponents());
     }
 
-    public int removeItemForPlayer(ServerPlayer player, ItemStack itemStack, int count) {
-        return (int) ItemUtil.removeItemForPlayer(player, itemStack, count, resolvedCompareMode(), resolvedComponents());
+    public long removeItemForPlayer(ServerPlayer player, ItemStack itemStack, long count) {
+        return ItemUtil.removeItemForPlayer(player, itemStack, count, resolvedCompareMode(), resolvedComponents());
     }
 
     public ItemMatchRule copy() {
@@ -60,7 +60,7 @@ public class ItemMatchRule implements IConfigurable, IPersistedSerializable {
         return compareMode == null ? ItemStackCompareMode.ALL_COMPONENTS : compareMode;
     }
 
-    public List<DataComponentType<?>> resolvedComponents() {
+    public List<String> resolvedComponents() {
         return components == null ? List.of() : components;
     }
 
@@ -73,20 +73,16 @@ public class ItemMatchRule implements IConfigurable, IPersistedSerializable {
         }
     }
 
-    public ItemStackCompareMode getCompareMode() {
-        return compareMode;
-    }
-
     public void setCompareMode(ItemStackCompareMode compareMode) {
         this.compareMode = compareMode == null ? ItemStackCompareMode.ALL_COMPONENTS : compareMode;
     }
 
-    public List<DataComponentType<?>> getComponents() {
+    public List<String> getComponents() {
         ensureDefaults();
         return components;
     }
 
-    public void setComponents(List<DataComponentType<?>> components) {
+    public void setComponents(List<String> components) {
         this.components = copyComponents(components);
     }
 
@@ -127,14 +123,14 @@ public class ItemMatchRule implements IConfigurable, IPersistedSerializable {
         }
     }
 
-    private static List<DataComponentType<?>> copyComponents(List<?> source) {
-        List<DataComponentType<?>> copy = new ArrayList<>();
+    private static List<String> copyComponents(List<?> source) {
+        List<String> copy = new ArrayList<>();
         if (source == null) {
             return copy;
         }
         for (Object value : source) {
-            if (value instanceof DataComponentType<?> componentType) {
-                copy.add(componentType);
+            if (value instanceof String component) {
+                copy.add(component);
             }
         }
         return copy;

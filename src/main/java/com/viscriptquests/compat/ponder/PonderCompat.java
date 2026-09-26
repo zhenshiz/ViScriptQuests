@@ -1,9 +1,8 @@
 package com.viscriptquests.compat.ponder;
 
 import com.lowdragmc.lowdraglib2.Platform;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.fml.ModList;
-import net.neoforged.fml.loading.FMLEnvironment;
+import net.minecraftforge.fml.ModList;
+import net.minecraftforge.fml.loading.FMLEnvironment;
 
 public final class PonderCompat {
     public static final String MOD_ID = "ponder";
@@ -16,7 +15,7 @@ public final class PonderCompat {
     }
 
     public static boolean open(String componentId) {
-        if (FMLEnvironment.dist != Dist.CLIENT) {
+        if (!FMLEnvironment.dist.isClient()) {
             return false;
         }
         if (!ModList.get().isLoaded(MOD_ID)) {

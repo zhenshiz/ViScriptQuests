@@ -3,22 +3,20 @@ package com.viscriptquests.quest.event;
 import com.viscriptquests.ViScriptQuests;
 import com.viscriptquests.quest.runtime.QuestManager;
 import com.viscriptquests.quest.runtime.QuestSubmissionService;
-import com.viscriptquests.quest.runtime.QuestTrackingService;
 import net.minecraft.server.level.ServerPlayer;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.entity.player.PlayerEvent;
-import net.neoforged.neoforge.event.tick.PlayerTickEvent;
+import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
 
-@EventBusSubscriber(modid = ViScriptQuests.MOD_ID)
+@Mod.EventBusSubscriber(modid = ViScriptQuests.MOD_ID)
 public class ItemEvents {
     // 每次检查的事件间隔（单位：tick）
     private static final int TRACKED_TASK_CHECK_INTERVAL_TICKS = 19;
     private static final int COUNTDOWN_CHECK_INTERVAL_TICKS = 20;
 
     @SubscribeEvent
-    public static void onPlayerTick(PlayerTickEvent.Post event) {
-        if (!(event.getEntity() instanceof ServerPlayer player) || player.level().isClientSide()) {
+    public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
+        if (event.phase == TickEvent.Phase.START || !(event.player instanceof ServerPlayer player) || player.level().isClientSide()) {
             return;
         }
         long gameTime = player.level().getGameTime();

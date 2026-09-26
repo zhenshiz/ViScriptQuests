@@ -8,12 +8,12 @@ import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
 import com.lowdragmc.lowdraglib2.utils.PersistedParser;
 import com.mojang.serialization.Codec;
 import com.viscript_lib.util.CodecUtil;
+import com.viscriptquests.ViScriptQuests;
 import com.viscriptquests.quest.data.DisplayIcon;
 import com.viscriptquests.util.QuestFileHelper;
-import io.netty.buffer.ByteBuf;
 import net.minecraft.nbt.Tag;
-import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.ResourceLocation;
+import net.nikdo53.neobackports.io.StreamCodec;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -21,11 +21,11 @@ import java.util.List;
 // 玩家任务分类数据。默认分类和玩家自己的分类都使用同一份结构。
 public class QuestCategoryData implements IPersistedSerializable, IConfigurable {
     public static final ResourceLocation DEFAULT_TAB_BACKGROUND =
-            ResourceLocation.parse("viscript_quests:textures/gui/tag/tag_blue.png");
+            ViScriptQuests.id("textures/gui/tag/tag_blue.png");
     public static final ResourceLocation DEFAULT_SELECTED_TAB_BACKGROUND =
-            ResourceLocation.parse("viscript_quests:textures/gui/tag/tag_blue_select.png");
+            ViScriptQuests.id("textures/gui/tag/tag_blue_select.png");
     public static final Codec<QuestCategoryData> CODEC = PersistedParser.createCodec(QuestCategoryData::new);
-    public static final StreamCodec<ByteBuf, QuestCategoryData> STREAM_CODEC = PersistedParser.createStreamCodec(QuestCategoryData::new);
+    public static final StreamCodec<QuestCategoryData> STREAM_CODEC = PersistedParser.createStreamCodec(QuestCategoryData::new);
 
     @Configurable(name = "viscript_quests.questCategory.id")
     public String id = "";

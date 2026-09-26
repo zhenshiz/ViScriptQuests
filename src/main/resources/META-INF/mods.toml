@@ -1,0 +1,29 @@
+modLoader="javafml"
+loaderVersion="${loader_version_range}"
+license="${mod_license}"
+#issueTrackerURL="https://change.me.to.your.issue.tracker.example.invalid/"
+#clientSideOnly=true - defaults to false if absent
+[[mods]]
+modId="viscript_quests"
+version="${mod_version}"
+displayName="${mod_name}"
+#updateJSONURL="https://change.me.example.invalid/updates.json"
+#displayURL="https://change.me.to.your.mods.homepage.example.invalid/"
+logoFile="icon.png"
+#credits=""
+authors="${mod_authors}"
+description='''${mod_description}'''
+
+[[dependencies.viscript_quests]]
+modId = "minecraft"
+mandatory=true
+versionRange = "${minecraft_version_range}"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.viscript_quests]]
+modId = "ldlib2"
+mandatory=true
+versionRange = "[${ldlib2_version},)"
+ordering = "NONE"
+side = "BOTH"

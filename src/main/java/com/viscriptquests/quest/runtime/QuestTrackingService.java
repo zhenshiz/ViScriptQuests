@@ -3,15 +3,9 @@ package com.viscriptquests.quest.runtime;
 import com.lowdragmc.lowdraglib2.Platform;
 import com.lowdragmc.lowdraglib2.networking.rpc.RPCPacketDistributor;
 import com.viscriptquests.network.s2c.S2CPayload;
-import com.viscriptquests.quest.data.QuestFile;
 import com.viscriptquests.quest.data.QuestSavedData;
-import com.viscriptquests.quest.data.runtime.PlayerQuestState;
-import com.viscriptquests.quest.data.runtime.QuestPlayerData;
-import com.viscriptquests.quest.data.runtime.QuestStatus;
-import com.viscriptquests.quest.data.runtime.TaskProgress;
-import com.viscriptquests.quest.data.runtime.TaskStatus;
+import com.viscriptquests.quest.data.runtime.*;
 import com.viscriptquests.util.QuestFileHelper;
-import lombok.experimental.UtilityClass;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.util.LinkedHashSet;
@@ -139,10 +133,8 @@ public class QuestTrackingService {
         if (progress == null) {
             return;
         }
-        QuestFile questFile = QuestFileHelper.getQuest(playerData.trackedQuestId, player.registryAccess()).orElse(null);
-        if (questFile != null) {
-            progress.refreshObjectives(questFile, player, state.questVariables);
-        }
+        QuestFileHelper.getQuest(playerData.trackedQuestId, player.level().registryAccess()).ifPresent(questFile ->
+                progress.refreshObjectives(questFile, player, state.questVariables));
     }
 
     /**

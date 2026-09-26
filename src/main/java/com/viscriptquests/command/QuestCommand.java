@@ -15,18 +15,13 @@ import com.viscriptquests.ViScriptQuests;
 import com.viscriptquests.gui.editor.QuestEditor;
 import com.viscriptquests.network.s2c.S2CPayload;
 import com.viscriptquests.quest.data.DisplayIcon;
-import com.viscriptquests.quest.data.runtime.QuestCategoryConfigData;
-import com.viscriptquests.quest.data.runtime.QuestCategoryListData;
-import com.viscriptquests.quest.data.runtime.QuestCompletionToastData;
-import com.viscriptquests.quest.data.runtime.PlayerQuestState;
-import com.viscriptquests.quest.data.runtime.QuestStatus;
-import com.viscriptquests.quest.data.runtime.TaskStatus;
-import com.viscriptquests.util.QuestFileHelper;
-import com.viscriptquests.quest.runtime.QuestManager;
 import com.viscriptquests.quest.data.QuestSavedData;
+import com.viscriptquests.quest.data.runtime.*;
+import com.viscriptquests.quest.runtime.QuestManager;
 import com.viscriptquests.quest.runtime.QuestTeamProgressService;
 import com.viscriptquests.quest.runtime.QuestTrackingService;
 import com.viscriptquests.util.QuestCategoryFileHelper;
+import com.viscriptquests.util.QuestFileHelper;
 import lombok.SneakyThrows;
 import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.commands.CommandSourceStack;
@@ -36,13 +31,7 @@ import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Set;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -374,7 +363,7 @@ public class QuestCommand implements ICommand {
 
     private Component grantPrecheckFailure(ServerPlayer player, String questId) {
         String normalizedQuestId = QuestFileHelper.normalizeQuestId(questId);
-        var questFile = QuestFileHelper.getQuest(normalizedQuestId, player.registryAccess());
+        var questFile = QuestFileHelper.getQuest(normalizedQuestId, player.level().registryAccess());
         if (questFile.isEmpty()) {
             return Component.translatable("commands.viscript_quests.quest.missing", normalizedQuestId);
         }
@@ -386,7 +375,7 @@ public class QuestCommand implements ICommand {
         var completedInScope = QuestTeamProgressService.findCompletedQuestInScope(player,
                 QuestSavedData.get(player.getServer()), normalizedQuestId);
         if (completedInScope.isPresent()) {
-            playerData.putQuest(QuestTeamProgressService.copyState(completedInScope.get().state(), player.registryAccess()));
+            playerData.putQuest(QuestTeamProgressService.copyState(completedInScope.get().state(), player.level().registryAccess()));
             QuestSavedData.get(player.getServer()).setDirty();
             QuestTrackingService.refresh(player);
             return Component.translatable(
@@ -403,7 +392,7 @@ public class QuestCommand implements ICommand {
     }
 
     private String grantCategoryId(ServerPlayer player, String questId) {
-        return QuestFileHelper.getQuest(QuestFileHelper.normalizeQuestId(questId), player.registryAccess())
+        return QuestFileHelper.getQuest(QuestFileHelper.normalizeQuestId(questId), player.level().registryAccess())
                 .flatMap(file -> QuestCategoryFileHelper.findCategoryIdForQuest(questId))
                 .orElse("");
     }
@@ -431,7 +420,7 @@ public class QuestCommand implements ICommand {
         if (state.isEmpty() || state.get().status != QuestStatus.ACTIVE) {
             return stateMissingFailure(player, questId);
         }
-        var questFile = QuestFileHelper.getQuest(normalizedQuestId, player.registryAccess());
+        var questFile = QuestFileHelper.getQuest(normalizedQuestId, player.level().registryAccess());
         if (questFile.isEmpty()) {
             return Component.translatable("commands.viscript_quests.quest.missing", normalizedQuestId);
         }

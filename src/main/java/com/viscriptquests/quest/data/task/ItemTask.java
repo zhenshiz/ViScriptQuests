@@ -2,11 +2,7 @@ package com.viscriptquests.quest.data.task;
 
 import com.lowdragmc.lowdraglib2.registry.annotation.LDLRegister;
 import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
-import com.viscriptquests.quest.data.DisplayIcon;
-import com.viscriptquests.quest.data.ItemMatchRule;
-import com.viscriptquests.quest.data.QuestSubmitMode;
-import com.viscriptquests.quest.data.QuestValueToken;
-import com.viscriptquests.quest.data.QuestVariableValue;
+import com.viscriptquests.quest.data.*;
 import com.viscriptquests.quest.data.runtime.TaskObjectiveProgress;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
@@ -162,7 +158,7 @@ public class ItemTask extends ITask {
             return 0;
         }
         ItemStack identity = itemIdentityStack();
-        return itemMatchRule.getItemForPlayerCount(player, identity);
+        return (int) itemMatchRule.getItemForPlayerCount(player, identity);
     }
 
     private boolean removePlayerItems(ServerPlayer player, int count) {
@@ -170,7 +166,7 @@ public class ItemTask extends ITask {
             return true;
         }
         ItemStack identity = itemIdentityStack();
-        int remaining = itemMatchRule.removeItemForPlayer(player, identity, count);
+        long remaining = itemMatchRule.removeItemForPlayer(player, identity, count);
         player.containerMenu.broadcastChanges();
         return remaining <= 0;
     }

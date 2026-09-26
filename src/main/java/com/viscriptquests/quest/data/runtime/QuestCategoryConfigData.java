@@ -4,11 +4,7 @@ import com.lowdragmc.lowdraglib2.syncdata.IPersistedSerializable;
 import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
 import com.viscriptquests.util.QuestFileHelper;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 // 分类配置界面的 RPC 数据：分类内容本身，加上服务端扫描到的任务文件候选项。
 public class QuestCategoryConfigData implements IPersistedSerializable {

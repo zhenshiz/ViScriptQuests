@@ -6,23 +6,21 @@ import com.viscriptquests.quest.data.DisplayIcon;
 import com.viscriptquests.quest.data.LootTableConfig;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.storage.loot.LootParams;
-import net.minecraft.world.level.storage.loot.LootTable;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
-import net.neoforged.neoforge.items.ItemHandlerHelper;
+import net.minecraftforge.items.ItemHandlerHelper;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 // 战利品表奖励：可读取数据包 loot table，也可用内置的简单概率表抽取物品。
 @LDLRegister(name = "loot_table_reward", registry = IReward.ID)
@@ -82,13 +80,12 @@ public class LootTableReward extends IReward {
         if (location == null) {
             return;
         }
-        ResourceKey<LootTable> key = ResourceKey.create(Registries.LOOT_TABLE, location);
         LootParams lootParams = new LootParams.Builder(player.serverLevel())
                 .withParameter(LootContextParams.THIS_ENTITY, player)
                 .withParameter(LootContextParams.ORIGIN, player.position())
                 .withLuck(player.getLuck())
                 .create(LootContextParamSets.ADVANCEMENT_REWARD);
-        for (ItemStack stack : player.getServer().reloadableRegistries().getLootTable(key).getRandomItems(lootParams)) {
+        for (ItemStack stack : Objects.requireNonNull(player.getServer()).getLootData().getLootTable(location).getRandomItems(lootParams)) {
             giveItem(player, stack);
         }
     }

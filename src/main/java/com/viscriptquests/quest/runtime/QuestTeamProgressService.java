@@ -7,12 +7,11 @@ import com.viscriptquests.quest.data.QuestSavedData;
 import com.viscriptquests.quest.data.runtime.PlayerQuestState;
 import com.viscriptquests.quest.data.runtime.QuestPlayerData;
 import com.viscriptquests.quest.data.runtime.QuestStatus;
-import com.viscriptquests.quest.data.runtime.TaskProgress;
 import com.viscriptquests.quest.data.runtime.TaskStatus;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
-import net.neoforged.neoforge.common.NeoForge;
+import net.minecraftforge.common.MinecraftForge;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -42,7 +41,7 @@ public class QuestTeamProgressService {
         }
         QuestTeamScope scope = QuestTeamService.scopeOf(sourcePlayer);
         QuestSavedData savedData = QuestSavedData.get(sourcePlayer.getServer());
-        HolderLookup.Provider provider = sourcePlayer.registryAccess();
+        HolderLookup.Provider provider = sourcePlayer.level().registryAccess();
         for (UUID memberId : scope.memberIds()) {
             QuestPlayerData memberData = savedData.getPlayer(memberId);
             PlayerQuestState copiedState = copyState(sourceState, provider);
@@ -89,7 +88,7 @@ public class QuestTeamProgressService {
         if (changed) {
             savedData.setDirty();
             if (revokedState != null) {
-                NeoForge.EVENT_BUS.post(new QuestEvent.QuestRevoked(sourcePlayer, revokedState));
+                MinecraftForge.EVENT_BUS.post(new QuestEvent.QuestRevoked(sourcePlayer, revokedState));
             }
         }
         return changed;

@@ -5,8 +5,6 @@ import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.scores.Objective;
-import net.minecraft.world.scores.ReadOnlyScoreInfo;
-import net.minecraft.world.scores.ScoreHolder;
 import net.minecraft.world.scores.Scoreboard;
 
 import java.util.ArrayDeque;
@@ -166,11 +164,7 @@ public class QuestValueToken implements IPersistedSerializable {
         if (objective == null) {
             return 0f;
         }
-        String holderName = scoreHolderName == null || scoreHolderName.isBlank()
-                ? player.getScoreboardName()
-                : scoreHolderName.trim();
-        ReadOnlyScoreInfo scoreInfo = scoreboard.getPlayerScoreInfo(ScoreHolder.forNameOnly(holderName), objective);
-        return scoreInfo == null ? 0f : scoreInfo.value();
+        return scoreboard.getOrCreatePlayerScore(player.getScoreboardName(), objective).getScore();
     }
 
     private static float readPlayerItemCount(ServerPlayer player, ItemStack itemStack, ItemMatchRule matchRule) {
@@ -214,7 +208,13 @@ public class QuestValueToken implements IPersistedSerializable {
     @Override
     public int hashCode() {
         return Objects.hash(kind, variableName, value, objectiveName, scoreHolder,
-                ItemStack.hashItemAndComponents(itemStack), matchRuleHash(itemMatchRule));
+                hashItemStack(itemStack), matchRuleHash(itemMatchRule));
+    }
+
+    static int hashItemStack(ItemStack stack) {
+        int i = stack.getItem().hashCode();
+        i ^= stack.getCount();
+        return stack.getTag() == null ? i : i ^ stack.getTag().hashCode();
     }
 
     private static boolean sameMatchRule(ItemMatchRule first, ItemMatchRule second) {

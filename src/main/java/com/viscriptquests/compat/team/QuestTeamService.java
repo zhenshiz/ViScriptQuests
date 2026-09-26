@@ -3,7 +3,6 @@ package com.viscriptquests.compat.team;
 import com.lowdragmc.lowdraglib2.Platform;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
-import net.neoforged.fml.ModList;
 
 import java.util.ArrayList;
 import java.util.List;

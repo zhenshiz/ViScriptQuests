@@ -5,13 +5,7 @@ import com.lowdragmc.lowdraglib2.LDLib2;
 import com.lowdragmc.lowdraglib2.configurator.IConfigurable;
 import com.lowdragmc.lowdraglib2.configurator.accessors.EnumAccessor;
 import com.lowdragmc.lowdraglib2.configurator.accessors.ItemStackAccessor;
-import com.lowdragmc.lowdraglib2.configurator.ui.ArrayConfiguratorGroup;
-import com.lowdragmc.lowdraglib2.configurator.ui.Configurator;
-import com.lowdragmc.lowdraglib2.configurator.ui.ConfiguratorGroup;
-import com.lowdragmc.lowdraglib2.configurator.ui.ConfiguratorSelectorConfigurator;
-import com.lowdragmc.lowdraglib2.configurator.ui.DataComponentConfigurator;
-import com.lowdragmc.lowdraglib2.configurator.ui.RegistrySearchComponent;
-import com.lowdragmc.lowdraglib2.configurator.ui.StringConfigurator;
+import com.lowdragmc.lowdraglib2.configurator.ui.*;
 import com.lowdragmc.lowdraglib2.gui.ColorPattern;
 import com.lowdragmc.lowdraglib2.gui.sync.bindings.impl.SupplierDataSource;
 import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
@@ -21,6 +15,7 @@ import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Dialog;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
+import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvent;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.api.IFieldValueConfigurable;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.api.type.TypeHandle;
@@ -28,20 +23,10 @@ import com.lowdragmc.lowdraglib2.nodegraphtookit.api.type.TypeHandleHelpers;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.api.type.TypeHandles;
 import com.viscript_lib.util.item.ItemStackCompareMode;
 import com.viscriptquests.ViScriptQuests;
-import com.viscriptquests.gui.blueprint.data.QuestRegistryId;
 import com.viscriptquests.gui.blueprint.data.MathOperation;
-import com.viscriptquests.quest.data.CompareOp;
-import com.viscriptquests.quest.data.DisplayIcon;
+import com.viscriptquests.gui.blueprint.data.QuestRegistryId;
+import com.viscriptquests.quest.data.*;
 import com.viscriptquests.quest.data.DisplayIcon.IconType;
-import com.viscriptquests.quest.data.ItemMatchRule;
-import com.viscriptquests.quest.data.LocationGuideMarkerProvider;
-import com.viscriptquests.quest.data.LocationTargetType;
-import com.viscriptquests.quest.data.LocationWaypointColor;
-import com.viscriptquests.quest.data.QuestJoinMode;
-import com.viscriptquests.quest.data.QuestSubmitMode;
-import com.viscriptquests.quest.data.TaskObjectiveType;
-import com.viscriptquests.quest.data.LootTableConfig;
-import com.viscriptquests.quest.data.VariableMutationOp;
 import com.viscriptquests.quest.data.reward.LootTableReward;
 import dev.vfyjxf.taffy.style.AlignItems;
 import dev.vfyjxf.taffy.style.FlexDirection;
@@ -50,7 +35,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -485,7 +469,7 @@ public final class QuestBlueprintTypes {
 
     private static void dockArrayButtonsToHeader(ArrayConfiguratorGroup<?> group) {
         group.buttonGroup.removeSelf();
-        group.buttonGroup.addEventListener(UIEvents.MOUSE_DOWN, event -> event.stopPropagation());
+        group.buttonGroup.addEventListener(UIEvents.MOUSE_DOWN, UIEvent::stopPropagation);
         group.buttonGroup.layout(layout -> {
             layout.flexDirection(FlexDirection.ROW);
             layout.alignItems(AlignItems.CENTER);
@@ -522,11 +506,11 @@ public final class QuestBlueprintTypes {
         group.inlineContainer.addChildren(slot, new UIElement().layout(layout -> layout.flex(1)), inventoryButton);
 
         var componentsConfigurator = new DataComponentConfigurator(
-                supplier.get().getItem().components(),
-                () -> supplier.get().getComponentsPatch(),
+                supplier.get().getOrCreateTag(),
+                () -> supplier.get().getOrCreateTag(),
                 patch -> {
                     ItemStack current = supplier.get();
-                    updater.accept(new ItemStack(current.getItem().builtInRegistryHolder(), 1, patch));
+                    updater.accept(new ItemStack(current.getItem(), 1, patch));
                 },
                 valueConfigurable.forceUpdate()
         );
@@ -566,7 +550,7 @@ public final class QuestBlueprintTypes {
                     .setOnClick(e -> {
                         ItemStack selectedIdentityStack = normalizeItemIdentityStack(selectedStack[0]);
                         updater.accept(selectedIdentityStack);
-                        componentsConfigurator.setPrototype(selectedIdentityStack.getItem().components());
+                        componentsConfigurator.setPrototype(selectedIdentityStack.getOrCreateTag());
                         group.notifyChanges();
                         dialog.close();
                     })
@@ -584,8 +568,8 @@ public final class QuestBlueprintTypes {
                 "configurator.item",
                 () -> supplier.get().getItem(),
                 item -> {
-                    updater.accept(new ItemStack(item.builtInRegistryHolder(), 1, supplier.get().getComponentsPatch()));
-                    componentsConfigurator.setPrototype(item.components());
+                    updater.accept(new ItemStack(item, 1, supplier.get().getOrCreateTag()));
+                    componentsConfigurator.setPrototype(supplier.get().getOrCreateTag());
                 },
                 defaultValue.getItem(),
                 valueConfigurable.forceUpdate()
@@ -596,7 +580,7 @@ public final class QuestBlueprintTypes {
             RegistrySearchComponent.JEISupport.ghostItem(group, Predicates.alwaysTrue(), itemStack -> {
                 ItemStack selectedIdentityStack = normalizeItemIdentityStack(itemStack);
                 updater.accept(selectedIdentityStack);
-                componentsConfigurator.setPrototype(selectedIdentityStack.getItem().components());
+                componentsConfigurator.setPrototype(selectedIdentityStack.getOrCreateTag());
                 group.notifyChanges();
             });
         }
@@ -604,7 +588,7 @@ public final class QuestBlueprintTypes {
             RegistrySearchComponent.REISupport.ghostItem(group, Predicates.alwaysTrue(), itemStack -> {
                 ItemStack selectedIdentityStack = normalizeItemIdentityStack(itemStack);
                 updater.accept(selectedIdentityStack);
-                componentsConfigurator.setPrototype(selectedIdentityStack.getItem().components());
+                componentsConfigurator.setPrototype(selectedIdentityStack.getOrCreateTag());
                 group.notifyChanges();
             });
         }
@@ -612,7 +596,7 @@ public final class QuestBlueprintTypes {
             RegistrySearchComponent.EMISupport.ghostItem(group, Predicates.alwaysTrue(), itemStack -> {
                 ItemStack selectedIdentityStack = normalizeItemIdentityStack(itemStack);
                 updater.accept(selectedIdentityStack);
-                componentsConfigurator.setPrototype(selectedIdentityStack.getItem().components());
+                componentsConfigurator.setPrototype(selectedIdentityStack.getOrCreateTag());
                 group.notifyChanges();
             });
         }
