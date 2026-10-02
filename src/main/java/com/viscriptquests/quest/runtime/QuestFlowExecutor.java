@@ -426,11 +426,12 @@ public class QuestFlowExecutor {
         for (JoinProgress joinProgress : state.flowJoinProgresses) {
             joinProgress.resolved = true;
         }
+        // 先结束任务，再执行奖励中的指令，防止指令重入提交路径而重复结算。
+        state.status = success ? QuestStatus.COMPLETED : QuestStatus.FAILED;
+        state.completedGameTime = player.level().getGameTime();
         if (success) {
             QuestRewardService.grantQuestCompletionRewards(player, questFile, state);
         }
-        state.status = success ? QuestStatus.COMPLETED : QuestStatus.FAILED;
-        state.completedGameTime = player.level().getGameTime();
         if (success) {
             NeoForge.EVENT_BUS.post(new QuestEvent.QuestCompleted(player, state, forced));
             QuestCompletionNotificationService.notifyQuestCompleted(player, state);

@@ -455,7 +455,7 @@
   "viscript_quests.quest_book.track_task_button": "追踪任务",
   "viscript_quests.quest_book.untrack_task_button": "取消追踪",
   "viscript_quests.quest_book.submit_task_button": "提交目标",
-  "viscript_quests.quest_book.submit_task_button.tooltip": "提交当前目标，物品目标可以分批提交",
+  "viscript_quests.quest_book.submit_task_button.tooltip": "提交当前目标，物品和货币目标可以分批提交",
   "viscript_quests.quest_book.view_ponder_button": "查看",
   "viscript_quests.quest_book.view_ponder_button.tooltip": "查看思索教程：%s",
   "viscript_quests.quest_book.show_completed_tasks": "显示已完成",
@@ -572,5 +572,12 @@
   "viscript_quests.hud.tracked.status.locked": "未解锁",
   "viscript_quests.hud.tracked.status.failed": "失败",
   "viscript_quests.hud.tracked.status.skipped": "已跳过",
-  "viscript_quests.hud.tracked.status.hidden": "隐藏"
+  "viscript_quests.hud.tracked.status.hidden": "隐藏",
+  "viscript_quests.task.currency_task": "货币目标",
+  "viscript_quests.blueprint.node.currency_task": "货币目标",
+  "viscript_quests.blueprint.node.currency_task.description": "要求玩家拥有或提交指定整数数量的 ViScriptShop 货币。",
+  "viscript_quests.blueprint.node.currency_task.usage": "填写或连入“货币”数量，并选择自动或手动提交。“提交时扣除货币”开启时会扣款，手动提交允许分批缴纳；关闭时检查玩家余额。余额的小数部分会保留。需要安装 ViScriptShop。",
+  "viscript_quests.blueprint.port.consume_currency": "提交时扣除货币",
+  "viscript_quests.task_hint.currency_task.submit": "需要提交 %s 货币",
+  "viscript_quests.task_hint.currency_task.have": "需要拥有 %s 货币"
 }

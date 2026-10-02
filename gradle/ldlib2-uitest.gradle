@@ -1,0 +1,85 @@
+// LDLib2 in-client UI test harness - Gradle wiring.
+//
+// Audited fallback copied from the LDLib2 1.21 branch at v2.2.35
+// (commit 25dc88dba73e6c740173271b97d0f276e4b39e24).
+// Prefer the bridge from the exact installed LDLib2 revision when it differs.
+//
+// Copy this file to gradle/ldlib2-uitest.gradle and add, after the NeoForge runs block:
+//
+//     apply from: rootProject.file('gradle/ldlib2-uitest.gradle')
+//
+// Then run: ./gradlew runClient -PldTest=all
+// Docs: https://github.com/Low-Drag-MC/LDLib2/blob/1.21/uitest.md
+//
+// Inert unless -PldTest is given, so an ordinary runClient is unaffected.
+
+// Keep this as a captured local. Inside a run/task closure, ext resolves to the closure's delegate
+// rather than the project, so an ext property would not be visible where it is needed.
+def ldTestOutDir = layout.buildDirectory.dir('ldlib2-uitest').get().asFile.absolutePath
+
+def ldTestEnabled = project.hasProperty('ldTest')
+if (ldTestEnabled) {
+    // Use system properties because Minecraft's argument parser rejects unknown program arguments.
+    // From an applied script, runs { client { } } creates a new, invalid run instead of configuring
+    // the existing client run, so match and configure the existing run lazily.
+    neoForge.runs.matching { it.name == 'client' }.configureEach { run ->
+        run.gameDirectory.set(layout.buildDirectory.dir('ldlib2-uitest/game'))
+        run.systemProperty 'ldlib2.uitest.run', project.property('ldTest')
+        run.systemProperty 'ldlib2.uitest.out', ldTestOutDir
+        run.systemProperty 'ldlib2.uitest.exclude', project.findProperty('ldTestExclude') ?: ''
+        run.systemProperty 'ldlib2.uitest.guiScale', project.findProperty('ldTestGuiScale') ?: '2'
+        // Empty means maximize. Pin a size for comparable captures with -PldTestWindow=1280x720.
+        run.systemProperty 'ldlib2.uitest.window', project.findProperty('ldTestWindow') ?: ''
+        run.systemProperty 'ldlib2.uitest.inputMode', project.findProperty('ldTestInputMode') ?: 'SYNTHETIC'
+        run.systemProperty 'ldlib2.uitest.watchdogSec', project.findProperty('ldTestWatchdogSec') ?: '90'
+        if (project.hasProperty('ldTestKeepOpen')) {
+            run.systemProperty 'ldlib2.uitest.keepOpen', 'true'
+        }
+    }
+}
+
+// Turn report.json into a build failure. finalizedBy makes a missing report fail even when the
+// client crashes before the runner writes one.
+tasks.register('verifyUiTest') {
+    group = 'verification'
+    description = 'Fails the build if the LDLib2 in-client UI test report contains failures.'
+    onlyIf { ldTestEnabled }
+    doLast {
+        def dir = new File(ldTestOutDir)
+        def reportFile = new File(dir, 'report.json')
+        if (!reportFile.exists()) {
+            throw new GradleException("LDLib2 UI test: no report at ${reportFile}.\n" +
+                    "The client crashed, never reached the runner, or -PldTest matched no scenarios.")
+        }
+        def report = new groovy.json.JsonSlurper().parse(reportFile)
+        logger.lifecycle("LDLib2 UI test: ${report.totals.passed}/${report.totals.scenarios} scenarios passed, " +
+                "${report.totals.checks - report.totals.checksFailed}/${report.totals.checks} checks passed " +
+                "in ${report.durationMs} ms")
+        report.scenarios.findAll { it.status != 'PASS' }.each { scenario ->
+            logger.error("FAILED scenario '${scenario.name}' (${scenario.className})")
+            if (scenario.error) logger.error("  ${scenario.error.type}: ${scenario.error.message}")
+            scenario.steps.findAll { it.status != 'PASS' }.each { step ->
+                logger.error("  step ${step.index} [${step.kind}] ${step.name} -> ${step.status}")
+                if (step.error) logger.error("    error: ${step.error.message}")
+                step.checks.findAll { !it.passed }.each { check ->
+                    logger.error("    check '${check.desc}'" +
+                            (check.expected != null ? " expected=${check.expected} actual=${check.actual}" : ""))
+                }
+                step.captures.each { logger.error("    shot: ${new File(dir, it.path)}") }
+            }
+        }
+        if (report.status != 'PASS') {
+            throw new GradleException("LDLib2 UI test ${report.status} - full report: ${reportFile}")
+        }
+    }
+}
+
+// NeoGradle creates run tasks after this script is evaluated, so match runClient lazily.
+tasks.configureEach { task ->
+    if (task.name == 'runClient') {
+        task.finalizedBy 'verifyUiTest'
+        if (ldTestEnabled) {
+            task.doFirst { new File(ldTestOutDir, 'report.json').delete() }
+        }
+    }
+}

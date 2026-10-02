@@ -41,6 +41,12 @@ ordering = "AFTER"
 side = "BOTH"
 
 [[dependencies."${mod_id}"]]
+modId = "viscript_shop"
+type = "optional"
+ordering = "AFTER"
+side = "BOTH"
+
+[[dependencies."${mod_id}"]]
 modId = "xaerominimap"
 type = "optional"
 versionRange = "[25.3.13,)"

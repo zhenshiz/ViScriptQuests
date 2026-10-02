@@ -8,6 +8,7 @@ import com.lowdragmc.lowdraglib2.gui.holder.ModularUIScreen;
 import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
 import com.lowdragmc.lowdraglib2.gui.ui.UI;
 import com.lowdragmc.lowdraglib2.networking.rpc.RPCPacket;
+import com.lowdragmc.lowdraglib2.syncdata.rpc.RPCSender;
 import com.viscriptquests.ViScriptQuests;
 import com.viscriptquests.gui.editor.QuestEditor;
 import com.viscriptquests.gui.hud.QuestCompletionToastHud;
@@ -29,7 +30,8 @@ public class S2CPayload {
 
     // 服务端发送项目图数据到客户端，打开编辑器并加载该图
     @RPCPacket(OPEN_EDITOR_WITH_PROJECT)
-    public static void openEditorWithProject(CompoundTag graphTag) {
+    public static void openEditorWithProject(RPCSender sender, CompoundTag graphTag) {
+        if (!sender.isServer()) return;
         QuestProject project = QuestProject.createProject(graphTag);
         EditorWindow editorWindow = getCurrentEditorWindow();
         if (editorWindow == null) {
@@ -60,7 +62,8 @@ public class S2CPayload {
     }
 
     @RPCPacket(OPEN_QUEST_BOOK)
-    public static void openQuestBook(CompoundTag data) {
+    public static void openQuestBook(RPCSender sender, CompoundTag data) {
+        if (!sender.isServer()) return;
         if (LDLib2.isClient()) {
             QuestHudData.update(data.getCompound("playerData"));
             ViScriptQuestsClientUtil.openQuestBook(data);
@@ -68,7 +71,8 @@ public class S2CPayload {
     }
 
     @RPCPacket(SYNC_QUEST_BOOK)
-    public static void syncQuestBook(CompoundTag data) {
+    public static void syncQuestBook(RPCSender sender, CompoundTag data) {
+        if (!sender.isServer()) return;
         if (LDLib2.isClient()) {
             QuestHudData.update(data.getCompound("playerData"));
             ViScriptQuestsClientUtil.syncQuestBook(data);
@@ -76,21 +80,24 @@ public class S2CPayload {
     }
 
     @RPCPacket(SYNC_QUEST_HUD)
-    public static void syncQuestHud(CompoundTag data) {
+    public static void syncQuestHud(RPCSender sender, CompoundTag data) {
+        if (!sender.isServer()) return;
         if (LDLib2.isClient()) {
             QuestHudData.update(data);
         }
     }
 
     @RPCPacket(SHOW_QUEST_COMPLETION_TOAST)
-    public static void showQuestCompletionToast(QuestCompletionToastData data) {
+    public static void showQuestCompletionToast(RPCSender sender, QuestCompletionToastData data) {
+        if (!sender.isServer()) return;
         if (LDLib2.isClient()) {
             QuestCompletionToastHud.enqueue(data);
         }
     }
 
     @RPCPacket(OPEN_CATEGORY_CONFIG)
-    public static void openCategoryConfig(CompoundTag data) {
+    public static void openCategoryConfig(RPCSender sender, CompoundTag data) {
+        if (!sender.isServer()) return;
         if (LDLib2.isClient()) {
             ViScriptQuestsClientUtil.openCategoryConfig(data);
         }

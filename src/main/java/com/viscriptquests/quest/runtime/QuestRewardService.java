@@ -10,6 +10,8 @@ import com.viscriptquests.quest.data.QuestVariableValue;
 import com.viscriptquests.quest.data.reward.IReward;
 import com.viscriptquests.quest.data.runtime.PlayerQuestState;
 import com.viscriptquests.quest.data.runtime.QuestPlayerData;
+import com.viscriptquests.quest.data.runtime.QuestStatus;
+import com.viscriptquests.quest.data.runtime.TaskStatus;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.common.NeoForge;
 
@@ -20,7 +22,9 @@ import java.util.UUID;
 
 public class QuestRewardService {
     static void grantStepRewards(ServerPlayer player, QuestFile questFile, PlayerQuestState state, String stepId) {
-        if (!state.rewardedSteps.add(stepId)) {
+        if (state.status != QuestStatus.ACTIVE || !state.questId.equals(questFile.quest.questId)
+                || state.findStepProgress(stepId).filter(progress -> progress.status == TaskStatus.COMPLETED).isEmpty()
+                || !state.rewardedSteps.add(stepId)) {
             return;
         }
         for (IReward reward : questFile.findRewardsForStep(stepId)) {
@@ -29,6 +33,7 @@ public class QuestRewardService {
     }
 
     static void grantQuestCompletionRewards(ServerPlayer player, QuestFile questFile, PlayerQuestState state) {
+        if (state.status != QuestStatus.COMPLETED || !state.questId.equals(questFile.quest.questId)) return;
         for (IReward reward : questFile.findQuestCompletionRewards()) {
             grantReward(player, reward, state, "", "quest");
         }

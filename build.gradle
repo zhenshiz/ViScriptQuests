@@ -61,11 +61,13 @@ neoForge.unitTest {
 
 sourceSets.main.resources { srcDir 'src/generated/resources' }
 
+apply from: project.file('gradle/ldlib2-uitest.gradle')
+
 // modAccessor 由根项目 build.gradle 的 subprojects 块统一配置
 dependencies {
     //前置模组
     implementation project(":ViScriptLib")
-    jarJar "com.zhenshiz:ViScriptLib-neoforge-${minecraft_version}:${vsl_jij_version}"
+    jarJar project(path: ":ViScriptLib", configuration: "embeddedLibrary")
     implementation project(":ViScriptShop")
     implementation project(":ViScriptTeam")
 
