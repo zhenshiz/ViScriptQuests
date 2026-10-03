@@ -455,7 +455,7 @@
   "viscript_quests.quest_book.track_task_button": "Track Task",
   "viscript_quests.quest_book.untrack_task_button": "Untrack",
   "viscript_quests.quest_book.submit_task_button": "Submit Objective",
-  "viscript_quests.quest_book.submit_task_button.tooltip": "Submit this objective. Item objectives can be submitted in partial amounts.",
+  "viscript_quests.quest_book.submit_task_button.tooltip": "Submit this objective. Item and currency objectives can be submitted in partial amounts.",
   "viscript_quests.quest_book.view_ponder_button": "View",
   "viscript_quests.quest_book.view_ponder_button.tooltip": "View Ponder tutorial: %s",
   "viscript_quests.quest_book.show_completed_tasks": "Show Done",
@@ -572,5 +572,12 @@
   "viscript_quests.hud.tracked.status.locked": "Locked",
   "viscript_quests.hud.tracked.status.failed": "Failed",
   "viscript_quests.hud.tracked.status.skipped": "Skipped",
-  "viscript_quests.hud.tracked.status.hidden": "Hidden"
+  "viscript_quests.hud.tracked.status.hidden": "Hidden",
+  "viscript_quests.task.currency_task": "Currency Objective",
+  "viscript_quests.blueprint.node.currency_task": "Currency Objective",
+  "viscript_quests.blueprint.node.currency_task.description": "Requires the player to own or submit a specified whole amount of ViScriptShop currency.",
+  "viscript_quests.blueprint.node.currency_task.usage": "Enter or wire Currency and choose Auto or Manual submission. Consume Currency deducts the amount; manual consuming objectives accept partial payments. Non-consuming objectives check the available balance. Fractional currency remains in the wallet. Requires ViScriptShop.",
+  "viscript_quests.blueprint.port.consume_currency": "Consume Currency on Submission",
+  "viscript_quests.task_hint.currency_task.submit": "Submit %s currency",
+  "viscript_quests.task_hint.currency_task.have": "Have %s currency"
 }

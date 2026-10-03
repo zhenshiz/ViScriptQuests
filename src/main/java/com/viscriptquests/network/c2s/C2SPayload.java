@@ -16,6 +16,7 @@ import com.viscriptquests.quest.runtime.QuestManager;
 import com.viscriptquests.quest.runtime.QuestTrackingService;
 import com.viscriptquests.util.QuestCategoryFileHelper;
 import com.viscriptquests.util.QuestFileHelper;
+import net.minecraft.commands.Commands;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
@@ -34,8 +35,9 @@ public class C2SPayload {
     // 客户端上传项目文件到服务端（.questproj），保存完整图数据供后续编辑
     @RPCPacket(value = UPLOAD_PROJECT_FILE, modId = ViScriptQuests.MOD_ID)
     public static void uploadProjectFile(RPCSender sender, CompoundTag data) {
+        if (sender.isServer()) return;
         ServerPlayer player = sender.asPlayer();
-        if (player == null) return;
+        if (player == null || !player.hasPermissions(Commands.LEVEL_OWNERS)) return;
         String fileName = data.getString("fileName");
         if (fileName.isBlank()) return;
         CompoundTag graphTag = data.getCompound("graph");
@@ -49,8 +51,9 @@ public class C2SPayload {
     // 客户端编译并上传运行时文件到服务端（.quest），QuestManager 可直接加载执行
     @RPCPacket(value = UPLOAD_QUEST_FILE, modId = ViScriptQuests.MOD_ID)
     public static void uploadQuestFile(RPCSender sender, CompoundTag data) {
+        if (sender.isServer()) return;
         ServerPlayer player = sender.asPlayer();
-        if (player == null) return;
+        if (player == null || !player.hasPermissions(Commands.LEVEL_OWNERS)) return;
         String fileName = data.getString("fileName");
         if (fileName.isBlank()) return;
         CompoundTag questTag = data.getCompound("quest");
