@@ -53,12 +53,5 @@ versionRange = "[25.3.13,)"
 ordering = "AFTER"
 side = "CLIENT"
 
-[[dependencies."${mod_id}"]]
-modId = "ponder"
-type = "optional"
-versionRange = "${ponder_version_range}"
-ordering = "AFTER"
-side = "CLIENT"
-
 [features."${mod_id}"]
 openGLVersion = "[3.2,)"
