@@ -95,8 +95,7 @@ tasks.withType(ProcessResources).configureEach {
                              mod_version            : mod_version,
                              mod_authors            : mod_authors,
                              mod_description        : mod_description,
-                             ldlib2_version         : ldlib2_version,
-                             ponder_version_range   : ponder_version_range]
+                             ldlib2_version         : ldlib2_version]
     inputs.properties replaceProperties
 
     filesMatching(['META-INF/neoforge.mods.toml']) {
