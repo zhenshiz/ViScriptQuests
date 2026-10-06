@@ -18,6 +18,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.ItemStack;
 
 import java.util.Map;
 import java.util.function.Supplier;
@@ -100,6 +101,15 @@ public abstract class ITask implements ILDLRegister<ITask, Supplier<ITask>>, IPe
     // 具体目标类型提供的默认图标。
     public DisplayIcon getDisplayIcon() {
         return new DisplayIcon();
+    }
+
+    /**
+     * 获取供配方查看器查询的目标物品，与自定义展示图标无关。
+     *
+     * @return 目标物品；不提供物品查询时返回空物品栈
+     */
+    public ItemStack getRecipeLookupItem() {
+        return ItemStack.EMPTY;
     }
 
     // 返回任务书和 HUD 实际使用的图标，自定义图标为空时回退到目标类型默认图标。

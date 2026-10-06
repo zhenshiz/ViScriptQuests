@@ -157,6 +157,11 @@ public class ItemTask extends ITask {
         return DisplayIcon.item(itemIdentityStack());
     }
 
+    @Override
+    public ItemStack getRecipeLookupItem() {
+        return itemIdentityStack();
+    }
+
     private int getPlayerItemCount(ServerPlayer player) {
         if (itemIdentityStack().isEmpty()) {
             return 0;

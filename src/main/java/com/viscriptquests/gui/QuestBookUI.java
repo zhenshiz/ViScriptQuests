@@ -27,7 +27,9 @@ import net.minecraft.world.item.Items;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -97,6 +99,7 @@ public class QuestBookUI extends UIElement {
     private String selectedStepId = "";
     private int categoryPage;
     private final Set<String> collapsedQuestIds = new HashSet<>();
+    private final Map<UIElement, ItemStack> recipeLookupItems = new IdentityHashMap<>();
 
     private UIElement categoryListPanel;
     private Button categoryPager;
@@ -128,6 +131,21 @@ public class QuestBookUI extends UIElement {
         refreshAll();
     }
 
+    /**
+     * 获取命中元素所属目标行的真实物品，按钮和非物品目标不提供查询物品。
+     *
+     * @param hoveredElement 经过界面命中检测的鼠标悬停元素
+     * @return 可查询的目标物品；未命中目标时返回空物品栈
+     */
+    public ItemStack getRecipeLookupItem(UIElement hoveredElement) {
+        for (var element = hoveredElement; element != null; element = element.getParent()) {
+            if (element instanceof Button) return ItemStack.EMPTY;
+            var item = recipeLookupItems.get(element);
+            if (item != null) return item;
+        }
+        return ItemStack.EMPTY;
+    }
+
     private void buildUI() {
         layout(layout -> {
             layout.widthPercent(100);
@@ -138,6 +156,7 @@ public class QuestBookUI extends UIElement {
         style(style -> style.backgroundTexture(new ColorRectTexture(0x70000000)));
 
         bookElement = texturedPanel(BOOK_BACKGROUND);
+        bookElement.setId("quest_book_panel");
         bookElement.layout(layout -> {
             layout.width(BOOK_WIDTH);
             layout.height(BOOK_HEIGHT);
@@ -363,6 +382,7 @@ public class QuestBookUI extends UIElement {
                 && selectedQuest.questId.equals(entry.quest.questId)
                 && selectedStepId.equals(entry.stepId());
         UIElement row = texturedPanel(SUB_TASK_BACKGROUND);
+        row.setId("quest_step_" + entry.stepId());
         row.layout(layout -> {
             layout.width(QUEST_LIST_WIDTH);
             layout.height(SUB_TASK_HEIGHT);
@@ -411,6 +431,7 @@ public class QuestBookUI extends UIElement {
     }
 
     private void reloadDetail() {
+        recipeLookupItems.clear();
         detailPanel.clearAllChildren();
         TaskProgress task = getSelectedTask(selectedQuest);
         if (selectedQuest == null || task == null) {
@@ -475,6 +496,7 @@ public class QuestBookUI extends UIElement {
         addSectionHeader(OBJECTIVES_ICON, "viscript_quests.quest_book.objectives_label", 115);
         UIElement card = place(texturedPanel(SECTION_BACKGROUND_TALL), 0, 133, 188, 72);
         ScrollerView scroller = place(new ScrollerView(), 8, 3, 172, 66);
+        scroller.setId("quest_objectives");
         configureVerticalScroller(scroller, 0, 1);
 
         if (task.objectives.isEmpty()) {
@@ -495,6 +517,10 @@ public class QuestBookUI extends UIElement {
     private UIElement createObjectiveRow(PlayerQuestState quest, TaskProgress task, int objectiveIndex,
                                          TaskObjectiveProgress objective) {
         UIElement row = new UIElement();
+        if (!objective.recipeLookupItem.isEmpty()) {
+            recipeLookupItems.put(row, objective.recipeLookupItem);
+        }
+        row.setId("quest_objective_" + objectiveIndex);
         row.layout(layout -> {
             layout.width(172);
             layout.minHeight(22);
@@ -507,6 +533,7 @@ public class QuestBookUI extends UIElement {
         UIElement iconFrame = texturedPanel(OBJECTIVE_ICON_FRAME);
         iconFrame.layout(layout -> layout.width(22).height(22));
         UIElement icon = place(createDisplayIcon(objective.displayIcon, objectiveTooltip(objective)), 3, 3, 16, 16);
+        icon.setId("quest_objective_icon_" + objectiveIndex);
         iconFrame.addChild(icon);
         row.addChild(iconFrame);
 

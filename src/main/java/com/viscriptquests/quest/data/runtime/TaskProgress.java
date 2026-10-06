@@ -122,6 +122,7 @@ public class TaskProgress implements IPersistedSerializable {
             current.objectiveId = refreshedObjective.objectiveId;
             current.hint = refreshedObjective.displayHint();
             current.displayIcon = refreshedObjective.displayIcon;
+            current.recipeLookupItem = refreshedObjective.recipeLookupItem;
             current.objectiveType = refreshedObjective.objectiveType;
             current.showInObjectiveList = refreshedObjective.showInObjectiveList;
             current.requiredAmount = refreshedObjective.requiredAmount;
