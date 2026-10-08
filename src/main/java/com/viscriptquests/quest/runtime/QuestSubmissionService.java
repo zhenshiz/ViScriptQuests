@@ -410,15 +410,14 @@ public class QuestSubmissionService {
         boolean changed = false;
         for (int i = 0; i < tasks.size() && i < progress.objectives.size(); i++) {
             ITask task = tasks.get(i);
-            if (!taskType.isInstance(task)) {
-                continue;
-            }
             TaskObjectiveProgress objective = progress.objectives.get(i);
             ObjectiveSnapshot snapshot = objectiveSnapshot(objectiveSnapshots, i, objective);
             if (!objective.isActive() || snapshot.status != ObjectiveStatus.ACTIVE) {
                 continue;
             }
-            boolean recorded = recorder.record(player, taskType.cast(task), objective, questState);
+            boolean recorded = taskType.isInstance(task)
+                    && recorder.record(player, taskType.cast(task), objective, questState);
+            // 同步目标结构也会刷新其他类型的进度，这些变化同样需要保存并通知客户端。
             if (recorded || snapshot.differsFrom(objective)) {
                 changed = true;
                 postObjectiveEvents(player, questState, progress, objective, i, snapshot, true);

@@ -8,6 +8,7 @@ import com.viscriptquests.quest.data.QuestFile;
 import com.viscriptquests.quest.data.QuestSavedData;
 import com.viscriptquests.quest.data.runtime.PlayerQuestState;
 import com.viscriptquests.quest.data.runtime.QuestBookData;
+import com.viscriptquests.quest.data.runtime.QuestCategoryData;
 import com.viscriptquests.quest.data.runtime.QuestCategoryListData;
 import com.viscriptquests.quest.data.runtime.QuestPlayerData;
 import com.viscriptquests.quest.data.runtime.QuestStatus;
@@ -46,6 +47,22 @@ public class QuestManager {
     }
 
     /**
+     * 保存玩家最后访问的任务分类；分类不存在时保留原记录。
+     *
+     * @param player 服务端玩家，要保存其任务书访问记录
+     * @param categoryId 分类标识
+     */
+    public static void rememberQuestBookCategory(ServerPlayer player, String categoryId) {
+        String id = QuestCategoryData.normalizeId(categoryId);
+        if (id.isBlank() || QuestCategoryFileHelper.findCategory(id).isEmpty()) return;
+        var savedData = QuestSavedData.get(player.getServer());
+        var playerData = savedData.getPlayer(player.getUUID());
+        if (id.equals(playerData.lastViewedCategoryId)) return;
+        playerData.lastViewedCategoryId = id;
+        savedData.setDirty();
+    }
+
+    /**
      * 向指定玩家发放任务，并根据任务文件里的分类信息归类。
      *
      * <p>方法会读取运行时任务文件，创建玩家独立的任务状态，推进初始流程节点，
@@ -57,6 +74,18 @@ public class QuestManager {
      * @return 是否成功发放任务
      */
     public static boolean grant(ServerPlayer player, String questId) {
+        return grant(player, questId, true);
+    }
+
+    /**
+     * 发放任务，并决定是否自动追踪新任务。
+     *
+     * @param player 服务端玩家，接收该任务的玩家
+     * @param questId 任务文件标识
+     * @param autoTrack 是否切换到新任务；为 <code>false</code> 时保留当前追踪选择，队友也不会自动追踪新任务
+     * @return 成功发放任务时返回 <code>true</code>；任务不存在、未分类或已经激活、完成时返回 <code>false</code>
+     */
+    public static boolean grant(ServerPlayer player, String questId, boolean autoTrack) {
         String normalizedQuestId = QuestFileHelper.normalizeQuestId(questId);
         Optional<QuestFile> questFile = QuestFileHelper.getQuest(normalizedQuestId, player.registryAccess());
         if (questFile.isEmpty()) {
@@ -85,9 +114,9 @@ public class QuestManager {
         if (activeInScope.isPresent()) {
             PlayerQuestState copiedState = QuestTeamProgressService.copyState(activeInScope.get().state(), player.registryAccess());
             playerData.putQuest(copiedState);
-            QuestTrackingService.trackFirstActiveStep(player, playerData, copiedState);
+            if (autoTrack) QuestTrackingService.trackFirstActiveStep(player, playerData, copiedState);
             savedData.setDirty();
-            QuestTeamProgressService.syncQuestState(player, copiedState);
+            QuestTeamProgressService.syncQuestState(player, copiedState, autoTrack);
             return true;
         }
 
@@ -96,9 +125,9 @@ public class QuestManager {
         playerData.putQuest(state);
         NeoForge.EVENT_BUS.post(new QuestEvent.QuestStarted(player, state));
         QuestFlowExecutor.advance(player, state, questFile.get());
-        QuestTrackingService.trackFirstActiveStep(player, playerData, state);
+        if (autoTrack) QuestTrackingService.trackFirstActiveStep(player, playerData, state);
         savedData.setDirty();
-        QuestTeamProgressService.syncQuestState(player, state);
+        QuestTeamProgressService.syncQuestState(player, state, autoTrack);
         return true;
     }
 

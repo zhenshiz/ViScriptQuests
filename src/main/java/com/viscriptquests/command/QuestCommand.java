@@ -5,6 +5,7 @@ import com.lowdragmc.lowdraglib2.gui.factory.PlayerUIMenuType;
 import com.lowdragmc.lowdraglib2.networking.rpc.RPCPacketDistributor;
 import com.lowdragmc.lowdraglib2.registry.annotation.LDLRegister;
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.BoolArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
@@ -64,6 +65,18 @@ public class QuestCommand implements ICommand {
         return suggestMatching(getServerQuestFiles(), builder);
     };
 
+    private static final SuggestionProvider<CommandSourceStack> QUOTED_QUEST_SUGGESTIONS = (context, builder) -> {
+        String remaining = builder.getRemainingLowerCase();
+        for (String questId : getServerQuestFiles()) {
+            String escaped = StringArgumentType.escapeIfRequired(questId);
+            if (questId.toLowerCase(Locale.ROOT).startsWith(remaining)
+                    || escaped.toLowerCase(Locale.ROOT).startsWith(remaining)) {
+                builder.suggest(escaped);
+            }
+        }
+        return builder.buildFuture();
+    };
+
     private static final SuggestionProvider<CommandSourceStack> PROJECT_SUGGESTIONS = (context, builder) -> {
         return suggestMatching(QuestFileHelper.getServerProjectFiles(), builder);
     };
@@ -99,9 +112,12 @@ public class QuestCommand implements ICommand {
                                 .executes(this::reloadPlayers)))
                 .then(Commands.literal("grant")
                         .then(Commands.argument("target", EntityArgument.players())
-                                .then(Commands.argument("quest", StringArgumentType.greedyString())
-                                        .suggests(QUEST_SUGGESTIONS)
-                                        .executes(this::grant))))
+                                .then(Commands.argument("quest", StringArgumentType.string())
+                                        .suggests(QUOTED_QUEST_SUGGESTIONS)
+                                        .executes(context -> grant(context, true))
+                                        .then(Commands.argument("autoTrack", BoolArgumentType.bool())
+                                                .executes(context -> grant(context,
+                                                        BoolArgumentType.getBool(context, "autoTrack")))))))
                 .then(Commands.literal("revoke")
                         .then(Commands.argument("target", EntityArgument.players())
                                 .then(Commands.argument("quest", StringArgumentType.greedyString())
@@ -216,11 +232,11 @@ public class QuestCommand implements ICommand {
     }
 
     @SneakyThrows
-    private int grant(CommandContext<CommandSourceStack> context) {
+    private int grant(CommandContext<CommandSourceStack> context, boolean autoTrack) {
         Collection<ServerPlayer> players = EntityArgument.getPlayers(context, "target");
         String questId = StringArgumentType.getString(context, "quest");
         return applyToPlayers(context, players,
-                player -> QuestManager.grant(player, questId),
+                player -> QuestManager.grant(player, questId, autoTrack),
                 player -> player.createCommandSourceStack().sendSuccess(
                         () -> Component.translatable("viscript_quests.quest.granted", questId), false),
                 player -> grantPrecheckFailure(player, questId),

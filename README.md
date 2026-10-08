@@ -80,7 +80,9 @@ ViScriptQuests 是一个面向 NeoForge 1.21.1 的 RPG 任务系统模组。它�
 - 默认按键 `J`：打开任务书。
 - 任务书打开后，按 `Esc`、当前绑定的“开关物品栏”键或已启用的“打开任务书”键可以关闭。后两项遵循玩家的改键设置。
 - 任务书中可以查看任务分类、任务列表、当前步骤、目标进度、奖励和任务状态。
-- 安装 JEI 后，鼠标指向物品获取目标的图标或文字，按 JEI 配置的“查看配方”或“查看用途”键即可查询目标物品；自定义展示图标不会改变查询物品。
+- 任务书会按玩家保存最后访问的分类，下次打开时恢复对应分类和分页；记录随服务端世界数据保存，分类被删除后回到第一个分类。
+- 任务书打开期间，任务进度、自动提交结果和新解锁的小任务会随服务端同步更新，无需关闭重开；更新保留当前分类、分类分页和仍然可见的任务选择。
+- 安装 JEI 后，鼠标指向物品获取目标的图标或文字，使用 JEI 配置的“查看配方”或“查看用途”键即可查询目标物品。键盘和鼠标两组绑定都支持，默认分别为 `R` / 鼠标左键、`U` / 鼠标右键；自定义展示图标不会改变查询物品，提交按钮仍正常处理任务提交。
 - 任务书只接入 JEI 的配方查询快捷键，任务书界面不显示 JEI 侧边物品栏。
 - 玩家可以选择追踪任务，追踪状态会同步到 HUD。
 - 支持手动提交目标，例如需要分批提交物品或货币的任务。
@@ -103,7 +105,7 @@ ViScriptQuests 是一个面向 NeoForge 1.21.1 的 RPG 任务系统模组。它�
 /viscript_quests editor <project>
 /viscript_quests category config
 /viscript_quests reload <target>
-/viscript_quests grant <target> <quest>
+/viscript_quests grant <target> <quest> [autoTrack]
 /viscript_quests revoke <target> <quest>
 /viscript_quests complete <target> <quest>
 /viscript_quests submit <target> <quest> <step>
@@ -111,6 +113,8 @@ ViScriptQuests 是一个面向 NeoForge 1.21.1 的 RPG 任务系统模组。它�
 ```
 
 命令主要用于管理、调试和制作任务。玩家日常查看任务可以使用任务书按键。
+
+`grant` 末尾的 `autoTrack` 参数为 `true` 或省略时自动追踪新任务；为 `false` 时仅发放任务，保留玩家当前的追踪选择，没有追踪任务时保持未追踪。队伍共享发放也遵循这个选项。任务 ID 含中文、空格或目录分隔符时需要加双引号，命令补全会自动添加，例如 `/viscript_quests grant @s "主线/初次冒险" false`。
 
 ## 可选联动
 

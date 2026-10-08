@@ -114,21 +114,31 @@ public class QuestBookUI extends UIElement {
         this.categoryData = bookData == null || bookData.categoryData == null
                 ? new QuestCategoryListData()
                 : bookData.categoryData;
+        selectedCategoryId = QuestCategoryData.normalizeId(playerData.lastViewedCategoryId);
         buildUI();
     }
 
     public void syncBookData(QuestBookData bookData) {
-        String selectedQuestId = selectedQuest == null ? "" : selectedQuest.questId;
-        String selectedTaskId = selectedStepId;
-        playerData = bookData == null || bookData.playerData == null
-                ? new QuestPlayerData()
-                : bookData.playerData;
         categoryData = bookData == null || bookData.categoryData == null
                 ? new QuestCategoryListData()
                 : bookData.categoryData;
+        ensureSelectedCategory();
+        reloadCategoryTabs();
+        syncPlayerData(bookData == null ? null : bookData.playerData);
+    }
+
+    /**
+     * 更新任务进度与状态，同时保留当前浏览的分类、任务和分类分页。
+     *
+     * @param data 服务端同步的玩家任务数据；为 <code>null</code> 时清空任务展示
+     */
+    public void syncPlayerData(QuestPlayerData data) {
+        String selectedQuestId = selectedQuest == null ? "" : selectedQuest.questId;
+        playerData = data == null ? new QuestPlayerData() : data;
         selectedQuest = playerData.findQuest(selectedQuestId).orElse(null);
-        selectedStepId = selectedTaskId == null ? "" : selectedTaskId;
-        refreshAll();
+        ensureSelectedEntry();
+        reloadQuestList();
+        reloadDetail();
     }
 
     /**
@@ -179,6 +189,7 @@ public class QuestBookUI extends UIElement {
         book.addChild(categoryListPanel);
 
         categoryPager = new Button().noText();
+        categoryPager.setId("quest_book_category_pager");
         categoryPager.buttonStyle(style -> style
                 .baseTexture(SpriteTexture.of(QuestCategoryData.DEFAULT_TAB_BACKGROUND))
                 .hoverTexture(SpriteTexture.of(QuestCategoryData.DEFAULT_SELECTED_TAB_BACKGROUND))
@@ -269,6 +280,10 @@ public class QuestBookUI extends UIElement {
         selectedQuest = null;
         selectedStepId = "";
         refreshAll();
+        if (!selectedCategoryId.equals(playerData.lastViewedCategoryId)) {
+            playerData.lastViewedCategoryId = selectedCategoryId;
+            RPCPacketDistributor.rpcToServer(C2SPayload.SAVE_QUEST_BOOK_CATEGORY, selectedCategoryId);
+        }
     }
 
     private void selectEntry(QuestListEntry entry) {
@@ -291,6 +306,7 @@ public class QuestBookUI extends UIElement {
         for (QuestCategoryData category : pagedCategories()) {
             boolean selected = category.id.equals(selectedCategoryId);
             Button tab = new Button().noText();
+            tab.setId("quest_book_category_" + categoryIndex(category.id));
             IGuiTexture normalTexture = SpriteTexture.of(category.tabBackgroundLocation(false));
             IGuiTexture selectedTexture = SpriteTexture.of(category.tabBackgroundLocation(true));
             tab.buttonStyle(style -> style

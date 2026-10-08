@@ -31,6 +31,7 @@ public class C2SPayload {
     public static final String SAVE_TRACKED_QUEST = ViScriptQuests.MOD_ID + ":save_tracked_quest";
     public static final String SUBMIT_QUEST_TASK = ViScriptQuests.MOD_ID + ":submit_quest_task";
     public static final String REQUEST_OPEN_QUEST_BOOK = ViScriptQuests.MOD_ID + ":request_open_quest_book";
+    public static final String SAVE_QUEST_BOOK_CATEGORY = ViScriptQuests.MOD_ID + ":save_quest_book_category";
 
     // 客户端上传项目文件到服务端（.questproj），保存完整图数据供后续编辑
     @RPCPacket(value = UPLOAD_PROJECT_FILE, modId = ViScriptQuests.MOD_ID)
@@ -134,6 +135,14 @@ public class C2SPayload {
         ServerPlayer player = sender.asPlayer();
         if (player == null) return;
         QuestManager.openQuestBook(player);
+    }
+
+    @RPCPacket(value = SAVE_QUEST_BOOK_CATEGORY, modId = ViScriptQuests.MOD_ID)
+    public static void saveQuestBookCategory(RPCSender sender, String categoryId) {
+        if (sender.isServer()) return;
+        ServerPlayer player = sender.asPlayer();
+        if (player == null) return;
+        QuestManager.rememberQuestBookCategory(player, categoryId);
     }
 
     @RPCPacket(value = SUBMIT_QUEST_TASK, modId = ViScriptQuests.MOD_ID)

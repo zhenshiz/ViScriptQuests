@@ -49,6 +49,18 @@ public class QuestBookKeyEvents {
     }
 
     @SubscribeEvent
+    public static void onQuestBookMousePressed(ScreenEvent.MouseButtonPressed.Pre event) {
+        if (!(event.getScreen() instanceof ModularUIScreen screen)
+                || !(screen.modularUI.ui.rootElement instanceof QuestBookUI book)
+                || !ModList.get().isLoaded("jei")) return;
+
+        var target = screen.modularUI.hitTestAtScreen((float) event.getMouseX(), (float) event.getMouseY());
+        if (JeiHelper.handleRecipeLookupMouse(book.getRecipeLookupItem(target), event.getButton())) {
+            event.setCanceled(true);
+        }
+    }
+
+    @SubscribeEvent
     public static void registerKeyMappings(RegisterKeyMappingsEvent event) {
         if (!ClientConfig.REGISTER_OPEN_QUEST_BOOK_KEY.get()) {
             return;

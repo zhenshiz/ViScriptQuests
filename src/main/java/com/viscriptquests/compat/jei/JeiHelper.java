@@ -42,8 +42,22 @@ public final class JeiHelper implements IModPlugin {
      * @return JEI 已处理查询时返回 {@code true}
      */
     public static boolean handleRecipeLookupKey(ItemStack itemStack, int keyCode, int scanCode) {
+        return handleRecipeLookup(itemStack, InputConstants.getKey(keyCode, scanCode));
+    }
+
+    /**
+     * 匹配玩家设置的 JEI 鼠标绑定，并打开目标物品的配方或用途。
+     *
+     * @param itemStack 查询使用的真实目标物品
+     * @param button 鼠标按钮编号
+     * @return JEI 已处理查询时返回 {@code true}
+     */
+    public static boolean handleRecipeLookupMouse(ItemStack itemStack, int button) {
+        return handleRecipeLookup(itemStack, InputConstants.Type.MOUSE.getOrCreate(button));
+    }
+
+    private static boolean handleRecipeLookup(ItemStack itemStack, InputConstants.Key key) {
         if (runtime == null || itemStack.isEmpty()) return false;
-        var key = InputConstants.getKey(keyCode, scanCode);
         var mappings = runtime.getKeyMappings();
         List<RecipeIngredientRole> roles;
         if (mappings.getShowRecipe().isActiveAndMatches(key)) {

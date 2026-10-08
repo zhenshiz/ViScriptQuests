@@ -13,6 +13,8 @@ public class QuestPlayerData implements IPersistedSerializable {
     @Persisted
     public UUID ownerId = new UUID(0, 0);
     @Persisted
+    public String lastViewedCategoryId = "";
+    @Persisted
     public String trackedQuestId = "";
     @Persisted
     public String trackedStepId = "";
