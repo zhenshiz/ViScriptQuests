@@ -187,7 +187,7 @@ public class QuestCommand implements ICommand {
             throw playerOnlyException();
         }
         QuestCategoryConfigData data = QuestCategoryConfigData.of(
-                QuestCategoryListData.of(QuestCategoryFileHelper.copyCategories()),
+                QuestCategoryFileHelper.copyData(),
                 QuestFileHelper.getServerQuestIds());
         RPCPacketDistributor.rpcToPlayer(player, S2CPayload.OPEN_CATEGORY_CONFIG,
                 data.serializeNBT(Platform.getFrozenRegistry()));

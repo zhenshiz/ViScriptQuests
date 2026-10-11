@@ -4,9 +4,8 @@ import net.neoforged.neoforge.common.ModConfigSpec;
 
 public class ClientConfig {
     public static final ModConfigSpec SPEC;
-    public static final ModConfigSpec.BooleanValue SHOW_COMPLETED_QUESTS_IN_BOOK;
-    public static final ModConfigSpec.BooleanValue SHOW_COMPLETED_TASKS_IN_BOOK;
-    public static final ModConfigSpec.BooleanValue REGISTER_OPEN_QUEST_BOOK_KEY;
+    public static final ModConfigSpec.EnumValue<QuestUiTheme> QUEST_UI_THEME;
+    public static final ModConfigSpec.BooleanValue ENABLE_QUEST_UI_ANIMATIONS;
     public static final ModConfigSpec.BooleanValue SHOW_QUEST_COMPLETION_TOAST;
     public static final ModConfigSpec.DoubleValue QUEST_COMPLETION_TOAST_X_PERCENT;
     public static final ModConfigSpec.DoubleValue QUEST_COMPLETION_TOAST_Y_PERCENT;
@@ -25,20 +24,15 @@ public class ClientConfig {
                 .translation("viscript_quests.configuration.quest_book")
                 .push("questBook");
 
-        // 是否在任务书中显示已经完成的大任务章节。
-        SHOW_COMPLETED_QUESTS_IN_BOOK = builder
-                .translation("viscript_quests.configuration.quest_book.show_completed_quests")
-                .define("showCompletedQuests", false);
+        // 任务书、追踪 HUD 和完成提示共用的客户端主题。
+        QUEST_UI_THEME = builder
+                .translation("viscript_quests.configuration.quest_book.ui_theme")
+                .defineEnum("uiTheme", QuestUiTheme.CLASSIC_BOOK);
 
-        // 是否在任务书中显示已经完成或跳过的小任务。
-        SHOW_COMPLETED_TASKS_IN_BOOK = builder
-                .translation("viscript_quests.configuration.quest_book.show_completed_tasks")
-                .define("showCompletedTasks", false);
-
-        // 是否注册打开任务书的快捷键；该选项需要重启客户端后生效。
-        REGISTER_OPEN_QUEST_BOOK_KEY = builder
-                .translation("viscript_quests.configuration.quest_book.register_open_key")
-                .define("registerOpenQuestBookKey", false);
+        // 是否播放任务界面的短交互动画；关闭后不影响任何任务数据和交互。
+        ENABLE_QUEST_UI_ANIMATIONS = builder
+                .translation("viscript_quests.configuration.quest_book.enable_animations")
+                .define("enableAnimations", true);
 
         builder.pop();
 
