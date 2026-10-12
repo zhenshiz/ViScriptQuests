@@ -8,6 +8,7 @@ import com.viscriptquests.gui.QuestBookUI;
 import com.viscriptquests.gui.QuestCategoryConfigUI;
 import com.viscriptquests.quest.data.runtime.QuestBookData;
 import com.viscriptquests.quest.data.runtime.QuestCategoryConfigData;
+import com.viscriptquests.quest.data.runtime.QuestPlayerData;
 import net.minecraft.client.Minecraft;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
@@ -31,6 +32,15 @@ public class ViScriptQuestsClientUtil {
         if (minecraft.screen instanceof ModularUIScreen screen
                 && screen.modularUI.ui.rootElement instanceof QuestBookUI questBookUI) {
             questBookUI.syncBookData(bookData);
+        }
+    }
+
+    public static void syncQuestBookPlayerData(CompoundTag data) {
+        if (minecraft.screen instanceof ModularUIScreen screen
+                && screen.modularUI.ui.rootElement instanceof QuestBookUI questBookUI) {
+            QuestPlayerData playerData = new QuestPlayerData();
+            playerData.deserializeNBT(Platform.getFrozenRegistry(), data);
+            questBookUI.syncPlayerData(playerData);
         }
     }
 

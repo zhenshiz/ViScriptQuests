@@ -8,6 +8,7 @@ import com.viscriptquests.quest.data.TaskObjectiveType;
 import com.viscriptquests.quest.data.task.ITask;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.ItemStack;
 
 import java.util.Map;
 
@@ -19,6 +20,9 @@ public class TaskObjectiveProgress implements IPersistedSerializable {
     public Component hint = Component.empty();
     @Persisted
     public DisplayIcon displayIcon = new DisplayIcon();
+    // 真实目标物品独立同步，避免配方查询使用作者设置的替代图标。
+    @Persisted
+    public ItemStack recipeLookupItem = ItemStack.EMPTY;
     @Persisted
     public int currentAmount = 0;
     @Persisted
@@ -64,6 +68,9 @@ public class TaskObjectiveProgress implements IPersistedSerializable {
         progress.hint = hint == null ? Component.empty() : hint.copy();
         DisplayIcon icon = task.getObjectiveIcon();
         progress.displayIcon = icon == null ? new DisplayIcon() : icon.copy();
+        ItemStack lookupItem = task.getRecipeLookupItem();
+        progress.recipeLookupItem = lookupItem == null || lookupItem.isEmpty()
+                ? ItemStack.EMPTY : lookupItem.copyWithCount(1);
         progress.manualSubmitRequired = !progress.isFailureCondition() && !task.allowsAutoSubmit();
         progress.requiredAmount = Math.max(1, task.getRequiredAmount(questVariables, player));
         String ponderComponentId = task.getPonderComponentId();

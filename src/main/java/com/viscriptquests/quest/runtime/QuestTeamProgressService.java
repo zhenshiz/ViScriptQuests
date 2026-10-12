@@ -36,6 +36,10 @@ public class QuestTeamProgressService {
     }
 
     public static void syncQuestState(ServerPlayer sourcePlayer, PlayerQuestState sourceState) {
+        syncQuestState(sourcePlayer, sourceState, true);
+    }
+
+    static void syncQuestState(ServerPlayer sourcePlayer, PlayerQuestState sourceState, boolean autoTrack) {
         if (sourcePlayer == null || sourceState == null || sourcePlayer.getServer() == null) {
             return;
         }
@@ -46,7 +50,7 @@ public class QuestTeamProgressService {
             QuestPlayerData memberData = savedData.getPlayer(memberId);
             PlayerQuestState copiedState = copyState(sourceState, provider);
             memberData.putQuest(copiedState);
-            repairTracking(memberData, copiedState);
+            repairTracking(memberData, copiedState, autoTrack);
             ServerPlayer onlineMember = sourcePlayer.getServer().getPlayerList().getPlayer(memberId);
             if (onlineMember != null) {
                 QuestTrackingService.refresh(onlineMember);
@@ -116,7 +120,7 @@ public class QuestTeamProgressService {
         return Optional.empty();
     }
 
-    private static void repairTracking(QuestPlayerData playerData, PlayerQuestState state) {
+    private static void repairTracking(QuestPlayerData playerData, PlayerQuestState state, boolean autoTrack) {
         if (state.status != QuestStatus.ACTIVE) {
             if (playerData.trackedQuestId.equals(state.questId)) {
                 playerData.trackedQuestId = "";
@@ -130,7 +134,7 @@ public class QuestTeamProgressService {
             }
             return;
         }
-        if (playerData.trackedQuestId == null || playerData.trackedQuestId.isBlank()) {
+        if (autoTrack && (playerData.trackedQuestId == null || playerData.trackedQuestId.isBlank())) {
             playerData.trackedQuestId = state.questId;
             playerData.trackedStepId = firstActiveStepId(state);
         }

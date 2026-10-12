@@ -84,6 +84,7 @@ public class S2CPayload {
         if (!sender.isServer()) return;
         if (LDLib2.isClient()) {
             QuestHudData.update(data);
+            ViScriptQuestsClientUtil.syncQuestBookPlayerData(data);
         }
     }
 

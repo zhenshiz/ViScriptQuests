@@ -18,6 +18,11 @@ public final class ViScriptQuestsServerUtil {
         return QuestManager.grant(player, questId);
     }
 
+    @Info("向玩家发放任务并启动任务流程；autoTrack 为 false 时不自动追踪新任务。")
+    public static boolean grant(ServerPlayer player, String questId, boolean autoTrack) {
+        return QuestManager.grant(player, questId, autoTrack);
+    }
+
     @Info("从玩家或玩家所在的共享任务队伍移除任务。")
     public static boolean revoke(ServerPlayer player, String questId) {
         return QuestManager.revoke(player, questId);

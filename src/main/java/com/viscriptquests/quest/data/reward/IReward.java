@@ -21,10 +21,9 @@ import java.util.function.Supplier;
 public abstract class IReward implements ILDLRegister<IReward, Supplier<IReward>>, IPersistedSerializable {
     public static final String ID = ViScriptQuests.MOD_ID + ":reward";
 
-    public static final Codec<IReward> CODEC = ViScriptQuestsRegistries.REWARDS.optionalCodec()
-            .dispatch(ILDLRegister::getRegistryHolderOptional,
-                    optional -> optional.map(holder -> PersistedParser.createCodec(holder.value()))
-                            .orElseGet(null));
+    public static final Codec<IReward> CODEC = ViScriptQuestsRegistries.REWARDS.codec()
+            .dispatch(ILDLRegister::getRegistryHolder,
+                    holder -> PersistedParser.createCodec(holder.value()));
     public static final StreamCodec<IReward> STREAM_CODEC = ByteBufCodecs.fromCodec(CODEC);
 
     // 关联的小任务 ID，为空表示大任务完成时发放的全局奖励

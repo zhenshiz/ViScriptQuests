@@ -25,10 +25,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 /**
  * 玩家任务书。界面使用固定 480×380 书本坐标系，任务与进度操作仍由原有运行时数据驱动。
@@ -97,6 +94,7 @@ public class QuestBookUI extends UIElement {
     private String selectedStepId = "";
     private int categoryPage;
     private final Set<String> collapsedQuestIds = new HashSet<>();
+    private final Map<UIElement, ItemStack> recipeLookupItems = new IdentityHashMap<>();
 
     private UIElement categoryListPanel;
     private Button categoryPager;
@@ -111,21 +109,46 @@ public class QuestBookUI extends UIElement {
         this.categoryData = bookData == null || bookData.categoryData == null
                 ? new QuestCategoryListData()
                 : bookData.categoryData;
+        selectedCategoryId = QuestCategoryData.normalizeId(playerData.lastViewedCategoryId);
         buildUI();
     }
 
     public void syncBookData(QuestBookData bookData) {
-        String selectedQuestId = selectedQuest == null ? "" : selectedQuest.questId;
-        String selectedTaskId = selectedStepId;
-        playerData = bookData == null || bookData.playerData == null
-                ? new QuestPlayerData()
-                : bookData.playerData;
         categoryData = bookData == null || bookData.categoryData == null
                 ? new QuestCategoryListData()
                 : bookData.categoryData;
+        ensureSelectedCategory();
+        reloadCategoryTabs();
+        syncPlayerData(bookData == null ? null : bookData.playerData);
+    }
+
+    /**
+     * 更新任务进度与状态，同时保留当前浏览的分类、任务和分类分页。
+     *
+     * @param data 服务端同步的玩家任务数据；为 <code>null</code> 时清空任务展示
+     */
+    public void syncPlayerData(QuestPlayerData data) {
+        String selectedQuestId = selectedQuest == null ? "" : selectedQuest.questId;
+        playerData = data == null ? new QuestPlayerData() : data;
         selectedQuest = playerData.findQuest(selectedQuestId).orElse(null);
-        selectedStepId = selectedTaskId == null ? "" : selectedTaskId;
-        refreshAll();
+        ensureSelectedEntry();
+        reloadQuestList();
+        reloadDetail();
+    }
+
+    /**
+     * 获取命中元素所属目标行的真实物品，按钮和非物品目标不提供查询物品。
+     *
+     * @param hoveredElement 经过界面命中检测的鼠标悬停元素
+     * @return 可查询的目标物品；未命中目标时返回空物品栈
+     */
+    public ItemStack getRecipeLookupItem(UIElement hoveredElement) {
+        for (var element = hoveredElement; element != null; element = element.getParent()) {
+            if (element instanceof Button) return ItemStack.EMPTY;
+            var item = recipeLookupItems.get(element);
+            if (item != null) return item;
+        }
+        return ItemStack.EMPTY;
     }
 
     private void buildUI() {
@@ -138,6 +161,7 @@ public class QuestBookUI extends UIElement {
         style(style -> style.backgroundTexture(new ColorRectTexture(0x70000000)));
 
         bookElement = texturedPanel(BOOK_BACKGROUND);
+        bookElement.setId("quest_book_panel");
         bookElement.layout(layout -> {
             layout.width(BOOK_WIDTH);
             layout.height(BOOK_HEIGHT);
@@ -160,6 +184,7 @@ public class QuestBookUI extends UIElement {
         book.addChild(categoryListPanel);
 
         categoryPager = new Button().noText();
+        categoryPager.setId("quest_book_category_pager");
         categoryPager.buttonStyle(style -> style
                 .baseTexture(SpriteTexture.of(QuestCategoryData.DEFAULT_TAB_BACKGROUND))
                 .hoverTexture(SpriteTexture.of(QuestCategoryData.DEFAULT_SELECTED_TAB_BACKGROUND))
@@ -250,6 +275,10 @@ public class QuestBookUI extends UIElement {
         selectedQuest = null;
         selectedStepId = "";
         refreshAll();
+        if (!selectedCategoryId.equals(playerData.lastViewedCategoryId)) {
+            playerData.lastViewedCategoryId = selectedCategoryId;
+            RPCPacketDistributor.rpcToServer(C2SPayload.SAVE_QUEST_BOOK_CATEGORY, selectedCategoryId);
+        }
     }
 
     private void selectEntry(QuestListEntry entry) {
@@ -272,6 +301,7 @@ public class QuestBookUI extends UIElement {
         for (QuestCategoryData category : pagedCategories()) {
             boolean selected = category.id.equals(selectedCategoryId);
             Button tab = new Button().noText();
+            tab.setId("quest_book_category_" + categoryIndex(category.id));
             IGuiTexture normalTexture = SpriteTexture.of(category.tabBackgroundLocation(false));
             IGuiTexture selectedTexture = SpriteTexture.of(category.tabBackgroundLocation(true));
             tab.buttonStyle(style -> style
@@ -363,6 +393,7 @@ public class QuestBookUI extends UIElement {
                 && selectedQuest.questId.equals(entry.quest.questId)
                 && selectedStepId.equals(entry.stepId());
         UIElement row = texturedPanel(SUB_TASK_BACKGROUND);
+        row.setId("quest_step_" + entry.stepId());
         row.layout(layout -> {
             layout.width(QUEST_LIST_WIDTH);
             layout.height(SUB_TASK_HEIGHT);
@@ -411,6 +442,7 @@ public class QuestBookUI extends UIElement {
     }
 
     private void reloadDetail() {
+        recipeLookupItems.clear();
         detailPanel.clearAllChildren();
         TaskProgress task = getSelectedTask(selectedQuest);
         if (selectedQuest == null || task == null) {
@@ -475,6 +507,7 @@ public class QuestBookUI extends UIElement {
         addSectionHeader(OBJECTIVES_ICON, "viscript_quests.quest_book.objectives_label", 115);
         UIElement card = place(texturedPanel(SECTION_BACKGROUND_TALL), 0, 133, 188, 72);
         ScrollerView scroller = place(new ScrollerView(), 8, 3, 172, 66);
+        scroller.setId("quest_objectives");
         configureVerticalScroller(scroller, 0, 1);
 
         if (task.objectives.isEmpty()) {
@@ -495,6 +528,10 @@ public class QuestBookUI extends UIElement {
     private UIElement createObjectiveRow(PlayerQuestState quest, TaskProgress task, int objectiveIndex,
                                          TaskObjectiveProgress objective) {
         UIElement row = new UIElement();
+        if (!objective.recipeLookupItem.isEmpty()) {
+            recipeLookupItems.put(row, objective.recipeLookupItem);
+        }
+        row.setId("quest_objective_" + objectiveIndex);
         row.layout(layout -> {
             layout.width(172);
             layout.minHeight(22);
@@ -507,6 +544,7 @@ public class QuestBookUI extends UIElement {
         UIElement iconFrame = texturedPanel(OBJECTIVE_ICON_FRAME);
         iconFrame.layout(layout -> layout.width(22).height(22));
         UIElement icon = place(createDisplayIcon(objective.displayIcon, objectiveTooltip(objective)), 3, 3, 16, 16);
+        icon.setId("quest_objective_icon_" + objectiveIndex);
         iconFrame.addChild(icon);
         row.addChild(iconFrame);
 
