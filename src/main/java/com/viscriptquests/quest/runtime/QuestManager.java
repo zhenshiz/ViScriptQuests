@@ -40,14 +40,14 @@ public class QuestManager {
     }
 
     /**
-     * 保存玩家最后访问的任务分类；分类不存在时保留原记录。
+     * 保存玩家最后访问的任务分类或全部视图；非空分类不存在时保留原记录。
      *
      * @param player 服务端玩家，要保存其任务书访问记录
-     * @param categoryId 分类标识
+     * @param categoryId 分类标识；空字符串表示全部任务
      */
     public static void rememberQuestBookCategory(ServerPlayer player, String categoryId) {
         String id = QuestCategoryData.normalizeId(categoryId);
-        if (id.isBlank() || QuestCategoryFileHelper.findCategory(id).isEmpty()) return;
+        if (!id.isBlank() && QuestCategoryFileHelper.findCategory(id).isEmpty()) return;
         var savedData = QuestSavedData.get(player.getServer());
         var playerData = savedData.getPlayer(player.getUUID());
         if (id.equals(playerData.lastViewedCategoryId)) return;
@@ -127,7 +127,7 @@ public class QuestManager {
     public static QuestBookData createBookData(QuestPlayerData playerData) {
         QuestBookData data = new QuestBookData();
         data.playerData = playerData;
-        data.categoryData = QuestCategoryListData.of(QuestCategoryFileHelper.copyCategories());
+        data.categoryData = QuestCategoryFileHelper.copyData();
         return data;
     }
 

@@ -7,8 +7,12 @@ import com.lowdragmc.lowdraglib2.gui.ui.data.TextWrap;
 import com.lowdragmc.lowdraglib2.gui.ui.data.Vertical;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
+import com.lowdragmc.lowdraglib2.gui.ui.style.PropertyRegistry;
+import com.lowdragmc.lowdraglib2.math.interpolate.Eases;
 import com.viscriptquests.ViScriptQuests;
 import com.viscriptquests.config.ClientConfig;
+import com.viscriptquests.config.QuestUiTheme;
+import com.viscriptquests.gui.theme.QuestTheme;
 import com.viscriptquests.quest.data.DisplayIcon;
 import com.viscriptquests.quest.data.runtime.QuestCompletionToastData;
 import dev.vfyjxf.taffy.style.AlignItems;
@@ -55,6 +59,8 @@ public class QuestCompletionToastHud extends UIElement {
     private float lastY = Float.NaN;
     private double lastGuiScale = Double.NaN;
     private float contentScale = 1.0f;
+    private QuestTheme theme = QuestTheme.current();
+    private QuestUiTheme lastTheme = theme.type();
 
     public QuestCompletionToastHud() {
         setAllowHitTest(false);
@@ -101,6 +107,7 @@ public class QuestCompletionToastHud extends UIElement {
     public void screenTick() {
         super.screenTick();
         updateLayoutFromConfig();
+        boolean themeChanged = updateTheme();
         boolean scaleChanged = updateContentScale();
         if (!ClientConfig.SHOW_QUEST_COMPLETION_TOAST.get() || Minecraft.getInstance().player == null) {
             clearToasts();
@@ -114,7 +121,7 @@ public class QuestCompletionToastHud extends UIElement {
             activeToasts.add(new ActiveToast(pending, now + DISPLAY_MILLIS));
             changed = true;
         }
-        if (changed || scaleChanged) {
+        if (changed || scaleChanged || themeChanged) {
             rebuildToasts();
         }
     }
@@ -156,15 +163,40 @@ public class QuestCompletionToastHud extends UIElement {
     private void rebuildToasts() {
         toastStack.clearAllChildren();
         for (ActiveToast toast : activeToasts) {
-            toastStack.addChild(createToast(toast.data, contentScale));
+            UIElement card = createToast(toast.data, contentScale, theme);
+            toastStack.addChild(card);
+            animateIn(card);
         }
         toastStack.setVisible(!activeToasts.isEmpty());
     }
 
-    private static UIElement createToast(QuestCompletionToastData data, float contentScale) {
+    private boolean updateTheme() {
+        QuestTheme current = QuestTheme.current();
+        if (current.type() == lastTheme) {
+            return false;
+        }
+        theme = current;
+        lastTheme = current.type();
+        return true;
+    }
+
+    private void animateIn(UIElement element) {
+        if (!ClientConfig.ENABLE_QUEST_UI_ANIMATIONS.get()) {
+            element.style(style -> style.opacity(1f));
+            return;
+        }
+        element.style(style -> style.opacity(0f));
+        element.animation(animation -> animation
+                .duration(0.22f)
+                .ease(Eases.QUAD_OUT)
+                .style(PropertyRegistry.OPACITY, 1f)
+                .start());
+    }
+
+    private static UIElement createToast(QuestCompletionToastData data, float contentScale, QuestTheme theme) {
         UIElement card = new UIElement();
         card.setAllowHitTest(false);
-        card.style(style -> style.backgroundTexture(BACKGROUND));
+        card.style(style -> style.backgroundTexture(theme.isClassicBook() ? BACKGROUND : theme.hudBackground()));
         card.layout(layout -> {
             layout.widthPercent(100);
             layout.heightPercent(TOAST_HEIGHT_PERCENT);
@@ -205,11 +237,11 @@ public class QuestCompletionToastHud extends UIElement {
         });
 
         Label title = label(Component.literal(data.title == null ? "" : data.title),
-                FONT_TITLE, TEXT_TITLE, TITLE_HEIGHT);
+                FONT_TITLE, theme.hudText(), TITLE_HEIGHT);
         Label completed = label(Component.translatable(data.questCompletion
                 ? "viscript_quests.completion_toast.quest_completed"
                 : "viscript_quests.completion_toast.task_completed"),
-                FONT_COMPLETED, TEXT_COMPLETED, COMPLETED_HEIGHT);
+                FONT_COMPLETED, theme.hudAccent(), COMPLETED_HEIGHT);
         textColumn.addChildren(title, completed);
         content.addChildren(icon, textColumn);
         card.addChild(content);

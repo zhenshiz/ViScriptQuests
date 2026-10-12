@@ -3,13 +3,11 @@ package com.viscriptquests.gui;
 import com.lowdragmc.lowdraglib2.Platform;
 import com.lowdragmc.lowdraglib2.configurator.ui.Configurator;
 import com.lowdragmc.lowdraglib2.configurator.ui.ConfiguratorGroup;
+import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
 import com.lowdragmc.lowdraglib2.gui.texture.SpriteTexture;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.data.*;
-import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
-import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
-import com.lowdragmc.lowdraglib2.gui.ui.elements.ScrollerView;
-import com.lowdragmc.lowdraglib2.gui.ui.elements.Selector;
+import com.lowdragmc.lowdraglib2.gui.ui.elements.*;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import com.lowdragmc.lowdraglib2.math.Size;
 import com.lowdragmc.lowdraglib2.networking.rpc.RPCPacketDistributor;
@@ -26,6 +24,8 @@ import dev.vfyjxf.taffy.style.FlexWrap;
 import net.minecraft.client.Minecraft;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,29 +33,38 @@ import java.util.List;
 public class QuestCategoryConfigUI extends UIElement {
     private final List<QuestCategoryData> categories = new ArrayList<>();
     private final List<String> availableQuestIds = new ArrayList<>();
+    private DisplayIcon allCategoryIcon = new DisplayIcon();
     private QuestCategoryData selectedCategory;
+    private boolean allCategorySelected;
     private ScrollerView categoryListView;
     private DraggableUI<QuestCategoryData> categoryDragList;
     private ScrollerView editorView;
+    private Button deleteCategoryButton;
 
     public QuestCategoryConfigUI(QuestCategoryConfigData data) {
         QuestCategoryListData categoryData = data == null || data.categoryData == null
                 ? new QuestCategoryListData()
                 : data.categoryData;
         categories.addAll(categoryData.copyCategories());
+        allCategoryIcon = copyAllCategoryIcon(categoryData);
         if (data != null) {
             availableQuestIds.addAll(data.copyQuestIds());
         }
         if (!categories.isEmpty()) {
             selectedCategory = categories.get(0);
+        } else {
+            allCategorySelected = true;
         }
         buildUI();
     }
 
     public QuestCategoryConfigUI(QuestCategoryListData data) {
         categories.addAll(data.copyCategories());
+        allCategoryIcon = copyAllCategoryIcon(data);
         if (!categories.isEmpty()) {
             selectedCategory = categories.get(0);
+        } else {
+            allCategorySelected = true;
         }
         buildUI();
     }
@@ -137,11 +146,12 @@ public class QuestCategoryConfigUI extends UIElement {
             layout.gapAll(4);
         });
 
-        Button deleteButton = new Button();
-        deleteButton.setText(Component.translatable("viscript_quests.category_config.delete"));
-        deleteButton.layout(layout -> layout.width(80));
-        deleteButton.addEventListener(UIEvents.CLICK, event -> deleteSelected());
-        buttons.addChild(deleteButton);
+        deleteCategoryButton = new Button();
+        deleteCategoryButton.setId("quest_category_delete");
+        deleteCategoryButton.setText(Component.translatable("viscript_quests.category_config.delete"));
+        deleteCategoryButton.layout(layout -> layout.width(80));
+        deleteCategoryButton.addEventListener(UIEvents.CLICK, event -> deleteSelected());
+        buttons.addChild(deleteCategoryButton);
 
         Button saveAllButton = new Button();
         saveAllButton.setText(Component.translatable("viscript_quests.category_config.save_all"));
@@ -168,6 +178,7 @@ public class QuestCategoryConfigUI extends UIElement {
         }
         QuestCategoryData category = QuestCategoryData.of(id, id, DisplayIcon.item("minecraft:book"));
         categories.add(category);
+        allCategorySelected = false;
         selectedCategory = category;
         reloadCategoryList();
         reloadEditor();
@@ -178,7 +189,7 @@ public class QuestCategoryConfigUI extends UIElement {
     }
 
     private void deleteSelected() {
-        if (selectedCategory == null) {
+        if (allCategorySelected || selectedCategory == null) {
             return;
         }
         categories.remove(selectedCategory);
@@ -195,7 +206,8 @@ public class QuestCategoryConfigUI extends UIElement {
         if (!applyBeforeSave()) {
             return false;
         }
-        CompoundTag tag = QuestCategoryListData.of(categories).serializeNBT(Platform.getFrozenRegistry());
+        CompoundTag tag = QuestCategoryListData.of(categories, allCategoryIcon)
+                .serializeNBT(Platform.getFrozenRegistry());
         RPCPacketDistributor.rpcToServer(C2SPayload.SAVE_QUEST_CATEGORIES, tag);
         if (notifyPlayer && Minecraft.getInstance().player != null) {
             Minecraft.getInstance().player.displayClientMessage(
@@ -205,7 +217,15 @@ public class QuestCategoryConfigUI extends UIElement {
     }
 
     private void selectCategory(QuestCategoryData category) {
+        allCategorySelected = false;
         selectedCategory = category;
+        reloadCategoryList();
+        reloadEditor();
+    }
+
+    private void selectAllCategory() {
+        allCategorySelected = true;
+        selectedCategory = null;
         reloadCategoryList();
         reloadEditor();
     }
@@ -220,6 +240,14 @@ public class QuestCategoryConfigUI extends UIElement {
 
     private void reloadCategoryList() {
         categoryListView.clearAllScrollViewChildren();
+        UIElement listContent = new UIElement();
+        listContent.layout(layout -> {
+            layout.widthPercent(100);
+            layout.flexDirection(FlexDirection.COLUMN);
+            layout.gapAll(3);
+            layout.paddingAll(0);
+        });
+        listContent.addChild(createAllCategoryRow());
         categoryDragList = new DraggableUI<>(categories, this::applyCategoryOrder);
         categoryDragList.layout(layout -> {
             layout.widthPercent(100);
@@ -232,7 +260,78 @@ public class QuestCategoryConfigUI extends UIElement {
             var row = createCategoryRow(category);
             categoryDragList.addSortableCard(category, row.root());
         }
-        categoryListView.addScrollViewChild(categoryDragList);
+        listContent.addChild(categoryDragList);
+        categoryListView.addScrollViewChild(listContent);
+    }
+
+    private UIElement createAllCategoryRow() {
+        UIElement row = new UIElement();
+        row.setId("quest_category_all_row");
+        row.layout(layout -> {
+            layout.widthPercent(100);
+            layout.height(22);
+            layout.flexDirection(FlexDirection.ROW);
+            layout.alignItems(AlignItems.CENTER);
+            layout.paddingAll(2);
+            layout.gapAll(2);
+        });
+
+        UIElement icon = createAllCategoryIconPreview();
+        icon.layout(layout -> layout.width(24).height(18));
+        row.addChild(icon);
+
+        Button button = new Button();
+        button.setId("quest_category_all");
+        button.setText(Component.literal((allCategorySelected ? "§e" : "§f")
+                + Component.translatable("viscript_quests.category_config.all").getString()));
+        button.layout(layout -> {
+            layout.width(0);
+            layout.flex(1);
+            layout.height(18);
+        });
+        button.text.layout(layout -> {
+            layout.width(0);
+            layout.flex(1);
+            layout.heightPercent(100);
+        });
+        button.textStyle(style -> style
+                .adaptiveWidth(false)
+                .textAlignHorizontal(Horizontal.LEFT)
+                .textAlignVertical(Vertical.CENTER));
+        button.setOverflowVisible(false);
+        button.text.setOverflowVisible(false);
+        button.setOnClick(event -> selectAllCategory());
+        row.addChild(button);
+        return row;
+    }
+
+    private UIElement createAllCategoryIconPreview() {
+        DisplayIcon icon = allCategoryIcon;
+        if (icon != null && icon.isTexture()) {
+            ResourceLocation location = ResourceLocation.tryParse(icon.getTexture());
+            UIElement preview = new UIElement();
+            preview.style(style -> style.backgroundTexture(location == null
+                    ? SpriteTexture.of(QuestCategoryData.DEFAULT_TAB_BACKGROUND)
+                    : SpriteTexture.of(location)));
+            preview.setAllowHitTest(false);
+            return preview;
+        }
+        ItemStack stack = icon == null ? ItemStack.EMPTY : icon.renderItemStack();
+        if (stack == null || stack.isEmpty()) {
+            UIElement preview = new UIElement();
+            preview.style(style -> style.backgroundTexture(IGuiTexture.EMPTY));
+            preview.setAllowHitTest(false);
+            return preview;
+        }
+        ItemSlot preview = new ItemSlot();
+        preview.setItem(stack);
+        preview.style(style -> style.backgroundTexture(IGuiTexture.EMPTY));
+        preview.slotStyle(style -> style
+                .slotOverlay(IGuiTexture.EMPTY)
+                .hoverOverlay(IGuiTexture.EMPTY)
+                .showItemTooltips(false));
+        preview.setAllowHitTest(false);
+        return preview;
     }
 
     private CategoryRow createCategoryRow(QuestCategoryData category) {
@@ -255,6 +354,7 @@ public class QuestCategoryConfigUI extends UIElement {
         row.addChild(tabPreview);
 
         Button button = new Button();
+        button.setId("quest_category_item_" + category.id.replaceAll("[^A-Za-z0-9_-]", "_"));
         String title = category.title == null || category.title.isBlank() ? category.id : category.title;
         button.setText(Component.literal((selected ? "§e" : "§f") + title + " §8(" + category.id + ")"));
         button.layout(layout -> {
@@ -287,10 +387,21 @@ public class QuestCategoryConfigUI extends UIElement {
 
     private void reloadEditor() {
         editorView.clearAllScrollViewChildren();
+        if (allCategorySelected) {
+            reloadAllCategoryEditor();
+            if (deleteCategoryButton != null) {
+                deleteCategoryButton.setDisplay(false);
+            }
+            return;
+        }
         if (selectedCategory == null) {
             return;
         }
+        if (deleteCategoryButton != null) {
+            deleteCategoryButton.setDisplay(true);
+        }
         ConfiguratorGroup group = new ConfiguratorGroup("", false).hideTitle();
+        group.setId("quest_category_editor");
         group.setCanCollapse(false);
         group.layout(layout -> layout.widthPercent(100));
         group.configuratorContainer.layout(layout -> {
@@ -301,6 +412,22 @@ public class QuestCategoryConfigUI extends UIElement {
         group.addEventListener(Configurator.CHANGE_EVENT, event -> reloadCategoryList());
         selectedCategory.buildConfigurator(group);
         addQuestListEditor(group);
+        editorView.addScrollViewChild(group);
+    }
+
+    private void reloadAllCategoryEditor() {
+        ConfiguratorGroup group = new ConfiguratorGroup(
+                "viscript_quests.category_config.all_icon", false).hideTitle();
+        group.setId("quest_category_all_editor");
+        group.setCanCollapse(false);
+        group.layout(layout -> layout.widthPercent(100));
+        group.configuratorContainer.layout(layout -> {
+            layout.widthPercent(100);
+            layout.paddingAll(4);
+            layout.marginLeft(0);
+        });
+        group.addEventListener(Configurator.CHANGE_EVENT, event -> reloadCategoryList());
+        allCategoryIcon.buildConfigurator(group);
         editorView.addScrollViewChild(group);
     }
 
@@ -439,8 +566,12 @@ public class QuestCategoryConfigUI extends UIElement {
 
     private boolean normalizeCategories() {
         String previousSelectionId = selectedCategory == null ? "" : selectedCategory.id;
+        boolean wasAllCategorySelected = allCategorySelected;
         for (QuestCategoryData category : categories) {
             normalizeCategory(category);
+        }
+        if (allCategoryIcon == null) {
+            allCategoryIcon = new DisplayIcon();
         }
         List<QuestCategoryData> sanitized = QuestCategoryListData.sanitize(categories);
         if (sanitized.stream().anyMatch(category -> category.id.isBlank())) {
@@ -448,11 +579,16 @@ public class QuestCategoryConfigUI extends UIElement {
         }
         categories.clear();
         categories.addAll(sanitized);
-        selectedCategory = previousSelectionId.isBlank()
-                ? categories.isEmpty() ? null : categories.get(0)
-                : findCategory(previousSelectionId);
-        if (selectedCategory == null && !categories.isEmpty()) {
-            selectedCategory = categories.get(0);
+        allCategorySelected = wasAllCategorySelected;
+        if (allCategorySelected) {
+            selectedCategory = null;
+        } else {
+            selectedCategory = previousSelectionId.isBlank()
+                    ? categories.isEmpty() ? null : categories.get(0)
+                    : findCategory(previousSelectionId);
+            if (selectedCategory == null && !categories.isEmpty()) {
+                selectedCategory = categories.get(0);
+            }
         }
         reloadCategoryList();
         reloadEditor();
@@ -470,6 +606,12 @@ public class QuestCategoryConfigUI extends UIElement {
         }
         category.normalizeTabBackgrounds();
         QuestCategoryListData.sanitizeQuestIds(category.questIds);
+    }
+
+    private static DisplayIcon copyAllCategoryIcon(QuestCategoryListData data) {
+        return data == null || data.allCategoryIcon == null
+                ? new DisplayIcon()
+                : data.allCategoryIcon.copy();
     }
 
     private record CategoryRow(UIElement root) {

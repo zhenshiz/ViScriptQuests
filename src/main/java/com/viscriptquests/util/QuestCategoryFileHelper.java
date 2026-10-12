@@ -46,8 +46,16 @@ public final class QuestCategoryFileHelper {
         return getCategories().copyCategories();
     }
 
+    public static QuestCategoryListData copyData() {
+        return QuestCategoryListData.copyOf(getCategories());
+    }
+
     public static void saveCategories(Collection<QuestCategoryData> categories) throws IOException {
-        QuestCategoryListData data = QuestCategoryListData.of(categories);
+        saveCategories(QuestCategoryListData.of(categories));
+    }
+
+    public static void saveCategories(QuestCategoryListData source) throws IOException {
+        QuestCategoryListData data = QuestCategoryListData.copyOf(source);
         Files.createDirectories(categoryDirectory());
         NbtIo.writeCompressed(data.serializeNBT(Platform.getFrozenRegistry()), categoryFile().toFile());
         cache = copy(data);
@@ -96,7 +104,7 @@ public final class QuestCategoryFileHelper {
             CompoundTag tag = NbtIo.readCompressed(path.toFile());
             QuestCategoryListData data = new QuestCategoryListData();
             data.deserializeNBT(Platform.getFrozenRegistry(), tag);
-            return QuestCategoryListData.of(data.copyCategories());
+            return QuestCategoryListData.copyOf(data);
         } catch (IOException e) {
             ViScriptQuests.LOGGER.error("Failed to read quest category config: {}", path, e);
             return new QuestCategoryListData();
@@ -104,6 +112,6 @@ public final class QuestCategoryFileHelper {
     }
 
     private static QuestCategoryListData copy(QuestCategoryListData source) {
-        return QuestCategoryListData.of(source == null ? List.of() : source.copyCategories());
+        return QuestCategoryListData.copyOf(source);
     }
 }

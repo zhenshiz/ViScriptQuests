@@ -76,7 +76,7 @@ public class C2SPayload {
         QuestCategoryListData listData = new QuestCategoryListData();
         listData.deserializeNBT(Platform.getFrozenRegistry(), data);
         try {
-            QuestCategoryFileHelper.saveCategories(listData.copyCategories());
+            QuestCategoryFileHelper.saveCategories(listData);
         } catch (IOException e) {
             ViScriptQuests.LOGGER.error("Failed to save quest category config", e);
         }
