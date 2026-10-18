@@ -7,9 +7,10 @@ import com.viscriptquests.config.ClientConfig;
 import com.viscriptquests.config.QuestUiTheme;
 
 /**
- * 任务书、追踪 HUD 和完成提示共用的客户端视觉主题。
+ * 任务书界面的客户端视觉主题。
  *
- * <p>主题只保存渲染资源和颜色，不保存任务数据，也不参与任务状态判断。
+ * <p>旧 HUD 颜色字段保留供兼容使用；追踪 HUD 与完成提示读取独立的 HUD 主题配置。
+ * 主题不保存任务数据，也不参与任务状态判断。
  */
 public record QuestTheme(
         QuestUiTheme type,

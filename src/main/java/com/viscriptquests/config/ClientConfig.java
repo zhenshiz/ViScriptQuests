@@ -10,6 +10,7 @@ public class ClientConfig {
     public static final ModConfigSpec.DoubleValue QUEST_COMPLETION_TOAST_X_PERCENT;
     public static final ModConfigSpec.DoubleValue QUEST_COMPLETION_TOAST_Y_PERCENT;
     public static final ModConfigSpec.BooleanValue SHOW_TRACKED_QUEST_HUD;
+    public static final ModConfigSpec.EnumValue<QuestHudTheme> QUEST_HUD_THEME;
     public static final ModConfigSpec.DoubleValue TRACKED_QUEST_HUD_X_PERCENT;
     public static final ModConfigSpec.DoubleValue TRACKED_QUEST_HUD_Y_PERCENT;
     public static final ModConfigSpec.DoubleValue TRACKED_QUEST_HUD_WIDTH_PERCENT;
@@ -24,7 +25,7 @@ public class ClientConfig {
                 .translation("viscript_quests.configuration.quest_book")
                 .push("questBook");
 
-        // 任务书、追踪 HUD 和完成提示共用的客户端主题。
+        // 任务书界面的客户端主题。
         QUEST_UI_THEME = builder
                 .translation("viscript_quests.configuration.quest_book.ui_theme")
                 .defineEnum("uiTheme", QuestUiTheme.CLASSIC_BOOK);
@@ -65,6 +66,11 @@ public class ClientConfig {
         SHOW_TRACKED_QUEST_HUD = builder
                 .translation("viscript_quests.configuration.tracked_quest_hud.show")
                 .define("showTrackedQuestHud", true);
+
+        // 追踪面板与完成提示共用 HUD 主题，独立于任务书主题。
+        QUEST_HUD_THEME = builder
+                .translation("viscript_quests.configuration.tracked_quest_hud.theme")
+                .defineEnum("theme", QuestHudTheme.CHARCOAL);
 
         // HUD 左上角横向位置，占屏幕宽度百分比。
         TRACKED_QUEST_HUD_X_PERCENT = builder

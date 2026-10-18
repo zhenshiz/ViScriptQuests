@@ -37,6 +37,10 @@ public class QuestCategoryData implements IPersistedSerializable, IConfigurable 
     public ResourceLocation tabBackground = DEFAULT_TAB_BACKGROUND;
     @Configurable(name = "viscript_quests.questCategory.selectedTabBackground")
     public ResourceLocation selectedTabBackground = DEFAULT_SELECTED_TAB_BACKGROUND;
+    /** 深色主题的“全部”任务列表中，是否保留当前状态筛选下没有任务的分类标题；默认关闭。 */
+    @Configurable(name = "viscript_quests.questCategory.showWhenEmpty",
+            tips = "viscript_quests.questCategory.showWhenEmpty.tips")
+    public boolean showWhenEmpty = false;
     // 该分类下的大任务文件标识，格式与发放任务命令的 quest 参数一致，但不包含外层引号。
     @Persisted
     public final List<String> questIds = new ArrayList<>();
