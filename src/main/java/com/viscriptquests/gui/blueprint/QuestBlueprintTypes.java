@@ -34,6 +34,7 @@ import com.viscriptquests.quest.data.CompareOp;
 import com.viscriptquests.quest.data.DisplayIcon;
 import com.viscriptquests.quest.data.DisplayIcon.IconType;
 import com.viscriptquests.quest.data.ItemMatchRule;
+import com.viscriptquests.quest.data.ItemUseHand;
 import com.viscriptquests.quest.data.LocationGuideMarkerProvider;
 import com.viscriptquests.quest.data.LocationTargetType;
 import com.viscriptquests.quest.data.LocationWaypointColor;
@@ -63,6 +64,7 @@ public final class QuestBlueprintTypes {
     public static final TypeHandle STRING_ARRAY = TypeHandleHelpers.customType(String[].class, namespacedType("string_array"), "String[]");
     // 任务提交模式枚举
     public static final TypeHandle SUBMIT_MODE = TypeHandleHelpers.fromType(QuestSubmitMode.class);
+    public static final TypeHandle ITEM_USE_HAND = TypeHandleHelpers.fromType(ItemUseHand.class);
     // 小任务目标语义：必做、可选、失败条件
     public static final TypeHandle OBJECTIVE_TYPE = TypeHandleHelpers.fromType(TaskObjectiveType.class);
     // 汇合模式枚举，表达任选、全做、至少完成 N 个

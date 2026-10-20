@@ -15,6 +15,7 @@ import com.viscriptquests.quest.data.task.AdvancementTask;
 import com.viscriptquests.quest.data.task.BreakBlockTask;
 import com.viscriptquests.quest.data.task.CountdownTask;
 import com.viscriptquests.quest.data.task.CustomTriggerTask;
+import com.viscriptquests.quest.data.task.EatFoodTask;
 import com.viscriptquests.quest.data.task.EntityDeathTask;
 import com.viscriptquests.quest.data.task.ITask;
 import com.viscriptquests.quest.data.task.InteractEntityTask;
@@ -23,8 +24,10 @@ import com.viscriptquests.util.QuestFileHelper;
 import net.minecraft.advancements.AdvancementHolder;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.players.PlayerList;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.common.NeoForge;
 
@@ -331,6 +334,33 @@ public class QuestSubmissionService {
             int required = Math.max(1, breakTask.getRequiredAmount(questState.questVariables, recordPlayer));
             objective.requiredAmount = required;
             objective.currentAmount = Math.min(required, Math.max(0, objective.currentAmount) + 1);
+            if (objective.currentAmount >= required) {
+                objective.complete();
+            }
+            return true;
+        });
+    }
+
+    /**
+     * 为玩家当前激活且匹配的食物目标累计一次完整食用或饮用事件。
+     *
+     * @param player 完成使用物品的服务端玩家
+     * @param consumedStack 使用前的物品栈副本
+     * @param hand 使用物品的手
+     * @return 至少一个任务进度发生变化时返回 {@code true}
+     */
+    public static boolean recordFoodEaten(ServerPlayer player, ItemStack consumedStack, InteractionHand hand) {
+        if (player == null || consumedStack == null || consumedStack.isEmpty()
+                || player.level().isClientSide()) {
+            return false;
+        }
+        return recordTaskProgress(player, EatFoodTask.class, (recordPlayer, eatTask, objective, questState) -> {
+            if (!objective.isActive() || !eatTask.matches(recordPlayer, consumedStack, hand)) {
+                return false;
+            }
+            int required = eatTask.getRequiredAmount(questState.questVariables, recordPlayer);
+            objective.requiredAmount = required;
+            objective.currentAmount = (int) Math.min(required, Math.max(0L, objective.currentAmount) + 1L);
             if (objective.currentAmount >= required) {
                 objective.complete();
             }
