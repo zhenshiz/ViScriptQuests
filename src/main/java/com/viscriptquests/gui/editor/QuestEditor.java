@@ -31,6 +31,11 @@ public class QuestEditor extends ProjectFileEditor {
         configureQuestLayout();
     }
 
+    @Override
+    public com.viscript_lib.gui.ai.AiEditorAdapter createAiEditorAdapter() {
+        return new QuestAiAdapter();
+    }
+
     public static ModularUI createUI() {
         return new ModularUI(UI.of(openWindow()))
                 .shouldCloseOnKeyInventory(false);
