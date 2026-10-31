@@ -5,6 +5,7 @@ import com.lowdragmc.lowdraglib2.editor.resource.Resources;
 import com.lowdragmc.lowdraglib2.editor.ui.Editor;
 import com.lowdragmc.lowdraglib2.gui.texture.Icons;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.editor.GraphEditorView;
+import com.lowdragmc.lowdraglib2.nodegraphtookit.gui.GraphView;
 import com.viscript_lib.gui.editor.IRuntimeFileProject;
 import com.viscript_lib.gui.editor.ProjectFileProjectType;
 import com.viscriptquests.gui.blueprint.QuestBlueprintExamples;
@@ -34,6 +35,64 @@ public class QuestProject implements IRuntimeFileProject {
     private transient Supplier<CompoundTag> graphSnapshotSupplier;
     @Nullable
     private transient QuestBlueprintGraph deserializedGraph;
+    private boolean aiPreviewing;
+
+    /** 保存可恢复的图对象及其视图，保留 AI 操作之前的节点历史引用。 */
+    public static final class AiState {
+        private final QuestBlueprintGraph graph;
+        private GraphEditorView view;
+
+        private AiState(QuestBlueprintGraph graph, @Nullable GraphEditorView view) {
+            this.graph = graph;
+            this.view = view;
+        }
+    }
+
+    /**
+     * 获取当前图的可逆状态，不复制已在历史中使用的节点对象。
+     *
+     * @return 可由此项目恢复的图状态
+     */
+    public AiState captureAiState() {
+        refreshGraphSnapshot();
+        var graph = graphEditorView != null && graphEditorView.getGraph() instanceof QuestBlueprintGraph live
+                ? live : deserializeGraph(Platform.getFrozenRegistry(), graphTag);
+        return new AiState(graph, graphEditorView);
+    }
+
+    /**
+     * 恢复图和视图，不通过重新载入项目清空原生历史。
+     *
+     * @param state 先前捕获的图状态
+     * @param editor 当前项目所属编辑器
+     */
+    public void installAiState(AiState state, Editor editor) {
+        var before = captureAiState();
+        try { installState(state, editor); }
+        catch (RuntimeException exception) { installState(before, editor); throw exception; }
+    }
+
+    private void installState(AiState state, Editor editor) {
+        if (graphEditorView != null) graphEditorView.removeSelf();
+        editor.inspectorView.clear();
+        graphTag = state.graph.graphModel.serializeNBT(Platform.getFrozenRegistry());
+        if (state.view == null) state.view = createGraphView(state.graph);
+        graphEditorView = state.view;
+        graphSnapshotSupplier = graphEditorView::serializeGraph;
+        deserializedGraph = null;
+        editor.placeView(graphEditorView, () -> editor.centerWindow.getLeftTop());
+        setAiPreviewing(aiPreviewing);
+    }
+
+    /**
+     * 切换图的只读预览，允许选择和进入小任务子图。
+     *
+     * @param previewing 是否等待玩家确认 AI 修改
+     */
+    public void setAiPreviewing(boolean previewing) {
+        aiPreviewing = previewing;
+        if (graphEditorView != null) graphEditorView.setReadOnly(previewing);
+    }
 
     public static QuestProject createProject(CompoundTag graphTag) {
         QuestProject project = new QuestProject();
@@ -77,14 +136,19 @@ public class QuestProject implements IRuntimeFileProject {
                 : deserializedGraph;
         deserializedGraph = null;
 
-        graphEditorView = new GraphEditorView().loadGraph(graph, savedGraph -> graphTag = savedGraph.copy());
+        graphEditorView = createGraphView(graph);
         graphSnapshotSupplier = graphEditorView::serializeGraph;
-        graphEditorView.setCanRemove(false);
-        graphEditorView.setIcon(Icons.NODE);
-        graphEditorView.setDynamicName(() -> Component.translatable("viscript_quests.editor.view.quest_blueprint"));
-
         editor.placeView(graphEditorView, () -> editor.centerWindow.getLeftTop());
-        QuestBlueprintNodeLibrary.rebuild(graphEditorView.graphView.itemLibrary, graph.graphModel);
+    }
+
+    private GraphEditorView createGraphView(QuestBlueprintGraph graph) {
+        var view = new GraphEditorView(QuestGraphView::new).loadGraph(graph, savedGraph -> graphTag = savedGraph.copy());
+        view.setCanRemove(false);
+        view.setIcon(Icons.NODE);
+        view.setDynamicName(() -> Component.translatable("viscript_quests.editor.view.quest_blueprint"));
+
+        QuestBlueprintNodeLibrary.rebuild(view.graphView.itemLibrary, graph.graphModel);
+        return view;
     }
 
     @Override
@@ -122,6 +186,23 @@ public class QuestProject implements IRuntimeFileProject {
             graph.graphModel.deserializeNBT(provider, graphTag.copy());
         }
         return graph;
+    }
+
+    private static final class QuestGraphView extends GraphView {
+        @Override
+        public GraphView setReadOnly(boolean readOnly) {
+            boolean changed = isReadOnly() != readOnly;
+            super.setReadOnly(readOnly);
+            if (changed && getGraph() != null) rebuildGraphUI();
+            return this;
+        }
+
+        @Override
+        public GraphView loadGraph(@Nullable com.lowdragmc.lowdraglib2.nodegraphtookit.api.graph.Graph graph) {
+            // AI 预览切换会重新挂接已有视图；同一图保留原画布和手动编辑历史。
+            if (graph != null && getGraph() == graph) return this;
+            return super.loadGraph(graph);
+        }
     }
 
     private static class QuestProjectType extends ProjectFileProjectType {

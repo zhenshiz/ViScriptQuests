@@ -5,6 +5,7 @@ import com.viscriptquests.quest.runtime.QuestManager;
 import com.viscriptquests.quest.runtime.QuestSubmissionService;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.event.entity.living.LivingEntityUseItemEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
@@ -13,6 +14,13 @@ public class ItemEvents {
     // 每次检查的事件间隔（单位：tick）
     private static final int TRACKED_TASK_CHECK_INTERVAL_TICKS = 19;
     private static final int COUNTDOWN_CHECK_INTERVAL_TICKS = 20;
+
+    @SubscribeEvent
+    public static void onItemUseFinish(LivingEntityUseItemEvent.Finish event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            QuestSubmissionService.recordFoodEaten(player, event.getItem());
+        }
+    }
 
     @SubscribeEvent
     public static void onPlayerTick(TickEvent.PlayerTickEvent event) {

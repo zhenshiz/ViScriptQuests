@@ -1,24 +1,14 @@
 package com.viscriptquests.network.s2c;
 
 import com.lowdragmc.lowdraglib2.LDLib2;
-import com.lowdragmc.lowdraglib2.editor.ui.Editor;
-import com.lowdragmc.lowdraglib2.editor.ui.EditorWindow;
-import com.lowdragmc.lowdraglib2.gui.holder.ModularUIContainerScreen;
-import com.lowdragmc.lowdraglib2.gui.holder.ModularUIScreen;
-import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
-import com.lowdragmc.lowdraglib2.gui.ui.UI;
 import com.lowdragmc.lowdraglib2.networking.rpc.RPCPacket;
 import com.lowdragmc.lowdraglib2.syncdata.rpc.RPCSender;
 import com.viscriptquests.ViScriptQuests;
-import com.viscriptquests.gui.editor.QuestEditor;
-import com.viscriptquests.gui.editor.QuestProject;
 import com.viscriptquests.gui.hud.QuestCompletionToastHud;
 import com.viscriptquests.gui.hud.QuestHudData;
 import com.viscriptquests.quest.data.runtime.QuestCompletionToastData;
 import com.viscriptquests.util.ViScriptQuestsClientUtil;
-import net.minecraft.client.Minecraft;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.Component;
 
 public class S2CPayload {
     public static final String OPEN_EDITOR_WITH_PROJECT = ViScriptQuests.MOD_ID + ":open_editor_with_project";
@@ -32,33 +22,9 @@ public class S2CPayload {
     @RPCPacket(OPEN_EDITOR_WITH_PROJECT)
     public static void openEditorWithProject(RPCSender sender, CompoundTag graphTag) {
         if (!sender.isServer()) return;
-        QuestProject project = QuestProject.createProject(graphTag);
-        EditorWindow editorWindow = getCurrentEditorWindow();
-        if (editorWindow == null) {
-            editorWindow = QuestEditor.openWindow();
-            Minecraft.getInstance().setScreen(new ModularUIScreen(
-                    new ModularUI(UI.of(editorWindow)).shouldCloseOnKeyInventory(false),
-                    Component.translatable("screen.viscript_quests.quest_editor")));
+        if (LDLib2.isClient()) {
+            ViScriptQuestsClientUtil.openEditorWithProject(graphTag);
         }
-
-        Editor editor = editorWindow.getCurrentEditor();
-        if (editor == null) return;
-        try {
-            editor.loadProject(project, null);
-        } catch (Exception ignored) {
-        }
-    }
-
-    private static EditorWindow getCurrentEditorWindow() {
-        if (Minecraft.getInstance().screen instanceof ModularUIContainerScreen screen
-                && screen.getMenu().getModularUI().ui.rootElement instanceof EditorWindow editorWindow) {
-            return editorWindow;
-        }
-        if (Minecraft.getInstance().screen instanceof ModularUIScreen screen
-                && screen.modularUI.ui.rootElement instanceof EditorWindow editorWindow) {
-            return editorWindow;
-        }
-        return null;
     }
 
     @RPCPacket(OPEN_QUEST_BOOK)

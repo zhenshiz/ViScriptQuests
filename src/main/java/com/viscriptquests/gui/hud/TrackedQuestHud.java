@@ -1,6 +1,8 @@
 package com.viscriptquests.gui.hud;
 
+import com.lowdragmc.lowdraglib2.gui.texture.ColorRectTexture;
 import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
+import com.lowdragmc.lowdraglib2.gui.texture.SDFRectTexture;
 import com.lowdragmc.lowdraglib2.gui.texture.SpriteTexture;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.data.Horizontal;
@@ -10,6 +12,7 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.viscriptquests.ViScriptQuests;
 import com.viscriptquests.config.ClientConfig;
+import com.viscriptquests.config.QuestHudTheme;
 import com.viscriptquests.quest.data.DisplayIcon;
 import com.viscriptquests.quest.data.runtime.TaskObjectiveProgress;
 import dev.vfyjxf.taffy.style.AlignItems;
@@ -33,8 +36,12 @@ public class TrackedQuestHud extends UIElement {
     private static final int OBJECTIVE_ROW_HEIGHT = 15;
     private static final float FONT_TITLE = 8.5f;
     private static final float FONT_BODY = 8.0f;
+    private static final IGuiTexture CHARCOAL_BACKGROUND = SDFRectTexture.of(0xE51B1C1F)
+            .setBorderColor(0xA0787060).setStroke(0.5f).setRadius(1);
 
     private final UIElement panel = new UIElement();
+    private final UIElement card = new UIElement();
+    private final UIElement divider = new UIElement();
     private final UIElement guideMarkerLayer = new UIElement();
     private final QuestCompletionToastHud completionToastHud = new QuestCompletionToastHud();
     private final List<QuestGuideMarkerElement> guideMarkers = new ArrayList<>();
@@ -45,6 +52,7 @@ public class TrackedQuestHud extends UIElement {
     private float lastWidth = Float.NaN;
     private float lastHeight = Float.NaN;
     private String lastContentKey = "";
+    private QuestHudTheme lastTheme;
 
     public TrackedQuestHud() {
         layout(layout -> {
@@ -57,8 +65,13 @@ public class TrackedQuestHud extends UIElement {
             layout.positionType(TaffyPosition.ABSOLUTE);
             layout.flexDirection(FlexDirection.COLUMN);
             layout.paddingAllPercent(0);
-            layout.gapAll(4);
         });
+        card.setAllowHitTest(false);
+        card.setId("tracked_quest_hud_card");
+        card.layout(layout -> layout.widthPercent(100).flexDirection(FlexDirection.COLUMN));
+        divider.setAllowHitTest(false);
+        divider.style(style -> style.backgroundTexture(new ColorRectTexture(0xA0927B51)));
+        divider.layout(layout -> layout.widthPercent(100).height(1));
         guideMarkerLayer.setAllowHitTest(false);
         guideMarkerLayer.layout(layout -> {
             layout.positionType(TaffyPosition.ABSOLUTE);
@@ -72,13 +85,16 @@ public class TrackedQuestHud extends UIElement {
             layout.widthPercent(100);
             layout.height(TITLE_HEIGHT);
         });
+        taskTitle.setId("tracked_quest_hud_title");
 
         objectivesColumn.layout(layout -> {
             layout.widthPercent(100);
             layout.flexDirection(FlexDirection.COLUMN);
             layout.gapAll(2);
         });
-        panel.addChildren(taskTitle, objectivesColumn);
+        objectivesColumn.setId("tracked_quest_hud_objectives");
+        card.addChildren(taskTitle, objectivesColumn);
+        panel.addChild(card);
     }
 
     @Override
@@ -118,7 +134,12 @@ public class TrackedQuestHud extends UIElement {
             lastContentKey = "";
             return;
         }
-        String contentKey = snapshot.quest().questId + "|"
+        QuestHudTheme theme = ClientConfig.QUEST_HUD_THEME.get();
+        if (theme != lastTheme) {
+            applyTheme(theme);
+            lastTheme = theme;
+        }
+        String contentKey = theme + "|" + snapshot.quest().questId + "|"
                 + snapshot.task().stepId + "|"
                 + snapshot.task().title + "|"
                 + snapshot.task().status + "|"
@@ -130,16 +151,56 @@ public class TrackedQuestHud extends UIElement {
 
         taskTitle.setText(Component.literal(snapshot.task().title));
         objectivesColumn.clearAllChildren();
+        int visibleRows = 0;
         if (snapshot.task().objectives.isEmpty()) {
-            objectivesColumn.addChild(createObjectiveRow(snapshot.task().displayIcon, snapshot.task().displayTaskHint(), TEXT_MAIN));
+            objectivesColumn.addChild(createObjectiveRow(snapshot.task().displayIcon,
+                    snapshot.task().displayTaskHint(), null, TEXT_MAIN, theme));
+            updateCardHeight(theme, 1);
             return;
         }
         for (TaskObjectiveProgress objective : snapshot.task().objectives) {
             if (objective == null || !objective.isVisibleInHud()) {
                 continue;
             }
-            objectivesColumn.addChild(createObjectiveRow(objective.displayIcon, objective.progressHint(), objective.displayTextColor()));
+            objectivesColumn.addChild(createObjectiveRow(objective.displayIcon,
+                    theme == QuestHudTheme.CHARCOAL ? objective.displayHint() : objective.progressHint(),
+                    theme == QuestHudTheme.CHARCOAL ? displayProgress(objective) : null,
+                    objective.displayTextColor(), theme));
+            visibleRows++;
         }
+        updateCardHeight(theme, visibleRows);
+    }
+
+    private void applyTheme(QuestHudTheme theme) {
+        boolean charcoal = theme == QuestHudTheme.CHARCOAL;
+        card.style(style -> style.backgroundTexture(charcoal ? CHARCOAL_BACKGROUND : IGuiTexture.EMPTY));
+        taskTitle.textStyle(style -> style.textColor(charcoal ? 0xFFE5C272 : TEXT_TITLE));
+        card.layout(layout -> {
+            layout.paddingAll(charcoal ? 4 : 0);
+            layout.gapAll(charcoal ? 3 : 4);
+        });
+        objectivesColumn.layout(layout -> layout.gapAll(charcoal ? 1 : 2));
+        card.clearAllChildren();
+        card.addChild(taskTitle);
+        if (charcoal) card.addChild(divider);
+        card.addChild(objectivesColumn);
+    }
+
+    private void updateCardHeight(QuestHudTheme theme, int rows) {
+        boolean charcoal = theme == QuestHudTheme.CHARCOAL;
+        int rowHeight = charcoal ? 16 : OBJECTIVE_ROW_HEIGHT;
+        int rowGap = charcoal ? 1 : 2;
+        int height = (charcoal ? 8 + TITLE_HEIGHT + 1 + 6 : TITLE_HEIGHT + 4)
+                + rows * rowHeight + Math.max(0, rows - 1) * rowGap;
+        card.layout(layout -> layout.height(height));
+    }
+
+    private static Component displayProgress(TaskObjectiveProgress objective) {
+        String progress = objective.progressText();
+        if (progress.startsWith("(") && progress.endsWith(")")) {
+            progress = progress.substring(1, progress.length() - 1);
+        }
+        return Component.literal(progress);
     }
 
     private void updateGuideMarkers(QuestHudData.ComponentState snapshot) {
@@ -160,17 +221,22 @@ public class TrackedQuestHud extends UIElement {
         }
     }
 
-    private static UIElement createObjectiveRow(DisplayIcon icon, Component hint, int textColor) {
+    private static UIElement createObjectiveRow(DisplayIcon icon, Component hint, Component progress,
+                                                int textColor, QuestHudTheme theme) {
+        boolean charcoal = theme == QuestHudTheme.CHARCOAL;
         UIElement row = new UIElement();
+        row.addClass("tracked-quest-hud-row");
         row.layout(layout -> {
             layout.widthPercent(100);
-            layout.height(OBJECTIVE_ROW_HEIGHT);
+            layout.height(charcoal ? 16 : OBJECTIVE_ROW_HEIGHT);
             layout.flexDirection(FlexDirection.ROW);
             layout.alignItems(AlignItems.CENTER);
             layout.gapAll(2);
+            if (charcoal) layout.paddingHorizontal(2);
         });
+        if (charcoal) row.style(style -> style.backgroundTexture(new ColorRectTexture(0x49373330)));
 
-        Label text = label(FONT_BODY, textColor, true);
+        Label text = label(FONT_BODY, textColor, !charcoal);
         text.setText(hint == null ? Component.empty() : hint);
         text.layout(layout -> {
             layout.width(0);
@@ -179,6 +245,21 @@ public class TrackedQuestHud extends UIElement {
         });
 
         row.addChildren(createHudIcon(icon), text);
+        if (progress != null) {
+            Label count = new Label();
+            count.addClass("tracked-quest-hud-progress");
+            count.setAllowHitTest(false);
+            count.setText(progress);
+            count.layout(layout -> layout.minWidth(28).height(16));
+            count.textStyle(style -> style.fontSize(7.5f)
+                    .textColor(0xFFBCB8AC)
+                    .textShadow(true)
+                    .textWrap(TextWrap.HIDE)
+                    .adaptiveWidth(true)
+                    .textAlignHorizontal(Horizontal.RIGHT)
+                    .textAlignVertical(Vertical.CENTER));
+            row.addChild(count);
+        }
         return row;
     }
 
@@ -257,19 +338,16 @@ public class TrackedQuestHud extends UIElement {
 
     private static Label label(float fontSize, int color, boolean wrap) {
         Label label = new Label();
-        label.layout(layout -> {
-            layout.widthPercent(100);
-            layout.minHeightPercent(14);
-        });
+        label.layout(layout -> layout.widthPercent(100));
         label.textStyle(style -> {
             style.fontSize(fontSize)
                     .textColor(color)
                     .textShadow(true)
                     .textAlignHorizontal(Horizontal.LEFT)
-                    .textAlignVertical(Vertical.CENTER);
+                    .textAlignVertical(Vertical.CENTER)
+                    .textWrap(wrap ? TextWrap.WRAP : TextWrap.HIDE);
             if (wrap) {
-                style.textWrap(TextWrap.WRAP)
-                        .adaptiveHeight(true);
+                style.adaptiveHeight(true);
             }
         });
         return label;

@@ -750,9 +750,8 @@ public class QuestBookUI extends UIElement {
 
     private void reloadGlassQuestList() {
         List<QuestListGroup> groups = getQuestListGroups();
-        questListEmptyLabel.setDisplay(groups.isEmpty());
-        if (groups.isEmpty()) return;
         if (!selectedCategoryId.isEmpty()) {
+            questListEmptyLabel.setDisplay(groups.isEmpty());
             for (QuestListGroup group : groups) addGlassQuestGroup(questListView.viewContainer, group);
             return;
         }
@@ -763,9 +762,11 @@ public class QuestBookUI extends UIElement {
             QuestCategoryData category = categoryForQuest(group.quest);
             categorized.get(category == null ? "" : category.id).add(group);
         }
+        boolean hasVisibleCategory = false;
         for (var entry : categorized.entrySet()) {
-            if (entry.getValue().isEmpty()) continue;
             QuestCategoryData category = findCategory(entry.getKey());
+            if (entry.getValue().isEmpty() && (category == null || !category.showWhenEmpty)) continue;
+            hasVisibleCategory = true;
             Button heading = new Button().noText();
             heading.setId("quest_book_category_group_" + (category == null ? "uncategorized" : categoryIndex(category.id)));
             heading.addClass("quest-category-group");
@@ -791,7 +792,7 @@ public class QuestBookUI extends UIElement {
                 reloadQuestList();
             });
             questListView.addScrollViewChild(heading);
-            if (!collapsed) {
+            if (!collapsed && !entry.getValue().isEmpty()) {
                 UIElement contents = new UIElement();
                 contents.layout(layout -> layout.widthPercent(100).paddingLeft(2)
                         .flexDirection(FlexDirection.COLUMN).gapAll(0));
@@ -799,6 +800,7 @@ public class QuestBookUI extends UIElement {
                 questListView.addScrollViewChild(contents);
             }
         }
+        questListEmptyLabel.setDisplay(!hasVisibleCategory);
     }
 
     private void addGlassQuestGroup(UIElement parent, QuestListGroup group) {

@@ -11,8 +11,7 @@ import com.lowdragmc.lowdraglib2.gui.ui.style.PropertyRegistry;
 import com.lowdragmc.lowdraglib2.math.interpolate.Eases;
 import com.viscriptquests.ViScriptQuests;
 import com.viscriptquests.config.ClientConfig;
-import com.viscriptquests.config.QuestUiTheme;
-import com.viscriptquests.gui.theme.QuestTheme;
+import com.viscriptquests.config.QuestHudTheme;
 import com.viscriptquests.quest.data.DisplayIcon;
 import com.viscriptquests.quest.data.runtime.QuestCompletionToastData;
 import dev.vfyjxf.taffy.style.AlignItems;
@@ -50,6 +49,8 @@ public class QuestCompletionToastHud extends UIElement {
     private static final IGuiTexture BACKGROUND = GuiTextureGroup.of(
             new ColorRectTexture(0xD02A2A2A),
             new ColorBorderTexture(-1, 0x887A7A7A));
+    private static final IGuiTexture CHARCOAL_BACKGROUND = SDFRectTexture.of(0xE51B1C1F)
+            .setBorderColor(0xA0787060).setStroke(0.5f).setRadius(1);
 
     private static final Deque<QuestCompletionToastData> PENDING = new ConcurrentLinkedDeque<>();
 
@@ -59,8 +60,7 @@ public class QuestCompletionToastHud extends UIElement {
     private float lastY = Float.NaN;
     private double lastGuiScale = Double.NaN;
     private float contentScale = 1.0f;
-    private QuestTheme theme = QuestTheme.current();
-    private QuestUiTheme lastTheme = theme.type();
+    private QuestHudTheme theme = ClientConfig.QUEST_HUD_THEME.get();
 
     public QuestCompletionToastHud() {
         setAllowHitTest(false);
@@ -171,12 +171,11 @@ public class QuestCompletionToastHud extends UIElement {
     }
 
     private boolean updateTheme() {
-        QuestTheme current = QuestTheme.current();
-        if (current.type() == lastTheme) {
+        QuestHudTheme current = ClientConfig.QUEST_HUD_THEME.get();
+        if (current == theme) {
             return false;
         }
         theme = current;
-        lastTheme = current.type();
         return true;
     }
 
@@ -193,10 +192,11 @@ public class QuestCompletionToastHud extends UIElement {
                 .start());
     }
 
-    private static UIElement createToast(QuestCompletionToastData data, float contentScale, QuestTheme theme) {
+    private static UIElement createToast(QuestCompletionToastData data, float contentScale, QuestHudTheme theme) {
         UIElement card = new UIElement();
         card.setAllowHitTest(false);
-        card.style(style -> style.backgroundTexture(theme.isClassicBook() ? BACKGROUND : theme.hudBackground()));
+        card.style(style -> style.backgroundTexture(theme == QuestHudTheme.CHARCOAL
+                ? CHARCOAL_BACKGROUND : BACKGROUND));
         card.layout(layout -> {
             layout.widthPercent(100);
             layout.heightPercent(TOAST_HEIGHT_PERCENT);
@@ -237,11 +237,11 @@ public class QuestCompletionToastHud extends UIElement {
         });
 
         Label title = label(Component.literal(data.title == null ? "" : data.title),
-                FONT_TITLE, theme.hudText(), TITLE_HEIGHT);
+                FONT_TITLE, TEXT_TITLE, TITLE_HEIGHT);
         Label completed = label(Component.translatable(data.questCompletion
                 ? "viscript_quests.completion_toast.quest_completed"
                 : "viscript_quests.completion_toast.task_completed"),
-                FONT_COMPLETED, theme.hudAccent(), COMPLETED_HEIGHT);
+                FONT_COMPLETED, theme == QuestHudTheme.CHARCOAL ? 0xFFE5C272 : TEXT_COMPLETED, COMPLETED_HEIGHT);
         textColumn.addChildren(title, completed);
         content.addChildren(icon, textColumn);
         card.addChild(content);
