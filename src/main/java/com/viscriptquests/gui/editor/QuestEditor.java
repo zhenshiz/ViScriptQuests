@@ -15,6 +15,7 @@ import com.viscriptquests.ViScriptQuests;
 import com.viscriptquests.network.c2s.C2SPayload;
 import com.viscriptquests.quest.data.QuestFile;
 import com.viscriptquests.util.QuestFileHelper;
+import net.minecraft.client.Minecraft;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -42,7 +43,14 @@ public class QuestEditor extends ProjectFileEditor {
     }
 
     public static EditorWindow openWindow() {
-        return EditorWindow.open(EDITOR_ID, QuestEditor::new);
+        return EditorWindow.open(EDITOR_ID, QuestEditor::new).setGameWindowReopener(QuestEditor::requestMenu);
+    }
+
+    private static boolean requestMenu() {
+        var connection = Minecraft.getInstance().getConnection();
+        if (connection == null) return false;
+        connection.sendCommand(ViScriptQuests.MOD_ID + " editor");
+        return true;
     }
 
     @Override
